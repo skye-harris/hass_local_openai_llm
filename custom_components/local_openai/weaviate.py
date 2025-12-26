@@ -18,11 +18,16 @@ class WeaviateClient:
         self._host = host
         self._api_key = api_key
 
+    @staticmethod
+    def prepare_class_name(class_name: str) -> str:
+        """Prepare our class name for use with Weaviate."""
+        return class_name.lower().capitalize().replace(" ", "")
+
     async def near_text(
         self, class_name: str, query: str, threshold: float, limit: int
     ):
         """Query weaviate for vector similarity."""
-        class_name = class_name.lower().capitalize()
+        class_name = self.prepare_class_name(class_name)
         query_obj = {
             "query": f"""
             {{
@@ -63,7 +68,7 @@ class WeaviateClient:
 
     async def create_class(self, class_name: str):
         """Create our object class in Weaviate."""
-        class_name = class_name.lower().capitalize()
+        class_name = self.prepare_class_name(class_name)
 
         query_obj = {
             "class": class_name,
@@ -111,7 +116,7 @@ class WeaviateClient:
 
     async def does_class_exist(self, class_name: str) -> bool:
         """Check if an object class exists in Weaviate."""
-        class_name = class_name.lower().capitalize()
+        class_name = self.prepare_class_name(class_name)
 
         try:
             headers = {}

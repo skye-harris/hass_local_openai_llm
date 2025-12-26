@@ -53,7 +53,7 @@ from .weaviate import WeaviateClient, WeaviateError
 
 
 async def prepare_weaviate_class(hass, weaviate_opts: dict[str, Any]):
-    """Test if we can connect to the weaviate server."""
+    """Prepare our object class"""
     host = weaviate_opts.get(CONF_WEAVIATE_HOST)
     if not host:
         # Just pass if we dont have a weaviate host defined
@@ -114,10 +114,6 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                                 CONF_WEAVIATE_API_KEY,
                                 default="",
                             ): str,
-                            vol.Optional(
-                                CONF_WEAVIATE_CLASS_NAME,
-                                default=CONF_WEAVIATE_DEFAULT_CLASS_NAME,
-                            ): str,
                         }
                     ),
                     options={"collapsed": True},
@@ -146,7 +142,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 LOGGER.debug("Retrieving model list to ensure server is accessible")
                 await client.models.list()
 
-                # Test connectivity with Weaviate, and prepare our class if needed
+                # Test connectivity with Weaviate
                 await prepare_weaviate_class(
                     hass=self.hass,
                     weaviate_opts=user_input.get(CONF_WEAVIATE_OPTIONS, {}),
@@ -195,7 +191,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 LOGGER.debug("Retrieving model list to ensure server is accessible")
                 await client.models.list()
 
-                # Test connectivity with Weaviate, and prepare our class if needed
+                # Test connectivity with Weaviate
                 await prepare_weaviate_class(
                     hass=self.hass,
                     weaviate_opts=user_input.get(CONF_WEAVIATE_OPTIONS, {}),
@@ -321,7 +317,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                         schema={
                             vol.Optional(
                                 CONF_WEAVIATE_CLASS_NAME,
-                                default="",
+                                default=CONF_WEAVIATE_DEFAULT_CLASS_NAME,
                             ): str,
                             vol.Optional(
                                 CONF_WEAVIATE_MAX_RESULTS,
@@ -365,17 +361,10 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
 
             try:
-                weaviate_opts = (
-                    self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}).copy()
-                )
-                weaviate_input_opts = user_input.get(CONF_WEAVIATE_OPTIONS, {})
-                weaviate_opts[CONF_WEAVIATE_CLASS_NAME] = weaviate_input_opts.get(
-                    CONF_WEAVIATE_CLASS_NAME,
-                    weaviate_opts.get(
-                        CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
-                    ),
-                )
-
+                weaviate_opts = {
+                    **self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}),
+                    **user_input.get(CONF_WEAVIATE_OPTIONS, {}),
+                }
                 await prepare_weaviate_class(
                     hass=self.hass,
                     weaviate_opts=weaviate_opts,
@@ -405,17 +394,10 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 user_input.pop(CONF_LLM_HASS_API, None)
 
             try:
-                weaviate_opts = (
-                    self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}).copy()
-                )
-                weaviate_input_opts = user_input.get(CONF_WEAVIATE_OPTIONS, {})
-                weaviate_opts[CONF_WEAVIATE_CLASS_NAME] = weaviate_input_opts.get(
-                    CONF_WEAVIATE_CLASS_NAME,
-                    weaviate_opts.get(
-                        CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
-                    ),
-                )
-
+                weaviate_opts = {
+                    **self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}),
+                    **user_input.get(CONF_WEAVIATE_OPTIONS, {}),
+                }
                 await prepare_weaviate_class(
                     hass=self.hass,
                     weaviate_opts=weaviate_opts,

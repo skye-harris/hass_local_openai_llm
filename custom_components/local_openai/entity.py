@@ -334,12 +334,9 @@ class LocalAiEntity(Entity):
             weaviate_opts = options.get(CONF_WEAVIATE_OPTIONS, {})
             weaviate_server_opts = self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})
             weaviate_host = weaviate_server_opts.get(CONF_WEAVIATE_HOST)
-            weaviate_class = weaviate_opts.get(CONF_WEAVIATE_CLASS_NAME)
-
-            if not weaviate_class:
-                weaviate_class = weaviate_server_opts.get(
-                    CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
-                )
+            weaviate_class = weaviate_opts.get(
+                CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
+            )
 
             if weaviate_host:
                 client = WeaviateClient(

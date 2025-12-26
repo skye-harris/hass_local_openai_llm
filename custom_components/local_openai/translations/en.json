@@ -17,13 +17,11 @@
             "description": "Query a Weaviate vector database with user messages and augment the generation with semantically-similar results",
             "data": {
               "weaviate_host": "Weaviate server address",
-              "weaviate_api_key": "API key",
-              "weaviate_class_name": "Weaviate object class name"
+              "weaviate_api_key": "API key"
             },
             "data_description": {
               "weaviate_host": "Including protocol and port",
-              "weaviate_api_key": "Your API key, if authentication is required",
-              "weaviate_class_name": "Default class name to be used for your Agents"
+              "weaviate_api_key": "Your API key, if authentication is required"
             }
           }
         }
@@ -43,13 +41,11 @@
             "name": "Weaviate configuration",
             "data": {
               "weaviate_host": "Weaviate server address",
-              "weaviate_api_key": "API key",
-              "weaviate_class_name": "Weaviate object class name"
+              "weaviate_api_key": "API key"
             },
             "data_description": {
               "weaviate_host": "Including protocol and port",
-              "weaviate_api_key": "Your API key, if authentication is required",
-              "weaviate_class_name": "Default class name to be used for your Agents"
+              "weaviate_api_key": "Your API key, if authentication is required"
             }
           }
         }
@@ -95,7 +91,6 @@
                 "weaviate_threshold": "Result score threshold"
               },
               "data_description": {
-                "weaviate_class_name": "Leave blank to use the server default",
                 "weaviate_threshold": "Higher for stricter results"
               }
             }
@@ -128,7 +123,6 @@
                 "weaviate_threshold": "Result score threshold"
               },
               "data_description": {
-                "weaviate_class_name": "Leave blank to use the server default",
                 "weaviate_threshold": "Higher for stricter results"
               }
             }

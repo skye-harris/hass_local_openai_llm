@@ -82,10 +82,13 @@ Once configured, user messages to the Agent will be queried against the Weaviate
 1. Install Weaviate [locally](https://docs.weaviate.io/weaviate/quickstart/local)
    1. A pre-made `docker-compose.yml` is provided in the `weaviate` directory of this repository.
    2. Weaviate Cloud is not supported as there is no free tier available.
-2. 
-
-### Agent Configuration
-
+2. Reconfigure your LLM Server entity (**not** the Agent entity) in Home Assistant.
+   1. Expand the `Weaviate configuration` section and fill in the details server address and API key (`homeassistant` if using the supplied `docker-compose.yml`).
+3. Optional: Reconfigure your AI Agent entities in Home Assistant.
+   1. This is only needed if you wish to change the default Weaviate values on a per-agent basis:
+      1. Object class name: Defaults to `Homeassistant`, can be changed if you want a different data store for the Agent. The integration will handle creating the required object class within Weaviate if it does not already exist. 
+      2. Maximum number of results to use: Defaults to `2`.
+      3. Result score threshold: Defaults to `0.7`. Higher requires a closer semantic match, while loser is less strict.
 
 ### Notes
 
