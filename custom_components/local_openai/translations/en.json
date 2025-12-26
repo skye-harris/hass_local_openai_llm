@@ -139,11 +139,13 @@
         "user": "Add conversation agent"
       },
       "entry_type": "Conversation agent",
+      "error": {
+        "cannot_connect_weaviate": "Could not communicate with the Weaviate server"
+      },
       "abort": {
         "cannot_connect": "Could not communicate with the LLM server",
         "unknown": "An unknown error occurred",
-        "reconfigure_successful": "Conversation Agent has been reconfigured",
-        "cannot_connect_weaviate": "Could not communicate with the Weaviate server"
+        "reconfigure_successful": "Conversation Agent has been reconfigured"
       }
     },
     "ai_task_data": {
@@ -160,8 +162,7 @@
       "entry_type": "AI task",
       "abort": {
         "cannot_connect": "Could not communicate with the server",
-        "unknown": "An unknown error occurred",
-        "reconfigure_successful": "AI Task Agent has been reconfigured"
+        "unknown": "An unknown error occurred"
       }
     }
   }

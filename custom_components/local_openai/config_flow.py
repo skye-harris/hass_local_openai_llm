@@ -365,7 +365,9 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
 
             try:
-                weaviate_opts = self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {})
+                weaviate_opts = (
+                    self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}).copy()
+                )
                 weaviate_input_opts = user_input.get(CONF_WEAVIATE_OPTIONS, {})
                 weaviate_opts[CONF_WEAVIATE_CLASS_NAME] = weaviate_input_opts.get(
                     CONF_WEAVIATE_CLASS_NAME,
@@ -403,7 +405,9 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 user_input.pop(CONF_LLM_HASS_API, None)
 
             try:
-                weaviate_opts = self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {})
+                weaviate_opts = (
+                    self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}).copy()
+                )
                 weaviate_input_opts = user_input.get(CONF_WEAVIATE_OPTIONS, {})
                 weaviate_opts[CONF_WEAVIATE_CLASS_NAME] = weaviate_input_opts.get(
                     CONF_WEAVIATE_CLASS_NAME,
