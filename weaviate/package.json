@@ -1,0 +1,13 @@
+{
+    "name": "weaviate-local-admin",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "start": "node manage.js"
+    },
+    "dependencies": {
+        "express": "^4.19.2",
+        "node-fetch": "^3.3.2"
+    }
+}

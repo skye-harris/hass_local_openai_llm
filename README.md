@@ -73,18 +73,20 @@ After installation, configure the integration through Home Assistant's UI:
 - Parallel tool calling requires support from both your model and inference server.
   - In some cases, control of this is handled by the server directly, in which case toggling this will not have any result.
 
-## Retrieval Augmented Generation (RAG) with Weaviate
+## Experimental: Retrieval Augmented Generation (RAG) with Weaviate
 
 Retrieval Augmented Generation is used to pre-feed your LLM messages with related data to provide contextually relevant information to the model based on the user input message.
 
 This integration supports connecting your Agent to a Weaviate vector database server.
-Once configured, user messages to the Agent will be queried against the Weaviate database first, and the result data pre-emptively injected into the current conversation as contextual data for the Agent to utilise in their response. 
+Once configured, user messages to the Agent will be queried against the Weaviate database first, and the result data pre-emptively injected into the current conversation as contextual data for the Agent to utilise in their response.
+
+This is not a general-purpose "memory" for the Agent: content is only provided to the Agent if it matches on the current user input message to the model. 
 
 ### Weaviate Configuration
 
 1. **Install Weaviate [locally](https://docs.weaviate.io/weaviate/quickstart/local)**
    1. A pre-made `docker-compose.yml` is provided in the `weaviate` directory of this repository.
-   2. Weaviate Cloud is not supported as there is no free tier available.
+   2. Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive for personal/home use, and so I don't anticipate demand for this.
 2. **Reconfigure your LLM Server entity (**not** the Agent entity) in Home Assistant.**
    1. Expand the `Weaviate configuration` section and fill in the details server address and API key (`homeassistant` if using the supplied `docker-compose.yml`).
 3. **Optional: Reconfigure your AI Agent entities in Home Assistant.**
@@ -99,7 +101,7 @@ Once configured, user messages to the Agent will be queried against the Weaviate
 Self-hosted Weaviate does not come with a front-end to manage data at all at this current point in time.
 
 I have included a simple NodeJS-based WebApp server within the `/weaviate` directory of this repository, that can be used to connect to your local Weaviate instance and view, query, and manage the data in your object class.
-There are no additional dependencies required for this other than NodeJS itself, and can be run with a simple `node manage.js` command to spawn an HTTP server on port 9090.
+This is also setup into the supplied `docker-compose.yml` and exposed on port 9090 by default.
 
 This tool supports the following basic functionality:
 - Connect to your server and list the available object classes
@@ -117,7 +119,6 @@ _This is not a general-purpose Weaviate management tool, rather it is purpose-bu
   - The `query` is what is vectorised and the user inputs searched against.
   - The `content` is the main content to be provided to be fed to the LLM, along with its `query` text for context. 
 - Useful for providing contextual information to the LLM for different types of requests, without having all of it in your prompt at all times.
-- Should not be looked at as being a general purpose "memory" for the Agent.
 - I have performed basic testing of this with a variety of models across a few inference providers:
   - Qwen 3-VL 8B locally on llama.cpp
   - Minimax m2.1 on OpenRouter
@@ -127,9 +128,11 @@ _This is not a general-purpose Weaviate management tool, rather it is purpose-bu
   - Llama 3.1 8B on Scaleway
   - GPT-OSS-120B on Scaleway
 
-## Additional
+## Web Search & Additional Tools
 
 Looking to add some more functionality to your Home Assistant conversation agent, such as web and localised business/location search? Check out my [Tools for Assist](https://github.com/skye-harris/llm_intents) integration here!
+
+These tools exist as a separate integration for compatibility across the wider Home Assistant Conversation ecosystem.
 
 ## Acknowledgements
 

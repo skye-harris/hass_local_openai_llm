@@ -7,6 +7,8 @@ const PORT = 9090;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const defaultBaseUrl = process.argv[2] || '';
+
 async function weaviateFetch(base, path, apiKey, options = {}) {
   const res = await fetch(`${base}${path}`, {
     ...options,
@@ -348,7 +350,7 @@ const baseInput = document.getElementById('baseUrl');
 const objectClasses = document.getElementById("objectClass");
 const apiKeyInput = document.getElementById("apiKey");
 
-baseInput.value = localStorage.getItem('weaviateBase') || '';
+baseInput.value = "${defaultBaseUrl}" || localStorage.getItem('weaviateBase') || '';
 apiKeyInput.value = localStorage.getItem('weaviateApiKey') || '';
 
 baseInput.addEventListener('change', async () => {
