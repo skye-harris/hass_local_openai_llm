@@ -118,6 +118,14 @@ _This is not a general-purpose Weaviate management tool, rather it is purpose-bu
   - The `content` is the main content to be provided to be fed to the LLM, along with its `query` text for context. 
 - Useful for providing contextual information to the LLM for different types of requests, without having all of it in your prompt at all times.
 - Should not be looked at as being a general purpose "memory" for the Agent.
+- I have performed basic testing of this with a variety of models across a few inference providers:
+  - Qwen 3-VL 8B locally on llama.cpp
+  - Minimax m2.1 on OpenRouter
+  - Ministral 8B 2512 on OpenRouter
+  - GPT-5 on OpenRouter
+  - Gemma 3 27B on Scaleway
+  - Llama 3.1 8B on Scaleway
+  - GPT-OSS-120B on Scaleway
 
 ## Additional
 

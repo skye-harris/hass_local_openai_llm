@@ -340,7 +340,7 @@ class LocalAiEntity(Entity):
                 CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
             )
 
-            if weaviate_host:
+            if weaviate_host and user_input.text:
                 client = WeaviateClient(
                     hass=self.hass,
                     host=weaviate_host,
@@ -372,10 +372,9 @@ class LocalAiEntity(Entity):
                 ]
                 if result_content:
                     messages.append(
-                        ChatCompletionToolMessageParam(
-                            role="tool",
+                        ChatCompletionUserMessageParam(
+                            role="user",
                             content=f"# Retrieval Augmented Generation\nYou may use the following information to answer the user question, if appropriate.\nIgnore this if it does not relate to or answer the users query.\n\n{'\n'.join(result_content)}",
-                            tool_call_id="rag_result",
                         )
                     )
 
