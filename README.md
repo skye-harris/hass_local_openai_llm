@@ -80,13 +80,15 @@ Retrieval Augmented Generation is used to pre-feed your LLM messages with relate
 This integration supports connecting your Agent to a Weaviate vector database server.
 Once configured, user messages to the Agent will be queried against the Weaviate database first, and the result data pre-emptively injected into the current conversation as contextual data for the Agent to utilise in their response.
 
-This is not a general-purpose "memory" for the Agent: content is only provided to the Agent if it matches on the current user input message to the model. 
+This is not a general-purpose "memory" for the Agent: content is only provided to the Agent if it matches on the current user input message to the model.
+
+See the [Weaviate documentation](https://docs.weaviate.io/weaviate) for further information on Weaviate.
 
 ### Weaviate Configuration
 
 1. **Install Weaviate [locally](https://docs.weaviate.io/weaviate/quickstart/local)**
    1. A pre-made `docker-compose.yml` is provided in the `weaviate` directory of this repository.
-   2. Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive for personal/home use, and so I don't anticipate demand for this.
+   2. _Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive for personal/home use, and so I don't anticipate demand for this._
 2. **Reconfigure your LLM Server entity (**not** the Agent entity) in Home Assistant.**
    1. Expand the `Weaviate configuration` section and fill in the details server address and API key (`homeassistant` if using the supplied `docker-compose.yml`).
 3. **Optional: Reconfigure your AI Agent entities in Home Assistant.**
