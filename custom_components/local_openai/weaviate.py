@@ -1,6 +1,7 @@
 import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from datetime import datetime
 
 from custom_components.local_openai import LOGGER
 
@@ -98,11 +99,19 @@ class WeaviateClient:
             """
         }
         try:
+            start_time = datetime.now()
             async with self._aiohttp.post(
-                f"{self._host}/v1/graphql", json=query_obj, headers=self._api_headers()
+                url=f"{self._host}/v1/graphql",
+                json=query_obj,
+                headers=self._api_headers(),
             ) as resp:
                 resp.raise_for_status()
                 result = await resp.json()
+                time_diff = datetime.now() - start_time
+                millis = time_diff.microseconds / 1000
+
+                LOGGER.debug(f"Weaviate query took {millis} milliseconds")
+
                 results = result.get("data", {}).get("Get", {}).get(class_name, [])
                 return [
                     res
@@ -215,7 +224,9 @@ class WeaviateClient:
 
         try:
             async with self._aiohttp.post(
-                f"{self._host}/v1/objects", json=query_obj, headers=self._api_headers()
+                url=f"{self._host}/v1/objects",
+                json=query_obj,
+                headers=self._api_headers(),
             ) as resp:
                 resp.raise_for_status()
 
