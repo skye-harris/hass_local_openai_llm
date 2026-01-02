@@ -19,5 +19,5 @@
     "openai>=2.8.0",
     "demoji>=1.1.0"
   ],
-  "version": "1.2.0"
+  "version": "1.2.1"
 }
