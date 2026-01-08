@@ -18,7 +18,9 @@ async function weaviateFetch(base, path, apiKey, options = {}) {
       ...(options.headers || {}),
     },
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+  	throw new Error(await res.text());
+  }
   return res.json();
 }
 
@@ -81,6 +83,7 @@ app.post("/delete", async (req, res) => {
 });
 
 app.post("/search", async (req, res) => {
+	console.log(req.body)
   const gql =
     req.body.type === "hybrid"
       ? `{
@@ -88,14 +91,26 @@ app.post("/search", async (req, res) => {
             ${req.body.class}(
               hybrid: {
                 query: "${req.body.query}"
-                properties: ["query","content"]
+                properties: ["query"]
                 alpha: ${req.body.alpha}
+				bm25SearchOperator: {
+				  operator: Or
+				  minimumOrTokensMatch: 2
+				}
               }
               limit: 5
             ) {
               query
               content
-              _additional { score }
+              _additional {
+	              score
+				  rerank(
+					property: "query"
+					query: "Reorder the results so that the most relevant query is first, using the following request to guide you: ${req.body.query}"
+				  ) {
+					score
+				  }
+              }
             }
           }
         }`
@@ -106,7 +121,14 @@ app.post("/search", async (req, res) => {
               limit: 5
             ) {
               content
-              _additional { certainty }
+              _additional {
+              	certainty
+				  rerank(
+					property: "content"
+				  ) {
+					score
+				  }
+              }
             }
           }
         }`;
@@ -115,8 +137,13 @@ app.post("/search", async (req, res) => {
       method: "POST",
       body: JSON.stringify({ query: gql }),
     });
-    res.json(data.data.Get[req.body.class] ?? []);
+    console.log(JSON.stringify(data))
+    const results = data.data.Get[req.body.class] ?? []
+    console.log(results)
+    res.json(results);
   } catch (e) {
+    console.log(e)
+
     res.status(500).json({ error: e.message });
   }
 });
@@ -430,7 +457,7 @@ async function refreshClasses() {
   });
 
   if (!res.ok) {
-  	console.error(res)
+  	console.log(JSON.stringify(res))
   	return;
   }
 

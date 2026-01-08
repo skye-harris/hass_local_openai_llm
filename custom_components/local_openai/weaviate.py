@@ -86,6 +86,10 @@ class WeaviateClient:
                     query: "{query}",
                     properties: ["query"],
                     alpha: {alpha}
+                    bm25SearchOperator: {{
+                      operator: Or
+                      minimumOrTokensMatch: 2
+                    }}
                   }},
                   limit: {limit},
                 ) {{
@@ -93,6 +97,12 @@ class WeaviateClient:
                   content
                   _additional {{
                     score
+                    rerank(
+                      property: "query"
+                      query: "Reorder the results so that the most relevant query is first, using the following request to guide you: ${query}"
+                    ) {{
+                      score
+                    }}
                   }}
                 }}
               }}
@@ -130,6 +140,10 @@ class WeaviateClient:
         query_obj = {
             "class": class_name,
             "vectorizer": "text2vec-transformers",
+            "moduleConfig": {
+                "text2vec-transformers": {},
+                "reranker-transformers": {},
+            },
             "properties": [
                 {
                     "name": "query",
