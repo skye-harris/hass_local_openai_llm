@@ -64,14 +64,13 @@ from .weaviate import WeaviateClient
 MAX_TOOL_ITERATIONS = 10
 
 
-def _adjust_schema(schema: dict[str, Any]) -> None:
-    """Adjust the schema to be compatible with OpenRouter API."""
+def _adjust_tool_schema(schema: dict[str, Any]) -> None:
     # Handle allOf, anyOf, oneOf constructs by merging them into the parent schema
     # Some APIs don't support these constructs properly (eg: llama)
     for key in ("allOf", "anyOf", "oneOf"):
         if key in schema:
             for sub_schema in schema[key]:
-                _adjust_schema(sub_schema)
+                _adjust_tool_schema(sub_schema)
                 if "type" not in sub_schema:
                     for sub_key, sub_value in sub_schema.items():
                         if sub_key == "required" and sub_key in schema:
@@ -82,11 +81,9 @@ def _adjust_schema(schema: dict[str, Any]) -> None:
                             schema[sub_key] = sub_value
             del schema[key]
 
-    if "type" not in schema:
-        for invalid_key in ("required", "properties", "items"):
-            schema.pop(invalid_key, None)
-        return
 
+def _adjust_schema(schema: dict[str, Any]) -> None:
+    """Adjust the schema to be compatible with OpenRouter API."""
     if schema["type"] == "object":
         if "properties" not in schema:
             return
@@ -98,13 +95,7 @@ def _adjust_schema(schema: dict[str, Any]) -> None:
         for prop, prop_info in schema["properties"].items():
             _adjust_schema(prop_info)
             if prop not in schema["required"]:
-                if "type" in prop_info:
-                    prop_type = prop_info["type"]
-                    # Only wrap if not already nullable
-                    if prop_type != "null" and not (
-                        isinstance(prop_type, list) and "null" in prop_type
-                    ):
-                        prop_info["type"] = [prop_type, "null"]
+                prop_info["type"] = [prop_type, "null"]
                 schema["required"].append(prop)
 
     elif schema["type"] == "array":
@@ -141,7 +132,7 @@ def _format_tool(
 ) -> ChatCompletionFunctionToolParam:
     """Format tool specification."""
     parameters = convert(tool.parameters, custom_serializer=custom_serializer)
-    _adjust_schema(parameters)
+    _adjust_tool_schema(parameters)
     tool_spec = FunctionDefinition(
         name=tool.name,
         parameters=parameters,
@@ -272,7 +263,9 @@ async def _transform_stream(
                         "args": tool_call.function.arguments or "",
                     }
                 else:
-                    pending_tool_calls[tool_call_id]["args"] += tool_call.function.arguments or ""
+                    pending_tool_calls[tool_call_id]["args"] += (
+                        tool_call.function.arguments or ""
+                    )
 
         if choice.finish_reason and pending_tool_calls:
             chunk["tool_calls"] = [
@@ -283,7 +276,7 @@ async def _transform_stream(
                     if tool_call["args"]
                     else {},
                 )
-                for key,tool_call in pending_tool_calls.items()
+                for key, tool_call in pending_tool_calls.items()
             ]
 
             LOGGER.debug(f"Calling tools: {pending_tool_calls}")
