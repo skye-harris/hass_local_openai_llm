@@ -64,26 +64,15 @@ from .weaviate import WeaviateClient
 MAX_TOOL_ITERATIONS = 10
 
 
-def _adjust_tool_schema(schema: dict[str, Any]) -> None:
-    # Handle allOf, anyOf, oneOf constructs by merging them into the parent schema
-    # Some APIs don't support these constructs properly (eg: llama)
+def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
+    """Remove keys not supported in the tool schema"""
     for key in ("allOf", "anyOf", "oneOf"):
         if key in schema:
-            for sub_schema in schema[key]:
-                _adjust_tool_schema(sub_schema)
-                if "type" not in sub_schema:
-                    for sub_key, sub_value in sub_schema.items():
-                        if sub_key == "required" and sub_key in schema:
-                            schema[sub_key] = list(
-                                set(schema[sub_key]) | set(sub_value)
-                            )
-                        elif sub_key not in schema:
-                            schema[sub_key] = sub_value
             del schema[key]
 
 
 def _adjust_schema(schema: dict[str, Any]) -> None:
-    """Adjust the schema to be compatible with OpenRouter API."""
+    """Adjust the schema to be compatible with structured output requirements."""
     if schema["type"] == "object":
         if "properties" not in schema:
             return
@@ -95,7 +84,7 @@ def _adjust_schema(schema: dict[str, Any]) -> None:
         for prop, prop_info in schema["properties"].items():
             _adjust_schema(prop_info)
             if prop not in schema["required"]:
-                prop_info["type"] = [prop_type, "null"]
+                prop_info["type"] = [prop_info["type"], "null"]
                 schema["required"].append(prop)
 
     elif schema["type"] == "array":
@@ -108,7 +97,7 @@ def _adjust_schema(schema: dict[str, Any]) -> None:
 def _format_structured_output(
     name: str, schema: vol.Schema, llm_api: llm.APIInstance | None
 ) -> JSONSchema:
-    """Format the schema to be compatible with OpenRouter API."""
+    """Format the schema to be compatible with OpenAI API."""
     result: JSONSchema = {
         "name": name,
         "strict": True,
@@ -132,7 +121,8 @@ def _format_tool(
 ) -> ChatCompletionFunctionToolParam:
     """Format tool specification."""
     parameters = convert(tool.parameters, custom_serializer=custom_serializer)
-    _adjust_tool_schema(parameters)
+    _remove_unsupported_keys_from_tool_schema(parameters)
+
     tool_spec = FunctionDefinition(
         name=tool.name,
         parameters=parameters,
