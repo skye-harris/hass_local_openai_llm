@@ -64,8 +64,35 @@ from .weaviate import WeaviateClient
 MAX_TOOL_ITERATIONS = 10
 
 
+def _flatten_schema_constructs(schema: dict[str, Any]) -> None:
+    """Flatten allOf, anyOf, oneOf constructs by merging into parent schema.
+
+    Some APIs don't support these constructs properly (eg: llama).
+    """
+    for key in ("allOf", "anyOf", "oneOf"):
+        if key in schema:
+            for sub_schema in schema[key]:
+                _flatten_schema_constructs(sub_schema)
+                if "type" not in sub_schema:
+                    for sub_key, sub_value in sub_schema.items():
+                        if sub_key == "required" and sub_key in schema:
+                            schema[sub_key] = list(
+                                set(schema[sub_key]) | set(sub_value)
+                            )
+                        elif sub_key not in schema:
+                            schema[sub_key] = sub_value
+            del schema[key]
+
+    # Recursively process nested objects and arrays
+    if schema.get("type") == "object" and "properties" in schema:
+        for prop_info in schema["properties"].values():
+            _flatten_schema_constructs(prop_info)
+    elif schema.get("type") == "array" and "items" in schema:
+        _flatten_schema_constructs(schema["items"])
+
+
 def _adjust_schema(schema: dict[str, Any]) -> None:
-    """Adjust the schema to be compatible with OpenRouter API."""
+    """Adjust the schema to be compatible with structured output requirements."""
     if schema["type"] == "object":
         if "properties" not in schema:
             return
@@ -102,6 +129,7 @@ def _format_structured_output(
         ),
     )
 
+    _flatten_schema_constructs(result_schema)
     _adjust_schema(result_schema)
 
     result["schema"] = result_schema
@@ -113,9 +141,11 @@ def _format_tool(
     custom_serializer: Callable[[Any], Any] | None,
 ) -> ChatCompletionFunctionToolParam:
     """Format tool specification."""
+    parameters = convert(tool.parameters, custom_serializer=custom_serializer)
+    _flatten_schema_constructs(parameters)
     tool_spec = FunctionDefinition(
         name=tool.name,
-        parameters=convert(tool.parameters, custom_serializer=custom_serializer),
+        parameters=parameters,
     )
     tool_spec["description"] = (
         tool.description
@@ -402,15 +432,23 @@ class LocalAiEntity(Entity):
                 )
                 LOGGER.exception(err)
 
-        # Inject any pending content into the message list, before the current user message
-        if inject_content:
-            messages.insert(
-                -1,
-                ChatCompletionUserMessageParam(
-                    role="user",
-                    content="\n\n".join(inject_content),
-                ),
-            )
+        # Inject any pending content into the current user message
+        # We prepend to the last message to avoid creating consecutive user messages
+        # which would violate chat template role alternation requirements
+        if inject_content and messages and messages[-1].get("role") == "user":
+            last_msg_content = messages[-1].get("content", [])
+            if isinstance(last_msg_content, list):
+                last_msg_content.insert(
+                    0,
+                    ChatCompletionContentPartTextParam(
+                        type="text",
+                        text="\n\n".join(inject_content) + "\n\n",
+                    ),
+                )
+            elif isinstance(last_msg_content, str):
+                messages[-1]["content"] = (
+                    "\n\n".join(inject_content) + "\n\n" + last_msg_content
+                )
 
         model_args["messages"] = messages
 
