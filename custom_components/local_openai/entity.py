@@ -64,8 +64,15 @@ from .weaviate import WeaviateClient
 MAX_TOOL_ITERATIONS = 10
 
 
+def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
+    """Remove keys not supported in the tool schema"""
+    for key in ("allOf", "anyOf", "oneOf"):
+        if key in schema:
+            del schema[key]
+
+
 def _adjust_schema(schema: dict[str, Any]) -> None:
-    """Adjust the schema to be compatible with OpenRouter API."""
+    """Adjust the schema to be compatible with structured output requirements."""
     if schema["type"] == "object":
         if "properties" not in schema:
             return
@@ -90,7 +97,7 @@ def _adjust_schema(schema: dict[str, Any]) -> None:
 def _format_structured_output(
     name: str, schema: vol.Schema, llm_api: llm.APIInstance | None
 ) -> JSONSchema:
-    """Format the schema to be compatible with OpenRouter API."""
+    """Format the schema to be compatible with OpenAI API."""
     result: JSONSchema = {
         "name": name,
         "strict": True,
@@ -113,9 +120,12 @@ def _format_tool(
     custom_serializer: Callable[[Any], Any] | None,
 ) -> ChatCompletionFunctionToolParam:
     """Format tool specification."""
+    parameters = convert(tool.parameters, custom_serializer=custom_serializer)
+    _remove_unsupported_keys_from_tool_schema(parameters)
+
     tool_spec = FunctionDefinition(
         name=tool.name,
-        parameters=convert(tool.parameters, custom_serializer=custom_serializer),
+        parameters=parameters,
     )
     tool_spec["description"] = (
         tool.description
@@ -243,7 +253,9 @@ async def _transform_stream(
                         "args": tool_call.function.arguments or "",
                     }
                 else:
-                    pending_tool_calls[tool_call_id]["args"] += tool_call.function.arguments or ""
+                    pending_tool_calls[tool_call_id]["args"] += (
+                        tool_call.function.arguments or ""
+                    )
 
         if choice.finish_reason and pending_tool_calls:
             chunk["tool_calls"] = [
@@ -254,7 +266,7 @@ async def _transform_stream(
                     if tool_call["args"]
                     else {},
                 )
-                for key,tool_call in pending_tool_calls.items()
+                for key, tool_call in pending_tool_calls.items()
             ]
 
             LOGGER.debug(f"Calling tools: {pending_tool_calls}")
@@ -402,15 +414,23 @@ class LocalAiEntity(Entity):
                 )
                 LOGGER.exception(err)
 
-        # Inject any pending content into the message list, before the current user message
-        if inject_content:
-            messages.insert(
-                -1,
-                ChatCompletionUserMessageParam(
-                    role="user",
-                    content="\n\n".join(inject_content),
-                ),
-            )
+        # Inject any pending content into the current user message
+        # We prepend to the last message to avoid creating consecutive user messages
+        # which would violate chat template role alternation requirements
+        if inject_content and messages and messages[-1].get("role") == "user":
+            last_msg_content = messages[-1].get("content", [])
+            if isinstance(last_msg_content, list):
+                last_msg_content.insert(
+                    0,
+                    ChatCompletionContentPartTextParam(
+                        type="text",
+                        text="\n\n".join(inject_content) + "\n\n",
+                    ),
+                )
+            elif isinstance(last_msg_content, str):
+                messages[-1]["content"] = (
+                    "\n\n".join(inject_content) + "\n\n" + last_msg_content
+                )
 
         model_args["messages"] = messages
 
