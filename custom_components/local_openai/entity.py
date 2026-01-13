@@ -358,7 +358,7 @@ class LocalAiEntity(Entity):
         # Home Assistant no longer injects the current date/time into the system prompt, for performance reasons (negatively impacts caching)
         # It's still useful context to have however, and we can inject this at the end of the message chain along with any RAG content queried
         dt = datetime.now()
-        date_str = dt.strftime("%d %B, %Y")
+        date_str = dt.strftime("%A %d %B, %Y")
         time_str = dt.strftime("%-I:%M %p")
 
         inject_content = [
