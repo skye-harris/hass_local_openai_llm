@@ -26,6 +26,7 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     TemplateSelector,
+    SelectSelectorMode,
 )
 from openai import AsyncOpenAI, OpenAIError
 
@@ -51,6 +52,8 @@ from .const import (
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
+    CONF_CONTENT_INJECTION_METHODS,
+    CONF_CONTENT_INJECTION_METHOD,
 )
 from .weaviate import WeaviateClient, WeaviateError
 
@@ -309,6 +312,14 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                     max=50,
                     step=1,
                     mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_CONTENT_INJECTION_METHOD,
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    mode=SelectSelectorMode.DROPDOWN,
+                    options=CONF_CONTENT_INJECTION_METHODS,
                 )
             ),
         }

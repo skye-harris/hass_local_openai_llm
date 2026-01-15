@@ -1,0 +1,69 @@
+name: Report a bug with Local OpenAI LLM
+description: Report a bug with Local OpenAI LLM integration for Home Assistant
+labels: [bug]
+body:
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      description: Please verify that you've followed these steps
+      options:
+        - label: I have updated to the latest available Local OpenAI LLM version, [see the latest version here](https://github.com/skye-harris/hass_local_openai_llm/releases/latest).
+          required: true
+  - type: markdown
+    attributes:
+      value: |
+        ## The problem
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Describe the issue you are experiencing
+      description: Provide a clear and concise description of what the bug is.
+  - type: markdown
+    attributes:
+      value: |
+        ## Environment
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: In which version of Home Assistant Core do you have the problem?
+      placeholder: core-
+      description: >
+        Can be found in: [Settings -> About](https://my.home-assistant.io/redirect/info/).
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: What version of Local OpenAI LLM has the issue?
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: What inference server are you using, and its version. If using a cloud provider, which provider is this?
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: What LLM model (including quantisation, if known) are you using?
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Logs file
+      placeholder: "drag-and-drop the logs file here (do not copy-and-paste the content)"
+      description: >-
+        Debug log files help you track and understand your issue, please attach them here.
+        
+        Please, you can follow the steps below:
+          * [Enable integration debugging](https://www.home-assistant.io/docs/configuration/troubleshooting/#enabling-debug-logging).
+          * Perform the request or function that produces the error.
+          * [Disable integration debugging and download the generated log file](https://www.home-assistant.io/docs/configuration/troubleshooting/#disable-debug-logging-and-download-logs).
+          * Attach the generated log file here.
+  - type: textarea
+    attributes:
+      label: Additional information
+      description: >
+        If you have any additional information for us, use the field below.
+        Please note, you can attach screenshots or screen recordings here, by
+        dragging and dropping files in the field below.
