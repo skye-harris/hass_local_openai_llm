@@ -43,6 +43,7 @@ from .const import (
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
+    CONF_DISABLE_THINKING,
     CONF_TEMPERATURE,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_CLASS_NAME,
@@ -369,6 +370,7 @@ class LocalAiEntity(Entity):
         max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY, 0)
         temperature = options.get(CONF_TEMPERATURE, 0.6)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
+        disable_thinking = options.get(CONF_DISABLE_THINKING)
 
         model_args = {
             "model": self.model,
@@ -477,6 +479,9 @@ class LocalAiEntity(Entity):
             model_args["tools"] = tools
 
         model_args["messages"] = messages
+
+        if disable_thinking:
+            model_args["extra_body"] = {"chat_template_kwargs":{"enable_thinking": False}}
 
         if structure:
             if TYPE_CHECKING:
