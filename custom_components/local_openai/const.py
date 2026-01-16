@@ -15,6 +15,7 @@ CONF_STRIP_EMOJIS = "strip_emojis"
 CONF_MAX_MESSAGE_HISTORY = "max_message_history"
 CONF_TEMPERATURE = "temperature"
 CONF_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
+CONF_DISABLE_THINKING = "disable_thinking"
 
 CONF_CONTENT_INJECTION_METHOD_SYSTEM = "System"
 CONF_CONTENT_INJECTION_METHOD_ASSISTANT = "Assistant"
