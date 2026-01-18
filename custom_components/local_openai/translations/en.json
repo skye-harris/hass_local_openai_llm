@@ -82,6 +82,7 @@
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
+            "disable_user_param": "Disable user parameters in requests to the model (required for some models or providers, such as Mistral)",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
           },
           "sections": {

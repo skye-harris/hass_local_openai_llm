@@ -44,6 +44,7 @@ from .const import (
     CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
+    CONF_DISABLE_USER_PARAM,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_CLASS_NAME,
     CONF_WEAVIATE_DEFAULT_CLASS_NAME,
@@ -369,13 +370,16 @@ class LocalAiEntity(Entity):
         max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY, 0)
         temperature = options.get(CONF_TEMPERATURE, 0.6)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
+        disable_user_param = options.get(CONF_DISABLE_USER_PARAM, False)
 
         model_args = {
             "model": self.model,
-            "user": chat_log.conversation_id,
             "temperature": temperature,
             "parallel_tool_calls": parallel_tool_calls,
         }
+
+        if not disable_user_param:
+            model_args.update({"user": chat_log.conversation_id})
 
         tools: list[ChatCompletionFunctionToolParam] | None = None
         if chat_log.llm_api:

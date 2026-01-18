@@ -296,6 +296,10 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 default=False,
             ): bool,
             vol.Optional(
+                CONF_DISABLE_USER_PARAM,
+                default=False,
+            ): bool,
+            vol.Optional(
                 CONF_TEMPERATURE,
                 default=0.6,
             ): NumberSelector(

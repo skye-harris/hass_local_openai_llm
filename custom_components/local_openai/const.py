@@ -14,6 +14,7 @@ CONF_SERVER_NAME = "server_name"
 CONF_STRIP_EMOJIS = "strip_emojis"
 CONF_MAX_MESSAGE_HISTORY = "max_message_history"
 CONF_TEMPERATURE = "temperature"
+CONF_DISABLE_USER_PARAM = "disable_user_param"
 CONF_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
 
 CONF_CONTENT_INJECTION_METHOD_SYSTEM = "System"
