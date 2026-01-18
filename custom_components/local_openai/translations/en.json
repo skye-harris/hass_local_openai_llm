@@ -73,6 +73,7 @@
             "strip_emojis": "Strip emojis from response",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
+            "disable_user_param": "Disable `user` parameters",
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
             "content_injection_method": "Date/Time context injection role"
@@ -82,7 +83,7 @@
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
-            "disable_user_param": "Disable user parameters in requests to the model (required for some models or providers, such as Mistral)",
+            "disable_user_param": "Leave unchecked if everything is working. Required for some models or providers (such as Mistral)",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
           },
           "sections": {
@@ -110,6 +111,8 @@
             "strip_emojis": "Strip emojis from response",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
+            "disable_user_param": "Disable `user` parameters",
+
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
             "content_injection_method": "Date/Time context injection role"
@@ -119,7 +122,7 @@
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
-            "disable_user_param": "Disable user parameters in requests to the model (required for some models or providers, such as Mistral)",
+            "disable_user_param": "Leave unchecked if everything is working. Required for some models or providers (such as Mistral)",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details."
           },
           "sections": {
