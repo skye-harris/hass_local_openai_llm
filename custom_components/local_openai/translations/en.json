@@ -73,7 +73,7 @@
             "strip_emojis": "Strip emojis from response",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
-            "disable_user_param": "Disable `user` parameters",
+            "disable_user_param": "Disable `user` parameter",
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
             "content_injection_method": "Date/Time context injection role"
@@ -111,7 +111,7 @@
             "strip_emojis": "Strip emojis from response",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
-            "disable_user_param": "Disable `user` parameters",
+            "disable_user_param": "Disable `user` parameter",
 
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
