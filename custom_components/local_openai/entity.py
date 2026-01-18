@@ -379,7 +379,7 @@ class LocalAiEntity(Entity):
         }
 
         if not disable_user_param:
-            model_args.update({"user": chat_log.conversation_id})
+            model_args["user"] = chat_log.conversation_id
 
         tools: list[ChatCompletionFunctionToolParam] | None = None
         if chat_log.llm_api:
