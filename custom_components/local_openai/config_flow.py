@@ -36,6 +36,7 @@ from .const import (
     CONF_PARALLEL_TOOL_CALLS,
     CONF_SERVER_NAME,
     CONF_STRIP_EMOJIS,
+    CONF_DISABLE_THINKING,
     CONF_TEMPERATURE,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_CLASS_NAME,
@@ -293,6 +294,10 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             ): bool,
             vol.Optional(
                 CONF_STRIP_EMOJIS,
+                default=False,
+            ): bool,
+            vol.Optional(
+                CONF_DISABLE_THINKING,
                 default=False,
             ): bool,
             vol.Optional(
