@@ -43,7 +43,7 @@ from .const import (
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
-    CONF_DISABLE_THINKING,
+    CONF_ENABLE_THINKING,
     CONF_TEMPERATURE,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_CLASS_NAME,
@@ -150,10 +150,14 @@ async def _convert_content_to_chat_message(
 ) -> ChatCompletionMessageParam | None:
     """Convert any native chat message for this agent to the native format."""
     if isinstance(content, conversation.ToolResultContent):
+        def log_and_str(value) -> str:
+            LOGGER.warning(f"Attempting string convertion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}")
+            return str(value)
+
         return ChatCompletionToolMessageParam(
             role="tool",
             tool_call_id=content.tool_call_id,
-            content=json.dumps(content.tool_result),
+            content=json.dumps(content.tool_result, default=log_and_str),
         )
 
     role: Literal["user", "assistant", "system"] = content.role
@@ -370,7 +374,7 @@ class LocalAiEntity(Entity):
         max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY, 0)
         temperature = options.get(CONF_TEMPERATURE, 0.6)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
-        disable_thinking = options.get(CONF_DISABLE_THINKING)
+        enable_thinking = options.get(CONF_ENABLE_THINKING)
 
         model_args = {
             "model": self.model,
@@ -479,8 +483,15 @@ class LocalAiEntity(Entity):
 
         model_args["messages"] = messages
 
-        if disable_thinking:
-            model_args["extra_body"] = {"chat_template_kwargs":{"enable_thinking": False}}
+        # this is a string (config thing from voluptuous), so a truey check is fine
+        if enable_thinking:
+            thinking_val = True if enable_thinking == "true" else False
+            LOGGER.debug(f"Adding `chat_template_kwargs` to payload with `enable_thinking` set to {enable_thinking}")
+            model_args["extra_body"] = {
+                "chat_template_kwargs": {
+                    "enable_thinking": thinking_val
+                }
+            }
 
         if structure:
             if TYPE_CHECKING:
