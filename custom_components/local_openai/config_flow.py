@@ -15,28 +15,32 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_API_KEY, CONF_LLM_HASS_API, CONF_MODEL, CONF_PROMPT
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import section
+from homeassistant.data_entry_flow import SectionConfig, section
 from homeassistant.helpers import llm
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    ObjectSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
-    TemplateSelector,
     SelectSelectorMode,
+    TemplateSelector,
 )
 from openai import AsyncOpenAI, OpenAIError
 
 from .const import (
     CONF_BASE_URL,
+    CONF_CHAT_TEMPLATE_KWARGS,
+    CONF_CHAT_TEMPLATE_OPTS,
+    CONF_CONTENT_INJECTION_METHOD,
+    CONF_CONTENT_INJECTION_METHODS,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_SERVER_NAME,
     CONF_STRIP_EMOJIS,
-    CONF_ENABLE_THINKING,
     CONF_TEMPERATURE,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_CLASS_NAME,
@@ -53,8 +57,6 @@ from .const import (
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
-    CONF_CONTENT_INJECTION_METHODS,
-    CONF_CONTENT_INJECTION_METHOD,
 )
 from .weaviate import WeaviateClient, WeaviateError
 
@@ -274,69 +276,81 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             LOGGER.exception(f"Unexpected exception retrieving models list: {err}")
             downloaded_models = []
 
-        schema = {
-            vol.Required(
-                CONF_MODEL,
-            ): SelectSelector(
-                SelectSelectorConfig(options=downloaded_models, custom_value=True)
-            ),
-            vol.Optional(
-                CONF_PROMPT,
-                default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_PROMPT],
-            ): TemplateSelector(),
-            vol.Optional(
-                CONF_LLM_HASS_API,
-                default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_LLM_HASS_API],
-            ): SelectSelector(SelectSelectorConfig(options=llm_apis, multiple=True)),
-            vol.Required(
-                CONF_PARALLEL_TOOL_CALLS,
-                default=True,
-            ): bool,
-            vol.Required(
-                CONF_STRIP_EMOJIS,
-                default=False,
-            ): bool,
-            vol.Optional(
-                CONF_ENABLE_THINKING,
-                default=False,
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    mode=SelectSelectorMode.DROPDOWN,
-                    options=[
-                        SelectOptionDict(value="true", label="On"),
-                        SelectOptionDict(value="false", label="Off")
-                    ],
-                )
-            ),
-            vol.Required(
-                CONF_TEMPERATURE,
-                default=0.6,
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=0, max=1, step=0.01, mode=NumberSelectorMode.BOX
-                )
-            ),
-            vol.Optional(
-                CONF_MAX_MESSAGE_HISTORY,
-                default=0,
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=0,
-                    max=50,
-                    step=1,
-                    mode=NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Optional(
-                CONF_CONTENT_INJECTION_METHOD,
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    mode=SelectSelectorMode.DROPDOWN,
-                    options=CONF_CONTENT_INJECTION_METHODS,
-                )
-            ),
-        }
         if entry.data.get(CONF_WEAVIATE_OPTIONS, {}).get(CONF_WEAVIATE_HOST):
+            schema = {
+                vol.Required(
+                    CONF_MODEL,
+                ): SelectSelector(
+                    SelectSelectorConfig(options=downloaded_models, custom_value=True)
+                ),
+                vol.Optional(
+                    CONF_PROMPT,
+                    default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_PROMPT],
+                ): TemplateSelector(),
+                vol.Optional(
+                    CONF_LLM_HASS_API,
+                    default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_LLM_HASS_API],
+                ): SelectSelector(
+                    SelectSelectorConfig(options=llm_apis, multiple=True)
+                ),
+                vol.Required(
+                    CONF_PARALLEL_TOOL_CALLS,
+                    default=True,
+                ): bool,
+                vol.Required(
+                    CONF_STRIP_EMOJIS,
+                    default=False,
+                ): bool,
+                vol.Required(
+                    CONF_TEMPERATURE,
+                    default=0.6,
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=1, step=0.01, mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Optional(
+                    CONF_MAX_MESSAGE_HISTORY,
+                    default=0,
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0,
+                        max=50,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_CONTENT_INJECTION_METHOD,
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        mode=SelectSelectorMode.DROPDOWN,
+                        options=CONF_CONTENT_INJECTION_METHODS,
+                    )
+                ),
+                vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
+                    options=SectionConfig(collapsed=True),
+                    schema=vol.Schema(
+                        schema={
+                            vol.Required(CONF_CHAT_TEMPLATE_KWARGS): ObjectSelector(
+                                config={
+                                    "multiple": True,
+                                    "fields": {
+                                        "Name": {
+                                            "selector": {"text": None},
+                                            "required": True,
+                                        },
+                                        "Value": {
+                                            "selector": {"template": None},
+                                            "required": True,
+                                        },
+                                    },
+                                }
+                            ),
+                        }
+                    ),
+                ),
+            }
             schema = {
                 **schema,
                 vol.Optional(CONF_WEAVIATE_OPTIONS): section(
@@ -381,7 +395,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                             ),
                         }
                     ),
-                    options={"collapsed": True},
+                    options=SectionConfig(collapsed=True),
                 ),
             }
 

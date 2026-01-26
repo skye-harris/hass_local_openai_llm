@@ -7,8 +7,8 @@ import base64
 import json
 import uuid
 from collections.abc import AsyncGenerator, Callable
-from typing import TYPE_CHECKING, Any, Literal
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Literal
 
 import demoji
 import openai
@@ -18,7 +18,7 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import llm
+from homeassistant.helpers import llm, template
 from homeassistant.helpers.entity import Entity
 from openai._streaming import AsyncStream
 from openai.types.chat import (
@@ -40,10 +40,15 @@ from voluptuous_openapi import convert
 
 from . import LocalAiConfigEntry
 from .const import (
+    CONF_CHAT_TEMPLATE_KWARGS,
+    CONF_CHAT_TEMPLATE_OPTS,
+    CONF_CONTENT_INJECTION_METHOD,
+    CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
+    CONF_CONTENT_INJECTION_METHOD_TOOL,
+    CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
-    CONF_ENABLE_THINKING,
     CONF_TEMPERATURE,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_CLASS_NAME,
@@ -58,10 +63,6 @@ from .const import (
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
     LOGGER,
-    CONF_CONTENT_INJECTION_METHOD,
-    CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
-    CONF_CONTENT_INJECTION_METHOD_USER,
-    CONF_CONTENT_INJECTION_METHOD_TOOL,
 )
 from .weaviate import WeaviateClient
 
@@ -72,8 +73,7 @@ MAX_TOOL_ITERATIONS = 10
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
     """Remove keys not supported in the tool schema"""
     for key in ("allOf", "anyOf", "oneOf"):
-        if key in schema:
-            del schema[key]
+        schema.pop(key, None)
 
 
 def _adjust_schema(schema: dict[str, Any]) -> None:
@@ -150,8 +150,11 @@ async def _convert_content_to_chat_message(
 ) -> ChatCompletionMessageParam | None:
     """Convert any native chat message for this agent to the native format."""
     if isinstance(content, conversation.ToolResultContent):
+
         def log_and_str(value) -> str:
-            LOGGER.warning(f"Attempting string convertion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}")
+            LOGGER.warning(
+                f"Attempting string convertion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}"
+            )
             return str(value)
 
         return ChatCompletionToolMessageParam(
@@ -374,7 +377,6 @@ class LocalAiEntity(Entity):
         max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY, 0)
         temperature = options.get(CONF_TEMPERATURE, 0.6)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
-        enable_thinking = options.get(CONF_ENABLE_THINKING)
 
         model_args = {
             "model": self.model,
@@ -477,21 +479,31 @@ class LocalAiEntity(Entity):
                     for tool in tools
                     if not tool["function"]["name"].endswith("GetDateTime")
                 ]
+        model_args["messages"] = messages
 
         if tools:
             model_args["tools"] = tools
 
-        model_args["messages"] = messages
+        chat_template_opts = options.get(CONF_CHAT_TEMPLATE_OPTS, {})
+        chat_template_args = chat_template_opts.get(CONF_CHAT_TEMPLATE_KWARGS, [])
 
-        # this is a string (config thing from voluptuous), so a truey check is fine
-        if enable_thinking:
-            thinking_val = True if enable_thinking == "true" else False
-            LOGGER.debug(f"Adding `chat_template_kwargs` to payload with `enable_thinking` set to {enable_thinking}")
-            model_args["extra_body"] = {
-                "chat_template_kwargs": {
-                    "enable_thinking": thinking_val
-                }
-            }
+        # Filter args without a name - they are marked as required in the schema but this isn't being enforced on the front-end
+        chat_template_args = [
+            keypair for keypair in chat_template_args if keypair["Name"].strip()
+        ]
+
+        if chat_template_args:
+            kwargs = {}
+            for keypair in chat_template_args:
+                if keypair["Name"]:
+                    # Our value is a template, so that non-string data types and more complex structures can be provided by the user
+                    kwargs[keypair["Name"]] = template.Template(
+                        keypair["Value"],
+                        self.hass,
+                    ).async_render()
+
+            LOGGER.debug(f"Chat template kwargs: {kwargs}")
+            model_args["extra_body"] = {"chat_template_kwargs": kwargs}
 
         if structure:
             if TYPE_CHECKING:

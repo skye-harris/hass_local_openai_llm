@@ -71,7 +71,6 @@
             "prompt": "System Prompt",
             "llm_hass_api": "Tool Providers",
             "strip_emojis": "Strip emojis from response",
-            "enable_thinking": "Enable thinking",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
             "max_message_history": "Max message history size (0 for no limit)",
@@ -82,11 +81,16 @@
             "model": "The model to use for the conversation agent",
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
-            "enable_thinking": "Requires an LLM that supports thinking control",
             "temperature": "Lower for more predictable responses, higher for more randomness",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
           },
           "sections": {
+            "chat_template_opts": {
+              "name": "Chat Template Arguments",
+              "data": {
+                "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {
@@ -109,7 +113,6 @@
             "prompt": "System Prompt",
             "llm_hass_api": "Tool Providers",
             "strip_emojis": "Strip emojis from response",
-            "enable_thinking": "Enable thinking",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
             "max_message_history": "Max message history size (0 for no limit)",
@@ -120,11 +123,16 @@
             "model": "The model to use for the conversation agent",
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
-            "enable_thinking": "Requires an LLM that supports thinking control",
             "temperature": "Lower for more predictable responses, higher for more randomness",
-            "content_injection_method": "The message role to insert dynamic content as. See the readme for details."
+            "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
           },
           "sections": {
+            "chat_template_opts": {
+              "name": "Chat Template Arguments",
+              "data": {
+                "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {

@@ -23,6 +23,7 @@
 - Added option to strip emojis from responses
 - Added support for parallel tool calling
 - Added experimental Retrieval Augmented Generation capability
+- Added chat template arguments support
 
 ---
 
@@ -74,6 +75,11 @@ After installation, configure the integration through Home Assistant's UI:
     - **llama.cpp**: https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md
 - Parallel tool calling requires support from both your model and inference server.
     - In some cases, control of this is handled by the server directly, in which case toggling this will not have any result.
+- Chat Template Arguments allow you to provide custom arguments to your model
+    - Arguments are supplied as key/value pairs and provided to the `chat_template_kwargs` request parameter
+    - Values support Jinja2 templates, in order to provide non-string and more complex data structures
+    - Arguments differ per model, and not all models make use of user-provided arguments
+    - See your models documentation for what arguments are available to be used
 
 ### Experimental: Date/Time Context Injection Role
 
