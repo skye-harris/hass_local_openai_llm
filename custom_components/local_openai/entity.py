@@ -237,6 +237,7 @@ async def _transform_stream(
     loop = asyncio.get_running_loop()
     pending_tool_calls = {}
     tool_call_id = None
+    tool_call_name = None
 
     async for event in stream:
         chunk: conversation.AssistantContentDeltaDict = {}
@@ -259,13 +260,22 @@ async def _transform_stream(
                 # Ollama - parallel tool calls all share the same .index value (0)
                 tool_call_id = tool_call.id if tool_call.id else tool_call_id
 
-                if tool_call_id not in pending_tool_calls:
-                    pending_tool_calls[tool_call_id] = {
+                # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
+                tool_call_name = (
+                    tool_call.function.name
+                    if tool_call.function.name
+                    and tool_call.function.name != tool_call_name
+                    else tool_call_name
+                )
+                tool_key = tool_call_id + tool_call_name
+
+                if tool_key not in pending_tool_calls:
+                    pending_tool_calls[tool_key] = {
                         "name": tool_call.function.name,
                         "args": tool_call.function.arguments or "",
                     }
                 else:
-                    pending_tool_calls[tool_call_id]["args"] += (
+                    pending_tool_calls[tool_key]["args"] += (
                         tool_call.function.arguments or ""
                     )
 
@@ -283,6 +293,8 @@ async def _transform_stream(
 
             LOGGER.debug(f"Calling tools: {pending_tool_calls}")
             pending_tool_calls = {}
+            tool_call_id = None
+            tool_call_name = None
 
         if (content := delta.content) is not None:
             if strip_emojis:
