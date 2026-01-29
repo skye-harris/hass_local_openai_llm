@@ -276,83 +276,84 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             LOGGER.exception(f"Unexpected exception retrieving models list: {err}")
             downloaded_models = []
 
-        if entry.data.get(CONF_WEAVIATE_OPTIONS, {}).get(CONF_WEAVIATE_HOST):
-            schema = {
-                vol.Required(
-                    CONF_MODEL,
-                ): SelectSelector(
-                    SelectSelectorConfig(options=downloaded_models, custom_value=True)
-                ),
-                vol.Optional(
-                    CONF_PROMPT,
-                    default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_PROMPT],
-                ): TemplateSelector(),
-                vol.Optional(
-                    CONF_LLM_HASS_API,
-                    default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_LLM_HASS_API],
-                ): SelectSelector(
-                    SelectSelectorConfig(options=llm_apis, multiple=True)
-                ),
-                vol.Required(
-                    CONF_PARALLEL_TOOL_CALLS,
-                    default=True,
-                ): bool,
-                vol.Required(
-                    CONF_STRIP_EMOJIS,
-                    default=False,
-                ): bool,
-                vol.Required(
-                    CONF_TEMPERATURE,
-                    default=0.6,
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=0, max=1, step=0.01, mode=NumberSelectorMode.BOX
-                    )
-                ),
-                vol.Optional(
-                    CONF_MAX_MESSAGE_HISTORY,
-                    default=0,
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=0,
-                        max=50,
-                        step=1,
-                        mode=NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Optional(
-                    CONF_CONTENT_INJECTION_METHOD,
-                ): SelectSelector(
-                    SelectSelectorConfig(
-                        mode=SelectSelectorMode.DROPDOWN,
-                        options=CONF_CONTENT_INJECTION_METHODS,
-                    )
-                ),
-                vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
-                    options=SectionConfig(collapsed=True),
-                    schema=vol.Schema(
-                        schema={
-                            vol.Required(
-                                CONF_CHAT_TEMPLATE_KWARGS, default=[]
-                            ): ObjectSelector(
-                                config={
-                                    "multiple": True,
-                                    "fields": {
-                                        "Name": {
-                                            "selector": {"text": None},
-                                            "required": True,
-                                        },
-                                        "Value": {
-                                            "selector": {"template": None},
-                                            "required": True,
-                                        },
+        schema = {
+            vol.Required(
+                CONF_MODEL,
+            ): SelectSelector(
+                SelectSelectorConfig(options=downloaded_models, custom_value=True)
+            ),
+            vol.Optional(
+                CONF_PROMPT,
+                default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_PROMPT],
+            ): TemplateSelector(),
+            vol.Optional(
+                CONF_LLM_HASS_API,
+                default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_LLM_HASS_API],
+            ): SelectSelector(
+                SelectSelectorConfig(options=llm_apis, multiple=True)
+            ),
+            vol.Required(
+                CONF_PARALLEL_TOOL_CALLS,
+                default=True,
+            ): bool,
+            vol.Required(
+                CONF_STRIP_EMOJIS,
+                default=False,
+            ): bool,
+            vol.Required(
+                CONF_TEMPERATURE,
+                default=0.6,
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0, max=1, step=0.01, mode=NumberSelectorMode.BOX
+                )
+            ),
+            vol.Optional(
+                CONF_MAX_MESSAGE_HISTORY,
+                default=0,
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max=50,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_CONTENT_INJECTION_METHOD,
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    mode=SelectSelectorMode.DROPDOWN,
+                    options=CONF_CONTENT_INJECTION_METHODS,
+                )
+            ),
+            vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
+                options=SectionConfig(collapsed=True),
+                schema=vol.Schema(
+                    schema={
+                        vol.Required(
+                            CONF_CHAT_TEMPLATE_KWARGS, default=[]
+                        ): ObjectSelector(
+                            config={
+                                "multiple": True,
+                                "fields": {
+                                    "Name": {
+                                        "selector": {"text": None},
+                                        "required": True,
                                     },
-                                }
-                            ),
-                        }
-                    ),
+                                    "Value": {
+                                        "selector": {"template": None},
+                                        "required": True,
+                                    },
+                                },
+                            }
+                        ),
+                    }
                 ),
-            }
+            ),
+        }
+
+        if entry.data.get(CONF_WEAVIATE_OPTIONS, {}).get(CONF_WEAVIATE_HOST):
             schema = {
                 **schema,
                 vol.Optional(CONF_WEAVIATE_OPTIONS): section(
