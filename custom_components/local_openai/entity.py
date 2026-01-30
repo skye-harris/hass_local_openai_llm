@@ -271,6 +271,7 @@ async def _transform_stream(
 
                 if tool_key not in pending_tool_calls:
                     pending_tool_calls[tool_key] = {
+                        "id": tool_call_id,
                         "name": tool_call.function.name,
                         "args": tool_call.function.arguments or "",
                     }
@@ -282,7 +283,7 @@ async def _transform_stream(
         if choice.finish_reason and pending_tool_calls:
             chunk["tool_calls"] = [
                 llm.ToolInput(
-                    id=key,
+                    id=tool_call["id"],
                     tool_name=tool_call["name"],
                     tool_args=json.loads(tool_call["args"])
                     if tool_call["args"]
@@ -386,7 +387,7 @@ class LocalAiEntity(Entity):
         """Generate an answer for the chat log."""
         options = self.subentry.data
         strip_emojis = options.get(CONF_STRIP_EMOJIS)
-        max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY, 0)
+        max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
         temperature = options.get(CONF_TEMPERATURE, 0.6)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
 
