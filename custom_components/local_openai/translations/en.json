@@ -85,6 +85,12 @@
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
           },
           "sections": {
+            "chat_template_opts": {
+              "name": "Chat Template Arguments",
+              "data": {
+                "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {
@@ -118,9 +124,15 @@
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
-            "content_injection_method": "The message role to insert dynamic content as. See the readme for details."
+            "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
           },
           "sections": {
+            "chat_template_opts": {
+              "name": "Chat Template Arguments",
+              "data": {
+                "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {

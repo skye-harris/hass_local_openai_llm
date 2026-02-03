@@ -15,23 +15,28 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_API_KEY, CONF_LLM_HASS_API, CONF_MODEL, CONF_PROMPT
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import section
+from homeassistant.data_entry_flow import SectionConfig, section
 from homeassistant.helpers import llm
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    ObjectSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
-    TemplateSelector,
     SelectSelectorMode,
+    TemplateSelector,
 )
 from openai import AsyncOpenAI, OpenAIError
 
 from .const import (
     CONF_BASE_URL,
+    CONF_CHAT_TEMPLATE_KWARGS,
+    CONF_CHAT_TEMPLATE_OPTS,
+    CONF_CONTENT_INJECTION_METHOD,
+    CONF_CONTENT_INJECTION_METHODS,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_SERVER_NAME,
@@ -52,8 +57,6 @@ from .const import (
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
-    CONF_CONTENT_INJECTION_METHODS,
-    CONF_CONTENT_INJECTION_METHOD,
 )
 from .weaviate import WeaviateClient, WeaviateError
 
@@ -287,15 +290,15 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 CONF_LLM_HASS_API,
                 default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_LLM_HASS_API],
             ): SelectSelector(SelectSelectorConfig(options=llm_apis, multiple=True)),
-            vol.Optional(
+            vol.Required(
                 CONF_PARALLEL_TOOL_CALLS,
                 default=True,
             ): bool,
-            vol.Optional(
+            vol.Required(
                 CONF_STRIP_EMOJIS,
                 default=False,
             ): bool,
-            vol.Optional(
+            vol.Required(
                 CONF_TEMPERATURE,
                 default=0.6,
             ): NumberSelector(
@@ -322,7 +325,32 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                     options=CONF_CONTENT_INJECTION_METHODS,
                 )
             ),
+            vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
+                options=SectionConfig(collapsed=True),
+                schema=vol.Schema(
+                    schema={
+                        vol.Required(
+                            CONF_CHAT_TEMPLATE_KWARGS, default=[]
+                        ): ObjectSelector(
+                            config={
+                                "multiple": True,
+                                "fields": {
+                                    "Name": {
+                                        "selector": {"text": None},
+                                        "required": True,
+                                    },
+                                    "Value": {
+                                        "selector": {"template": None},
+                                        "required": True,
+                                    },
+                                },
+                            }
+                        ),
+                    }
+                ),
+            ),
         }
+
         if entry.data.get(CONF_WEAVIATE_OPTIONS, {}).get(CONF_WEAVIATE_HOST):
             schema = {
                 **schema,
@@ -368,7 +396,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                             ),
                         }
                     ),
-                    options={"collapsed": True},
+                    options=SectionConfig(collapsed=True),
                 ),
             }
 

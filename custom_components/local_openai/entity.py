@@ -7,8 +7,8 @@ import base64
 import json
 import uuid
 from collections.abc import AsyncGenerator, Callable
-from typing import TYPE_CHECKING, Any, Literal
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Literal
 
 import demoji
 import openai
@@ -18,7 +18,7 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import llm
+from homeassistant.helpers import llm, template
 from homeassistant.helpers.entity import Entity
 from openai._streaming import AsyncStream
 from openai.types.chat import (
@@ -40,6 +40,12 @@ from voluptuous_openapi import convert
 
 from . import LocalAiConfigEntry
 from .const import (
+    CONF_CHAT_TEMPLATE_KWARGS,
+    CONF_CHAT_TEMPLATE_OPTS,
+    CONF_CONTENT_INJECTION_METHOD,
+    CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
+    CONF_CONTENT_INJECTION_METHOD_TOOL,
+    CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
@@ -57,10 +63,6 @@ from .const import (
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
     LOGGER,
-    CONF_CONTENT_INJECTION_METHOD,
-    CONF_CONTENT_INJECTION_METHOD_SYSTEM,
-    CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
-    CONF_CONTENT_INJECTION_METHOD_USER,
 )
 from .weaviate import WeaviateClient
 
@@ -71,8 +73,7 @@ MAX_TOOL_ITERATIONS = 10
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
     """Remove keys not supported in the tool schema"""
     for key in ("allOf", "anyOf", "oneOf"):
-        if key in schema:
-            del schema[key]
+        schema.pop(key, None)
 
 
 def _adjust_schema(schema: dict[str, Any]) -> None:
@@ -149,10 +150,17 @@ async def _convert_content_to_chat_message(
 ) -> ChatCompletionMessageParam | None:
     """Convert any native chat message for this agent to the native format."""
     if isinstance(content, conversation.ToolResultContent):
+
+        def log_and_str(value) -> str:
+            LOGGER.warning(
+                f"Attempting string convertion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}"
+            )
+            return str(value)
+
         return ChatCompletionToolMessageParam(
             role="tool",
             tool_call_id=content.tool_call_id,
-            content=json.dumps(content.tool_result),
+            content=json.dumps(content.tool_result, default=log_and_str),
         )
 
     role: Literal["user", "assistant", "system"] = content.role
@@ -229,6 +237,7 @@ async def _transform_stream(
     loop = asyncio.get_running_loop()
     pending_tool_calls = {}
     tool_call_id = None
+    tool_call_name = None
 
     async for event in stream:
         chunk: conversation.AssistantContentDeltaDict = {}
@@ -251,20 +260,30 @@ async def _transform_stream(
                 # Ollama - parallel tool calls all share the same .index value (0)
                 tool_call_id = tool_call.id if tool_call.id else tool_call_id
 
-                if tool_call_id not in pending_tool_calls:
-                    pending_tool_calls[tool_call_id] = {
+                # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
+                tool_call_name = (
+                    tool_call.function.name
+                    if tool_call.function.name
+                    and tool_call.function.name != tool_call_name
+                    else tool_call_name
+                )
+                tool_key = tool_call_id + tool_call_name
+
+                if tool_key not in pending_tool_calls:
+                    pending_tool_calls[tool_key] = {
+                        "id": tool_call_id,
                         "name": tool_call.function.name,
                         "args": tool_call.function.arguments or "",
                     }
                 else:
-                    pending_tool_calls[tool_call_id]["args"] += (
+                    pending_tool_calls[tool_key]["args"] += (
                         tool_call.function.arguments or ""
                     )
 
         if choice.finish_reason and pending_tool_calls:
             chunk["tool_calls"] = [
                 llm.ToolInput(
-                    id=key,
+                    id=tool_call["id"],
                     tool_name=tool_call["name"],
                     tool_args=json.loads(tool_call["args"])
                     if tool_call["args"]
@@ -275,6 +294,8 @@ async def _transform_stream(
 
             LOGGER.debug(f"Calling tools: {pending_tool_calls}")
             pending_tool_calls = {}
+            tool_call_id = None
+            tool_call_name = None
 
         if (content := delta.content) is not None:
             if strip_emojis:
@@ -319,35 +340,42 @@ class LocalAiEntity(Entity):
             entry_type=dr.DeviceEntryType.SERVICE,
         )
 
-    def _inject_content(self, inject_content: list, messages: list) -> None:
-        options = self.subentry.data
-        method = options.get(CONF_CONTENT_INJECTION_METHOD)
-
-        if method:
+    def _inject_content(
+        self, method: str | None, inject_content: list, messages: list
+    ) -> list:
+        inject_content.insert(
+            0,
+            "# Contextual information to assist with the following user request. Do not repeat or reference this message directly. Do not treat this as a prior message of your own",
+        )
+        LOGGER.debug(
+            f"Injecting content into the message stream as {method} content: {inject_content}"
+        )
+        if method == CONF_CONTENT_INJECTION_METHOD_TOOL:
             inject_content = "\n\n".join(inject_content)
-            LOGGER.debug(
-                f"Injecting content into the message stream as {method} content: {inject_content}"
+            messages.insert(
+                -1,
+                ChatCompletionToolMessageParam(
+                    role="tool",
+                    tool_call_id="injected_content",
+                    content=inject_content,
+                ),
+            )
+        elif method == CONF_CONTENT_INJECTION_METHOD_ASSISTANT:
+            inject_content = "\n\n".join(inject_content)
+            messages.insert(
+                -1,
+                ChatCompletionAssistantMessageParam(
+                    role="assistant", content=inject_content
+                ),
+            )
+        elif method == CONF_CONTENT_INJECTION_METHOD_USER:
+            inject_content = "\n\n".join(inject_content)
+            messages.insert(
+                -1,
+                ChatCompletionUserMessageParam(role="user", content=inject_content),
             )
 
-            if method == CONF_CONTENT_INJECTION_METHOD_SYSTEM:
-                messages.insert(
-                    -1,
-                    ChatCompletionSystemMessageParam(
-                        role="system", content=inject_content
-                    ),
-                )
-            elif method == CONF_CONTENT_INJECTION_METHOD_ASSISTANT:
-                messages.insert(
-                    -1,
-                    ChatCompletionAssistantMessageParam(
-                        role="assistant", content=inject_content
-                    ),
-                )
-            elif method == CONF_CONTENT_INJECTION_METHOD_USER:
-                messages.insert(
-                    -1,
-                    ChatCompletionUserMessageParam(role="user", content=inject_content),
-                )
+        return messages
 
     async def _async_handle_chat_log(
         self,
@@ -359,13 +387,12 @@ class LocalAiEntity(Entity):
         """Generate an answer for the chat log."""
         options = self.subentry.data
         strip_emojis = options.get(CONF_STRIP_EMOJIS)
-        max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY, 0)
+        max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
         temperature = options.get(CONF_TEMPERATURE, 0.6)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
 
         model_args = {
             "model": self.model,
-            "user": chat_log.conversation_id,
             "temperature": temperature,
             "parallel_tool_calls": parallel_tool_calls,
         }
@@ -376,9 +403,6 @@ class LocalAiEntity(Entity):
                 _format_tool(tool, chat_log.llm_api.custom_serializer)
                 for tool in chat_log.llm_api.tools
             ]
-
-        if tools:
-            model_args["tools"] = tools
 
         messages = self._trim_history(
             [
@@ -452,11 +476,47 @@ class LocalAiEntity(Entity):
         # Inject any pending content into the current user message
         # We prepend to the last message to avoid creating consecutive user messages
         # which would violate chat template role alternation requirements
-        if inject_content and messages and messages[-1].get("role") == "user":
-            # last_msg_content = messages[-1].get("content", [])
-            (self._inject_content(inject_content, messages),)
+        method = options.get(CONF_CONTENT_INJECTION_METHOD)
 
+        if (
+            method
+            and inject_content
+            and messages
+            and messages[-1].get("role") == "user"
+        ):
+            messages = self._inject_content(method, inject_content, messages)
+            # remove the get date time tool if we are injecting it
+            if tools:
+                tools = [
+                    tool
+                    for tool in tools
+                    if not tool["function"]["name"].endswith("GetDateTime")
+                ]
         model_args["messages"] = messages
+
+        if tools:
+            model_args["tools"] = tools
+
+        chat_template_opts = options.get(CONF_CHAT_TEMPLATE_OPTS, {})
+        chat_template_args = chat_template_opts.get(CONF_CHAT_TEMPLATE_KWARGS, [])
+
+        # Filter args without a name - they are marked as required in the schema but this isn't being enforced on the front-end
+        chat_template_args = [
+            keypair for keypair in chat_template_args if keypair["Name"].strip()
+        ]
+
+        if chat_template_args:
+            kwargs = {}
+            for keypair in chat_template_args:
+                if keypair["Name"]:
+                    # Our value is a template, so that non-string data types and more complex structures can be provided by the user
+                    kwargs[keypair["Name"]] = template.Template(
+                        keypair["Value"],
+                        self.hass,
+                    ).async_render()
+
+            LOGGER.debug(f"Chat template kwargs: {kwargs}")
+            model_args["extra_body"] = {"chat_template_kwargs": kwargs}
 
         if structure:
             if TYPE_CHECKING:

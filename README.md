@@ -23,6 +23,7 @@
 - Added option to strip emojis from responses
 - Added support for parallel tool calling
 - Added experimental Retrieval Augmented Generation capability
+- Added chat template arguments support
 
 ---
 
@@ -74,6 +75,11 @@ After installation, configure the integration through Home Assistant's UI:
     - **llama.cpp**: https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md
 - Parallel tool calling requires support from both your model and inference server.
     - In some cases, control of this is handled by the server directly, in which case toggling this will not have any result.
+- Chat Template Arguments allow you to provide custom arguments to your model
+    - Arguments are supplied as key/value pairs and provided to the `chat_template_kwargs` request parameter
+    - Values support Jinja2 templates, in order to provide non-string and more complex data structures
+    - Arguments differ per model, and not all models make use of user-provided arguments
+    - See your models documentation for what arguments are available to be used
 
 ### Experimental: Date/Time Context Injection Role
 
@@ -86,16 +92,15 @@ To this end I have provided a number of options so that users can try them out a
 
 The available options are:
 
-#### <u>System</u>:
-The date and time are inserted as a second `System` message to the model, before the current user message.
+#### <u>Tool Result</u>:
+The date and time are inserted as a `Tool Call Result` message to the model, before the current user message.
 
 As long as the model does not reject it, this is the recommended method to use and produces the most reliable results during testing.
 
 #### <u>Assistant</u>:
 The date and time are inserted as an additional `Assistant` message to the model, before the current user message.
 
-In cases where the `System` role method does not work for a model, this is the next recommended to test with.
-However, if queried on it, the model will believe it was a previous message that it said.
+In cases where the `Tool Call Result` role method does not work for a model, this is the next recommended to test with.
 
 #### <u>User</u>:
 The date and time are inserted as an additional `User` message to the model, before the current user message.
