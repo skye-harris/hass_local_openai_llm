@@ -106,7 +106,7 @@ app.post("/search", async (req, res) => {
 	              score
 				  rerank(
 					property: "query"
-					query: "Reorder the results so that the most relevant query is first, using the following request to guide you: ${req.body.query}"
+					query: "Reorder the results so that the most relevant data is first, using the following request to guide you: ${req.body.query}"
 				  ) {
 					score
 				  }
@@ -318,6 +318,10 @@ button:disabled { opacity: .5 }
 .bold {
 	font-weight: bold;
 }
+
+#scoreThreshold, #hybridAlpha {
+  width: 100px;
+}
 </style>
 </head>
 
@@ -332,6 +336,7 @@ button:disabled { opacity: .5 }
   <!-- LEFT -->
   <div class="col">
 
+    <form id="searchForm">
     <div class="panel col">
       <h2>Search</h2>
       <div class="row">
@@ -340,15 +345,20 @@ button:disabled { opacity: .5 }
         	<input id="searchInput" placeholder="Search…">
         </label>
 		<label class="col">
+      		Threshold
+        	<input id="scoreThreshold" type="number" value="0.95">
+        </label>
+		<label class="col">
       		Alpha
         	<input id="hybridAlpha" type="number" value="0.5">
         </label>
       </div>
-      <div class="row right-align">
+      <div class="row right-align" style="margin-top: 4px">
         <button onclick="runSearch()">Go</button>
       </div>
       <div id="searchResults" class="results col"></div>
     </div>
+    </form>
 
     <div class="panel col">
       <div class="section-header">
@@ -391,6 +401,8 @@ const objectClasses = document.getElementById("objectClass");
 const apiKeyInput = document.getElementById("apiKey");
 //const searchType = document.getElementById("searchType");
 const hybridAlpha = document.getElementById('hybridAlpha');
+const scoreThreshold = document.getElementById('scoreThreshold');
+const searchForm = document.getElementById('searchForm');
 
 baseInput.value = "${defaultBaseUrl}" || localStorage.getItem('weaviateBase') || '';
 apiKeyInput.value = localStorage.getItem('weaviateApiKey') || '';
@@ -504,7 +516,7 @@ async function delItem(id) {
   refreshList();
 }
 
-async function runSearch() {
+async function runSearch(event) {
   const res = await fetch('/search', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -520,7 +532,7 @@ async function runSearch() {
   });
 
   if (!res.ok) {
-  	console.error(res)
+  	console.error(res);
   	return;
   }
 
@@ -528,7 +540,9 @@ async function runSearch() {
   const out = document.getElementById('searchResults');
   out.innerHTML = '';
 
-  data.forEach(i => {
+  data = data.filter((datum) => {
+  	return Number(datum._additional.score ?? datum._additional.certainty) >= Number(scoreThreshold.value);
+  }).forEach(i => {
 	const result = document.createElement('div');
 	result.className = 'col';
 	result.style.gap = 'none';
@@ -551,6 +565,12 @@ async function runSearch() {
 	out.appendChild(result);
   });
 }
+
+searchForm.addEventListener('submit', (event) => {
+	event.preventDefault();
+	runSearch();
+	return false;
+});
 
 refreshClasses();
 </script>

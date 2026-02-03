@@ -71,7 +71,7 @@ MAX_TOOL_ITERATIONS = 10
 
 
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
-    """Remove keys not supported in the tool schema"""
+    """Remove keys not supported in the tool schema."""
     for key in ("allOf", "anyOf", "oneOf"):
         schema.pop(key, None)
 
@@ -463,9 +463,6 @@ class LocalAiEntity(Entity):
                     for result in results
                 ]
                 if result_content:
-                    # inject_content.append(
-                    #     f"# Retrieval Augmented Generation\nYou may use the following information to answer the user question, if appropriate.\nIgnore this if it does not relate to or answer the users query.\n\n{'\n'.join(result_content)}"
-                    # )
                     inject_content += result_content
             except Exception as err:
                 LOGGER.warning(
@@ -595,7 +592,7 @@ class LocalAiEntity(Entity):
     async def upsert_data_in_weaviate(
         self, query: str, content: str, identifier: str | None
     ):
-        """Add or update a record in Weaviate"""
+        """Add or update a record in Weaviate."""
         options = self.subentry.data
         weaviate_opts = options.get(CONF_WEAVIATE_OPTIONS, {})
         weaviate_server_opts = self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})

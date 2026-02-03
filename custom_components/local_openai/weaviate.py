@@ -1,3 +1,4 @@
+"""Weaviate vector DB with hybrid search."""
 from datetime import datetime
 
 import aiohttp
@@ -8,7 +9,7 @@ from custom_components.local_openai import LOGGER
 
 
 class WeaviateError(Exception):
-    pass
+    """Weaviate exception class."""
 
 
 class WeaviateClient:
@@ -77,6 +78,8 @@ class WeaviateClient:
     ):
         """Query Weaviate Hybrid search."""
         class_name = self.prepare_class_name(class_name)
+        reranker_query = f"Reorder the results so that the most relevant data is first, using the following request to guide you: ${query}"
+
         query_obj = {
             "query": f"""
             {{
@@ -99,7 +102,7 @@ class WeaviateClient:
                     score
                     rerank(
                       property: "query"
-                      query: "Reorder the results so that the most relevant query is first, using the following request to guide you: ${query}"
+                      query: "{reranker_query}"
                     ) {{
                       score
                     }}
