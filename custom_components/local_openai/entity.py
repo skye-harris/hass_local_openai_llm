@@ -499,6 +499,8 @@ class LocalAiEntity(Entity):
                     for tool in tools
                     if not tool["function"]["name"].endswith("GetDateTime")
                 ]
+
+        messages.append(messages[-1].copy())
         model_args["messages"] = messages
 
         if tools:
