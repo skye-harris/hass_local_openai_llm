@@ -225,104 +225,6 @@ def _make_uuid(identifier: str) -> str:
     return str(uuid.uuid5(namespace=uuid.NAMESPACE_OID, name=identifier))
 
 
-async def _transform_stream(
-    stream: AsyncStream[ChatCompletionChunk],
-    strip_emojis: bool,
-) -> AsyncGenerator[conversation.AssistantContentDeltaDict, None]:
-    """Transform a streaming OpenAI response to ChatLog format."""
-    new_msg = True
-    pending_think = ""
-    in_think = False
-    seen_visible = False
-    loop = asyncio.get_running_loop()
-    pending_tool_calls = {}
-    tool_call_id = None
-    tool_call_name = None
-
-    async for event in stream:
-        chunk: conversation.AssistantContentDeltaDict = {}
-
-        if not event.choices:
-            continue
-
-        choice = event.choices[0]
-        delta = choice.delta
-        LOGGER.debug(event)
-
-        if new_msg:
-            chunk["role"] = delta.role
-            new_msg = False
-
-        if (tool_calls := delta.tool_calls) is not None and tool_calls:
-            # I've never seen this contain more than a single tool call, but let's iterate over it just in case
-            for tool_call in tool_calls:
-                # llama.cpp - only the initial tool call chunk has an ID, subsequent argument chunks do not
-                # Ollama - parallel tool calls all share the same .index value (0)
-                tool_call_id = tool_call.id if tool_call.id else tool_call_id
-
-                # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
-                tool_call_name = (
-                    tool_call.function.name
-                    if tool_call.function.name
-                    and tool_call.function.name != tool_call_name
-                    else tool_call_name
-                )
-                tool_key = tool_call_id + tool_call_name
-
-                if tool_key not in pending_tool_calls:
-                    pending_tool_calls[tool_key] = {
-                        "id": tool_call_id,
-                        "name": tool_call.function.name,
-                        "args": tool_call.function.arguments or "",
-                    }
-                else:
-                    pending_tool_calls[tool_key]["args"] += (
-                        tool_call.function.arguments or ""
-                    )
-
-        if choice.finish_reason and pending_tool_calls:
-            chunk["tool_calls"] = [
-                llm.ToolInput(
-                    id=tool_call["id"],
-                    tool_name=tool_call["name"],
-                    tool_args=json.loads(tool_call["args"])
-                    if tool_call["args"]
-                    else {},
-                )
-                for key, tool_call in pending_tool_calls.items()
-            ]
-
-            LOGGER.debug(f"Calling tools: {pending_tool_calls}")
-            pending_tool_calls = {}
-            tool_call_id = None
-            tool_call_name = None
-
-        if (content := delta.content) is not None:
-            if strip_emojis:
-                content = await loop.run_in_executor(None, demoji.replace, content, "")
-
-            if content == "<think>":
-                in_think = True
-                pending_think = ""
-
-            if in_think:
-                if content == "</think>":
-                    in_think = False
-                    if pending_think.strip():
-                        LOGGER.debug(f"LLM Thought: {pending_think}")
-                    pending_think = ""
-                elif content != "<think>":
-                    pending_think = pending_think + content
-            elif content.strip():
-                seen_visible = True
-
-            if seen_visible:
-                chunk["content"] = content
-
-        if seen_visible or chunk.get("tool_calls") or chunk.get("role"):
-            yield chunk
-
-
 class LocalAiEntity(Entity):
     """Base entity for Open Router."""
 
@@ -340,8 +242,9 @@ class LocalAiEntity(Entity):
             entry_type=dr.DeviceEntryType.SERVICE,
         )
 
+    @staticmethod
     def _inject_content(
-        self, method: str | None, inject_content: list, messages: list
+        method: str | None, inject_content: list, messages: list
     ) -> list:
         inject_content.insert(
             0,
@@ -376,6 +279,110 @@ class LocalAiEntity(Entity):
             )
 
         return messages
+
+    async def _transform_stream(
+        self,
+        stream: AsyncStream[ChatCompletionChunk],
+        strip_emojis: bool,
+    ) -> AsyncGenerator[conversation.AssistantContentDeltaDict, None]:
+        """Transform a streaming OpenAI response to ChatLog format."""
+        new_msg = True
+        pending_think = ""
+        in_think = False
+        seen_visible = False
+        loop = asyncio.get_running_loop()
+        pending_tool_calls = {}
+        tool_call_id = None
+        tool_call_name = None
+
+        async for event in stream:
+            chunk: conversation.AssistantContentDeltaDict = {}
+
+            if not event.choices:
+                continue
+
+            choice = event.choices[0]
+            delta = choice.delta
+            LOGGER.debug(event)
+
+            if new_msg:
+                chunk["role"] = delta.role
+                new_msg = False
+
+            if (tool_calls := delta.tool_calls) is not None and tool_calls:
+                # I've never seen this contain more than a single tool call, but let's iterate over it just in case
+                for tool_call in tool_calls:
+                    # llama.cpp - only the initial tool call chunk has an ID, subsequent argument chunks do not
+                    # Ollama - parallel tool calls all share the same .index value (0)
+                    tool_call_id = tool_call.id if tool_call.id else tool_call_id
+
+                    # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
+                    tool_call_name = (
+                        tool_call.function.name
+                        if tool_call.function.name
+                        and tool_call.function.name != tool_call_name
+                        else tool_call_name
+                    )
+                    tool_key = tool_call_id + tool_call_name
+
+                    if tool_key not in pending_tool_calls:
+                        pending_tool_calls[tool_key] = {
+                            "id": tool_call_id,
+                            "name": tool_call.function.name,
+                            "args": tool_call.function.arguments or "",
+                        }
+                    else:
+                        pending_tool_calls[tool_key]["args"] += (
+                            tool_call.function.arguments or ""
+                        )
+
+            if (content := delta.content) is not None:
+                if strip_emojis:
+                    content = await loop.run_in_executor(
+                        None, demoji.replace, content, ""
+                    )
+
+                if content == "<think>":
+                    in_think = True
+                    pending_think = ""
+
+                if in_think:
+                    if content == "</think>":
+                        in_think = False
+                        if pending_think.strip():
+                            LOGGER.debug(f"LLM Thought: {pending_think}")
+                        pending_think = ""
+                    elif content != "<think>":
+                        pending_think = pending_think + content
+                elif content.strip():
+                    seen_visible = True
+
+                if seen_visible:
+                    chunk["content"] = content
+
+            if choice.finish_reason:
+                try:
+                    # Retrieve timings from llamacpp responses, if available
+                    if event.timings:
+                        self.extra_state_attributes = {"timings": event.timings}
+                except Exception:
+                    pass
+
+                if pending_tool_calls:
+                    chunk["tool_calls"] = [
+                        llm.ToolInput(
+                            id=tool_call["id"],
+                            tool_name=tool_call["name"],
+                            tool_args=json.loads(tool_call["args"])
+                            if tool_call["args"]
+                            else {},
+                        )
+                        for key, tool_call in pending_tool_calls.items()
+                    ]
+                    LOGGER.debug(f"Calling tools: {pending_tool_calls}")
+
+            if seen_visible or chunk.get("tool_calls") or chunk.get("role"):
+                yield chunk
 
     async def _async_handle_chat_log(
         self,
@@ -542,7 +549,7 @@ class LocalAiEntity(Entity):
                         msg
                         async for content in chat_log.async_add_delta_content_stream(
                             self.entity_id,
-                            _transform_stream(
+                            self._transform_stream(
                                 stream=result_stream, strip_emojis=strip_emojis
                             ),
                         )
