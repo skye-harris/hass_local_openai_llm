@@ -57,8 +57,6 @@ from .const import (
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
-    CONF_WEAVIATE_RERANKER_PROMPT,
-    CONF_WEAVIATE_DEFAULT_RERANKER_PROMPT,
 )
 from .weaviate import WeaviateClient, WeaviateError
 
