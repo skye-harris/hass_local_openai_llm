@@ -79,7 +79,8 @@
           },
           "data_description": {
             "model": "The model to use for the conversation agent",
-            "prompt": "Instruct how the LLM should respond. This can be a template",
+            "prompt": "Instruct how the LLM should respond. Templating is supported but should be avoided",
+            "llm_hass_api": "Select which tooling to expose to this agent",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
@@ -121,7 +122,8 @@
           },
           "data_description": {
             "model": "The model to use for the conversation agent",
-            "prompt": "Instruct how the LLM should respond. This can be a template",
+            "prompt": "Instruct how the LLM should respond. Templating is supported but should be avoided",
+            "llm_hass_api": "Select which tooling to expose to this agent",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details"

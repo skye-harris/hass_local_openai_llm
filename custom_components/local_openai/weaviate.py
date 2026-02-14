@@ -1,4 +1,5 @@
 """Weaviate vector DB with hybrid search."""
+
 from datetime import datetime
 
 import aiohttp
@@ -78,7 +79,6 @@ class WeaviateClient:
     ):
         """Query Weaviate Hybrid search."""
         class_name = self.prepare_class_name(class_name)
-        reranker_query = f"Reorder the results so that the most relevant data is first, using the following request to guide you: ${query}"
 
         query_obj = {
             "query": f"""
@@ -102,7 +102,7 @@ class WeaviateClient:
                     score
                     rerank(
                       property: "query"
-                      query: "{reranker_query}"
+                      query: "{query}"
                     ) {{
                       score
                     }}

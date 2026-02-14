@@ -57,6 +57,8 @@ from .const import (
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
+    CONF_WEAVIATE_RERANKER_PROMPT,
+    CONF_WEAVIATE_DEFAULT_RERANKER_PROMPT,
 )
 from .weaviate import WeaviateClient, WeaviateError
 
@@ -289,7 +291,11 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             vol.Optional(
                 CONF_LLM_HASS_API,
                 default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_LLM_HASS_API],
-            ): SelectSelector(SelectSelectorConfig(options=llm_apis, multiple=True)),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=llm_apis, multiple=True, mode=SelectSelectorMode.DROPDOWN
+                )
+            ),
             vol.Required(
                 CONF_PARALLEL_TOOL_CALLS,
                 default=True,

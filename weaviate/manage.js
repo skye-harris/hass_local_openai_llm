@@ -83,7 +83,6 @@ app.post("/delete", async (req, res) => {
 });
 
 app.post("/search", async (req, res) => {
-	console.log(req.body)
   const gql =
     req.body.type === "hybrid"
       ? `{
@@ -106,7 +105,7 @@ app.post("/search", async (req, res) => {
 	              score
 				  rerank(
 					property: "query"
-					query: "Reorder the results so that the most relevant data is first, using the following request to guide you: ${req.body.query}"
+					query: "${req.body.query}"
 				  ) {
 					score
 				  }
@@ -354,7 +353,7 @@ button:disabled { opacity: .5 }
         </label>
       </div>
       <div class="row right-align" style="margin-top: 4px">
-        <button onclick="runSearch()">Go</button>
+        <button>Go</button>
       </div>
       <div id="searchResults" class="results col"></div>
     </div>
@@ -540,7 +539,7 @@ async function runSearch(event) {
   const out = document.getElementById('searchResults');
   out.innerHTML = '';
 
-  data = data.filter((datum) => {
+  data.filter((datum) => {
   	return Number(datum._additional.score ?? datum._additional.certainty) >= Number(scoreThreshold.value);
   }).forEach(i => {
 	const result = document.createElement('div');
