@@ -517,10 +517,28 @@ class LocalAiEntity(Entity):
             for keypair in chat_template_args:
                 if keypair["Name"]:
                     # Our value is a template, so that non-string data types and more complex structures can be provided by the user
-                    kwargs[keypair["Name"]] = template.Template(
+                    rendered = template.Template(
                         keypair["Value"],
                         self.hass,
                     ).async_render()
+
+                    # Coerce plain string values to native types
+                    if isinstance(rendered, str):
+                        lower = rendered.lower()
+                        if lower == "true":
+                            rendered = True
+                        elif lower == "false":
+                            rendered = False
+                        else:
+                            try:
+                                rendered = int(rendered)
+                            except ValueError:
+                                try:
+                                    rendered = float(rendered)
+                                except ValueError:
+                                    pass
+
+                    kwargs[keypair["Name"]] = rendered
 
             LOGGER.debug(f"Chat template kwargs: {kwargs}")
             model_args["extra_body"] = {"chat_template_kwargs": kwargs}
