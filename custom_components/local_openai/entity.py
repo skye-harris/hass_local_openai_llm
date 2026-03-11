@@ -502,6 +502,7 @@ class LocalAiEntity(Entity):
         model_args["messages"] = messages
 
         if tools:
+            tools = sorted(tools, key=lambda tool: tool["function"]["name"])
             model_args["tools"] = tools
 
         chat_template_opts = options.get(CONF_CHAT_TEMPLATE_OPTS, {})
