@@ -130,7 +130,7 @@ class WeaviateClient:
                 return [
                     res
                     for res in results
-                    if float(res.get("_additional", {}).get("score", 0)) >= threshold
+                    if float(res.get("_additional", {}).get("rerank")[0].get("score", 0)) > 0 # reranker doesnt use regular threshold scoring
                 ]
         except aiohttp.ClientError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)

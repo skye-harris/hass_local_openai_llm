@@ -540,7 +540,9 @@ async function runSearch(event) {
   out.innerHTML = '';
 
   data.filter((datum) => {
-  	return Number(datum._additional.score ?? datum._additional.certainty) >= Number(scoreThreshold.value);
+  	const score = datum._additional?.rerank?.[0]?.score ?? datum._additional.score;
+  	//return Number(datum._additional.score ?? datum._additional.certainty) >= Number(scoreThreshold.value);
+  	return score > 0
   }).forEach(i => {
 	const result = document.createElement('div');
 	result.className = 'col';
@@ -550,7 +552,8 @@ async function runSearch(event) {
 	const contentRow = document.createElement('div');
 	const scoreRow = document.createElement('div');
 
-	const score = i._additional.score ?? i._additional.certainty;
+	//const score = i._additional.score ?? i._additional.certainty;
+  	const score = i._additional?.rerank?.[0]?.score ?? i._additional.score ?? i._additional.certainty;
 
 	queryRow.textContent = \`\${i.query}\`;
 	contentRow.textContent = \`\${i.content}\`;

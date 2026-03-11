@@ -465,7 +465,7 @@ class LocalAiEntity(Entity):
                 LOGGER.debug(f"Weaviate results: {results}")
 
                 result_content = [
-                    f"Query: {result.get('query').strip()}\nContent: {result.get('content').strip()}"
+                    result.get('content').strip()
                     for result in results
                 ]
                 if result_content:
