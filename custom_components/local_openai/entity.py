@@ -8,7 +8,7 @@ import json
 import uuid
 from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import demoji
 import openai
@@ -25,6 +25,7 @@ from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionChunk,
     ChatCompletionContentPartImageParam,
+    ChatCompletionContentPartInputAudioParam,
     ChatCompletionContentPartTextParam,
     ChatCompletionFunctionToolParam,
     ChatCompletionMessageFunctionToolCallParam,
@@ -40,6 +41,7 @@ from voluptuous_openapi import convert
 
 from . import LocalAiConfigEntry
 from .const import (
+    AUDIO_MIME_TYPE_MAP,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
@@ -173,23 +175,44 @@ async def _convert_content_to_chat_message(
         if content.attachments:
             loop = asyncio.get_running_loop()
             for attachment in content.attachments or ():
-                if not attachment.mime_type.startswith("image/"):
-                    raise HomeAssistantError(
-                        translation_domain=DOMAIN,
-                        translation_key="unsupported_attachment_type",
-                    )
                 base64_file = await loop.run_in_executor(
                     None, b64_file, attachment.path
                 )
-                messages.append(
-                    ChatCompletionContentPartImageParam(
-                        type="image_url",
-                        image_url={
-                            "url": f"data:{attachment.mime_type};base64,{base64_file}",
-                            "detail": "auto",
-                        },
+                if attachment.mime_type.startswith("image/"):
+                    messages.append(
+                        ChatCompletionContentPartImageParam(
+                            type="image_url",
+                            image_url={
+                                "url": f"data:{attachment.mime_type};base64,{base64_file}",
+                                "detail": "auto",
+                            },
+                        )
                     )
-                )
+                elif (
+                    audio_format := AUDIO_MIME_TYPE_MAP.get(attachment.mime_type)
+                ) is not None:
+                    messages.append(
+                        ChatCompletionContentPartInputAudioParam(
+                            type="input_audio",
+                            input_audio={"format": audio_format, "data": base64_file},
+                        )
+                    )
+                else:
+                    messages.append(
+                        cast(
+                            "ChatCompletionContentPartFileParam",
+                            cast(
+                                "object",
+                                {
+                                    "type": "file",
+                                    "file": {
+                                        "file_data": f"data:{attachment.mime_type};base64,{base64_file}",
+                                        "filename": attachment.path.name,
+                                    },
+                                },
+                            ),
+                        )
+                    )
 
         messages.append(
             ChatCompletionContentPartTextParam(type="text", text=content.content)

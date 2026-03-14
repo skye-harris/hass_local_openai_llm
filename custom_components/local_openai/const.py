@@ -1,6 +1,7 @@
 """Constants for the Local OpenAI LLM integration."""
 
 import logging
+from typing import Literal
 
 from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT
 from homeassistant.helpers import llm
@@ -43,6 +44,17 @@ CONF_WEAVIATE_DEFAULT_THRESHOLD = 0.9
 CONF_WEAVIATE_DEFAULT_MAX_RESULTS = 2
 CONF_WEAVIATE_DEFAULT_HYBRID_SEARCH_ALPHA = 0.5
 CONF_WEAVIATE_MAX_RESULTS_MAX = 10
+
+AUDIO_MIME_TYPE_MAP: dict[str, Literal["mp3", "wav"]] = {
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/mpeg3": "mp3",
+    "audio/x-mpeg-3": "mp3",
+    "audio/x-mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/vnd.wave": "wav",
+}
 
 RECOMMENDED_CONVERSATION_OPTIONS = {
     CONF_RECOMMENDED: True,
