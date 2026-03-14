@@ -342,19 +342,26 @@ class LocalAiEntity(Entity):
                         None, demoji.replace, content, ""
                     )
 
-                if content == "<think>":
+                # Handle <think> tags that may appear within larger chunks
+                # (not just as exact token matches)
+                if "<think>" in content:
                     in_think = True
+                    content = content.replace("<think>", "")
                     pending_think = ""
 
                 if in_think:
-                    if content == "</think>":
+                    if "</think>" in content:
                         in_think = False
+                        remaining = content.split("</think>", 1)[1]
                         if pending_think.strip():
                             LOGGER.debug(f"LLM Thought: {pending_think}")
                         pending_think = ""
-                    elif content != "<think>":
-                        pending_think = pending_think + content
-                elif content.strip():
+                        content = remaining
+                    else:
+                        pending_think += content
+                        content = ""
+
+                if not in_think and content.strip():
                     seen_visible = True
 
                 if seen_visible:
