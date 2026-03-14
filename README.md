@@ -16,7 +16,7 @@
 - Uses streamed LLM responses
 - Conversation Agents support TTS streaming
 - Automatically strips `<think>` tags from responses
-- Added support for image inputs for AI Task Agents
+- Added support for image inputs for AI Task entities
 - Added support for reconfiguring Conversation Agents
 - Added option to trim conversation history to help stay within your context window
 - Added temperature control
@@ -24,6 +24,7 @@
 - Added support for parallel tool calling
 - Added experimental Retrieval Augmented Generation capability
 - Added chat template arguments support
+- Added image generation support for AI Task entities
 
 ---
 
@@ -80,6 +81,9 @@ After installation, configure the integration through Home Assistant's UI:
     - Values support Jinja2 templates, in order to provide non-string and more complex data structures
     - Arguments differ per model, and not all models make use of user-provided arguments
     - See your models documentation for what arguments are available to be used
+- AI Task entities can be configured for Text and/or Image generation capabilities
+    - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and requires support from your chosen image generation server
+    - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
 
 ### Experimental: Date/Time Context Injection Role
 

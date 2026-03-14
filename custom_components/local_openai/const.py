@@ -2,6 +2,7 @@
 
 import logging
 
+from homeassistant.components import ai_task
 from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT
 from homeassistant.helpers import llm
 
@@ -17,6 +18,13 @@ CONF_TEMPERATURE = "temperature"
 CONF_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
 CONF_CHAT_TEMPLATE_OPTS = "chat_template_opts"
 CONF_CHAT_TEMPLATE_KWARGS = "chat_template_kwargs"
+
+CONF_AI_TASK_SUPPORTED_ATTRIBUTES = "supported_attributes"
+CONF_AI_TASK_SUPPORTED_ATTRIBUTE_OPTIONS = {
+    "generate_data": ai_task.AITaskEntityFeature.GENERATE_DATA
+    | ai_task.AITaskEntityFeature.SUPPORT_ATTACHMENTS,
+    "generate_image": ai_task.AITaskEntityFeature.GENERATE_IMAGE,
+}
 
 CONF_CONTENT_INJECTION_METHOD_SYSTEM = "System"
 CONF_CONTENT_INJECTION_METHOD_ASSISTANT = "Assistant"

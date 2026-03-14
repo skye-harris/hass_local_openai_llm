@@ -32,6 +32,7 @@ from homeassistant.helpers.selector import (
 from openai import AsyncOpenAI, OpenAIError
 
 from .const import (
+    CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -84,6 +85,11 @@ async def prepare_weaviate_class(hass: HomeAssistant, weaviate_opts: dict[str, A
 
     await weaviate.create_class(class_name)
     LOGGER.debug("Weaviate connectivity confirmed and class is prepared")
+
+
+def options_to_selections_dict(opts: dict) -> list[SelectOptionDict]:
+    """Convert a dict to a list of select options."""
+    return [SelectOptionDict(value=key, label=opts[key]) for key in opts]
 
 
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -484,16 +490,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
 class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
     """Handle subentry flow."""
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> SubentryFlowResult:
-        """User flow to create a sensor subentry."""
-        if user_input is not None:
-            model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
-            return self.async_create_entry(
-                title=f"{model_name} AI Task", data=user_input
-            )
-
+    async def get_schema(self):
         try:
             client = self._get_entry().runtime_data
             response = await client.models.list()
@@ -511,17 +508,58 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
             LOGGER.exception(f"Unexpected exception retrieving models list: {err}")
             downloaded_models = []
 
+        return vol.Schema(
+            {
+                vol.Required(
+                    CONF_MODEL,
+                ): SelectSelector(
+                    SelectSelectorConfig(options=downloaded_models, custom_value=True)
+                ),
+                vol.Required(
+                    CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": "generate_data", "label": "Generate Data"},
+                            {"value": "generate_image", "label": "Generate Image"},
+                        ],
+                        multiple=True,
+                        mode=SelectSelectorMode.LIST,
+                    )
+                ),
+            }
+        )
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """User flow to create a sensor subentry."""
+        if user_input is not None:
+            model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
+            return self.async_create_entry(
+                title=f"{model_name} AI Task", data=user_input
+            )
+
+        schema = await self.get_schema()
+        return self.async_show_form(step_id="user", data_schema=schema)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """User flow to create a sensor subentry."""
+        errors = {}
+        if user_input is not None:
+            return self.async_update_and_abort(
+                entry=self._get_entry(),
+                subentry=self._get_reconfigure_subentry(),
+                data=user_input,
+            )
+
+        options = self._get_reconfigure_subentry().data.copy()
+        schema = self.add_suggested_values_to_schema(await self.get_schema(), options)
+
         return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_MODEL,
-                    ): SelectSelector(
-                        SelectSelectorConfig(
-                            options=downloaded_models, custom_value=True
-                        )
-                    ),
-                }
-            ),
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
         )

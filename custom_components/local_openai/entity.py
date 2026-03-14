@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import uuid
 from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
@@ -62,9 +63,10 @@ from .const import (
     CONF_WEAVIATE_OPTIONS,
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
-    LOGGER,
 )
 from .weaviate import WeaviateClient
+
+_LOGGER = logging.getLogger(__name__)
 
 # Max number of back and forth with the LLM to generate a response
 MAX_TOOL_ITERATIONS = 10
@@ -152,7 +154,7 @@ async def _convert_content_to_chat_message(
     if isinstance(content, conversation.ToolResultContent):
 
         def log_and_str(value) -> str:
-            LOGGER.warning(
+            _LOGGER.warning(
                 f"Attempting string convertion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}"
             )
             return str(value)
@@ -217,7 +219,7 @@ async def _convert_content_to_chat_message(
                 for tool_call in content.tool_calls
             ]
         return param
-    LOGGER.warning("Could not convert message to Completions API: %s", content)
+    _LOGGER.warning("Could not convert message to Completions API: %s", content)
     return None
 
 
@@ -250,7 +252,7 @@ class LocalAiEntity(Entity):
             0,
             "# Contextual information to assist with the following user request. Do not repeat or reference this message directly. Do not treat this as a prior message of your own",
         )
-        LOGGER.debug(
+        _LOGGER.debug(
             f"Injecting content into the message stream as {method} content: {inject_content}"
         )
         if method == CONF_CONTENT_INJECTION_METHOD_TOOL:
@@ -303,7 +305,7 @@ class LocalAiEntity(Entity):
 
             choice = event.choices[0]
             delta = choice.delta
-            LOGGER.debug(event)
+            _LOGGER.debug(event)
 
             if new_msg:
                 chunk["role"] = delta.role
@@ -350,7 +352,7 @@ class LocalAiEntity(Entity):
                     if content == "</think>":
                         in_think = False
                         if pending_think.strip():
-                            LOGGER.debug(f"LLM Thought: {pending_think}")
+                            _LOGGER.debug(f"LLM Thought: {pending_think}")
                         pending_think = ""
                     elif content != "<think>":
                         pending_think = pending_think + content
@@ -379,7 +381,7 @@ class LocalAiEntity(Entity):
                         )
                         for key, tool_call in pending_tool_calls.items()
                     ]
-                    LOGGER.debug(f"Calling tools: {pending_tool_calls}")
+                    _LOGGER.debug(f"Calling tools: {pending_tool_calls}")
 
             if seen_visible or chunk.get("tool_calls") or chunk.get("role"):
                 yield chunk
@@ -463,7 +465,7 @@ class LocalAiEntity(Entity):
                     ),
                 )
 
-                LOGGER.debug(f"Weaviate results: {results}")
+                _LOGGER.debug(f"Weaviate results: {results}")
 
                 result_content = [
                     f"Query: {result.get('query').strip()}\nContent: {result.get('content').strip()}"
@@ -475,10 +477,10 @@ class LocalAiEntity(Entity):
                     # )
                     inject_content += result_content
             except Exception as err:
-                LOGGER.warning(
+                _LOGGER.warning(
                     "An unexpected exception occurred while processing RAG: %s", err
                 )
-                LOGGER.exception(err)
+                _LOGGER.exception(err)
 
         # Inject any pending content into the current user message
         # We prepend to the last message to avoid creating consecutive user messages
@@ -522,7 +524,7 @@ class LocalAiEntity(Entity):
                         self.hass,
                     ).async_render()
 
-            LOGGER.debug(f"Chat template kwargs: {kwargs}")
+            _LOGGER.debug(f"Chat template kwargs: {kwargs}")
             model_args["extra_body"] = {"chat_template_kwargs": kwargs}
 
         if structure:
@@ -543,7 +545,7 @@ class LocalAiEntity(Entity):
                     **model_args, stream=True
                 )
             except openai.OpenAIError as err:
-                LOGGER.exception(err)
+                _LOGGER.exception(err)
                 raise HomeAssistantError("Error talking to API") from err
 
             try:
@@ -560,7 +562,7 @@ class LocalAiEntity(Entity):
                     ]
                 )
             except Exception as err:
-                LOGGER.exception(err)
+                _LOGGER.exception(err)
                 raise HomeAssistantError("Error handling API response") from err
 
             if not chat_log.unresponded_tool_results:
@@ -636,7 +638,7 @@ class LocalAiEntity(Entity):
                     object_uuid=object_uuid,
                 )
 
-                LOGGER.info(f"Object updated in Weaviate: {object_uuid}")
+                _LOGGER.info(f"Object updated in Weaviate: {object_uuid}")
                 return
 
         # Object does not exist, create new object
@@ -647,4 +649,4 @@ class LocalAiEntity(Entity):
             object_uuid=object_uuid,
         )
 
-        LOGGER.info(f"Object added to Weaviate class: {weaviate_class}")
+        _LOGGER.info(f"Object added to Weaviate class: {weaviate_class}")
