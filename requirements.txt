@@ -1,4 +1,4 @@
-homeassistant==2025.7.0
+homeassistant==2025.8.0
 aiohttp>=3.8.0,<4.0.0
 ruff==0.13.2
 voluptuous>=0.12.1,<1.0.0
