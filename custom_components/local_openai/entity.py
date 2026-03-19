@@ -307,7 +307,8 @@ class LocalAiEntity(Entity):
             _LOGGER.debug(event)
 
             if new_msg:
-                chunk["role"] = delta.role
+                # openvinotoolkit/model_server fails to provide a message role in its responses, so lets default to assistant if none is received
+                chunk["role"] = delta.role if delta.role else "assistant"
                 new_msg = False
 
             if (tool_calls := delta.tool_calls) is not None and tool_calls:
