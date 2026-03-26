@@ -33,6 +33,7 @@ from openai import AsyncOpenAI, OpenAIError
 
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
+    CONF_AI_TASK_TOOLS_SECTION,
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -63,7 +64,7 @@ from .weaviate import WeaviateClient, WeaviateError
 
 
 async def prepare_weaviate_class(hass: HomeAssistant, weaviate_opts: dict[str, Any]):
-    """Prepare our object class"""
+    """Prepare our object class."""
     host = weaviate_opts.get(CONF_WEAVIATE_HOST)
     if not host:
         # Just pass if we dont have a weaviate host defined
@@ -242,6 +243,15 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
 class LocalAiSubentryFlowHandler(ConfigSubentryFlow):
     """Handle subentry flow for Local OpenAI LLM."""
 
+    def get_llm_apis(self) -> list[SelectOptionDict]:
+        return [
+            SelectOptionDict(
+                label=api.name,
+                value=api.id,
+            )
+            for api in llm.async_get_apis(self.hass)
+        ]
+
     @staticmethod
     def strip_model_pathing(model_name: str) -> str:
         """llama.cpp at the very least will keep the full model file path supplied from the CLI so lets look to strip that and any .gguf extension."""
@@ -251,15 +261,6 @@ class LocalAiSubentryFlowHandler(ConfigSubentryFlow):
 
 class ConversationFlowHandler(LocalAiSubentryFlowHandler):
     """Handle subentry flow."""
-
-    def get_llm_apis(self) -> list[SelectOptionDict]:
-        return [
-            SelectOptionDict(
-                label=api.name,
-                value=api.id,
-            )
-            for api in llm.async_get_apis(self.hass)
-        ]
 
     async def get_schema(self):
         llm_apis = self.get_llm_apis()
@@ -508,6 +509,8 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
             LOGGER.exception(f"Unexpected exception retrieving models list: {err}")
             downloaded_models = []
 
+        llm_apis = self.get_llm_apis()
+
         return vol.Schema(
             {
                 vol.Required(
@@ -526,6 +529,23 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                         multiple=True,
                         mode=SelectSelectorMode.LIST,
                     )
+                ),
+                vol.Required(CONF_AI_TASK_TOOLS_SECTION): section(
+                    options=SectionConfig(collapsed=True),
+                    schema=vol.Schema(
+                        schema={
+                            vol.Optional(
+                                CONF_LLM_HASS_API,
+                                default=[],
+                            ): SelectSelector(
+                                SelectSelectorConfig(options=llm_apis, multiple=True)
+                            ),
+                            vol.Required(
+                                CONF_PARALLEL_TOOL_CALLS,
+                                default=True,
+                            ): bool,
+                        }
+                    ),
                 ),
             }
         )

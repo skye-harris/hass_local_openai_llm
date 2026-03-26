@@ -5,21 +5,28 @@ from __future__ import annotations
 import base64
 import io
 import logging
+import re
 from json import JSONDecodeError
 
 import openai
 from homeassistant.components import ai_task, conversation
+from homeassistant.components.conversation import SystemContent
 from homeassistant.config_entries import ConfigSubentry
+from homeassistant.const import CONF_LLM_HASS_API
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import llm
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.llm import async_get_api, selector_serializer
 from homeassistant.util.json import json_loads
 from PIL import Image
 
-from . import LocalAiConfigEntry
+from . import DOMAIN, LocalAiConfigEntry
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTE_OPTIONS,
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
+    CONF_AI_TASK_TOOLS_SECTION,
+    CONF_PARALLEL_TOOL_CALLS,
 )
 from .entity import LocalAiEntity
 
@@ -76,7 +83,40 @@ class LocalAITaskEntity(
         chat_log: conversation.ChatLog,
     ) -> ai_task.GenDataTaskResult:
         """Handle a generate data task."""
-        await self._async_handle_chat_log(chat_log, task.name, task.structure)
+        options = self.subentry.data
+
+        tools_opts = options.get(CONF_AI_TASK_TOOLS_SECTION, {})
+        llm_apis = tools_opts.get(CONF_LLM_HASS_API, [])
+        parallel_tool_calls = tools_opts.get(CONF_PARALLEL_TOOL_CALLS, False)
+
+        # Inject LLM APIs into AI Data flow
+        if llm_apis:
+            llm_context = llm.LLMContext(
+                platform=DOMAIN,
+                context=None,
+                language=None,
+                assistant=None,
+                device_id=None,
+            )
+            apis = await async_get_api(self.hass, llm_apis, llm_context)
+            apis.custom_serializer = (
+                apis.custom_serializer
+                if apis.custom_serializer
+                else selector_serializer
+            )
+            chat_log.llm_api = apis
+            api_prompt = f"\n\n{apis.api_prompt.strip()}\n\nCurrent time"
+            system_prompt = re.sub(
+                "\nCurrent time", api_prompt, chat_log.content[0].content
+            )
+            chat_log.content[0] = SystemContent(content=system_prompt)
+
+        await self._async_handle_chat_log(
+            chat_log=chat_log,
+            structure_name=task.name,
+            structure=task.structure,
+            parallel_tool_calls=parallel_tool_calls,
+        )
 
         if not isinstance(chat_log.content[-1], conversation.AssistantContent):
             raise HomeAssistantError(

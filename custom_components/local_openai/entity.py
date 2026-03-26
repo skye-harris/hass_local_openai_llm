@@ -48,7 +48,6 @@ from .const import (
     CONF_CONTENT_INJECTION_METHOD_TOOL,
     CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_MAX_MESSAGE_HISTORY,
-    CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
     CONF_WEAVIATE_API_KEY,
@@ -73,7 +72,7 @@ MAX_TOOL_ITERATIONS = 10
 
 
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
-    """Remove keys not supported in the tool schema"""
+    """Remove keys not supported in the tool schema."""
     for key in ("allOf", "anyOf", "oneOf"):
         schema.pop(key, None)
 
@@ -400,13 +399,13 @@ class LocalAiEntity(Entity):
         structure_name: str | None = None,
         structure: vol.Schema | None = None,
         user_input: conversation.ConversationInput | None = None,
+        parallel_tool_calls: bool = False,
     ) -> None:
         """Generate an answer for the chat log."""
         options = self.subentry.data
         strip_emojis = options.get(CONF_STRIP_EMOJIS)
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
         temperature = options.get(CONF_TEMPERATURE, 0.6)
-        parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
 
         model_args = {
             "model": self.model,
@@ -584,7 +583,7 @@ class LocalAiEntity(Entity):
         This sets the max history to allow a configurable size history may take
         up in the context window.
 
-        Logic borrowed from the Ollama integration with thanks
+        Logic borrowed from the Ollama integration with thanks.
         """
         if max_messages < 1:
             # Keep all messages
@@ -612,7 +611,7 @@ class LocalAiEntity(Entity):
     async def upsert_data_in_weaviate(
         self, query: str, content: str, identifier: str | None
     ):
-        """Add or update a record in Weaviate"""
+        """Add or update a record in Weaviate."""
         options = self.subentry.data
         weaviate_opts = options.get(CONF_WEAVIATE_OPTIONS, {})
         weaviate_server_opts = self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})
