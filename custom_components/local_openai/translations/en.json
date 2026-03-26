@@ -176,6 +176,9 @@
               "data": {
                 "llm_hass_api": "Tool Providers",
                 "parallel_tool_calls": "Parallel tool calling"
+              },
+              "data_description": {
+                "parallel_tool_calls": "Allow the model to use multiple tools in a single turn"
               }
             }
           }
@@ -193,6 +196,9 @@
               "data": {
                 "llm_hass_api": "Tool Providers",
                 "parallel_tool_calls": "Parallel tool calling"
+              },
+              "data_description": {
+                "parallel_tool_calls": "Allow the model to use multiple tools in a single turn"
               }
             }
           }
