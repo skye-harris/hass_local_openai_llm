@@ -25,6 +25,7 @@
 - Added experimental Retrieval Augmented Generation capability
 - Added chat template arguments support
 - Added image generation support for AI Task entities
+- Added tools support for Generate Data actions for AI Task entities
 
 ---
 

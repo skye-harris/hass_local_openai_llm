@@ -168,7 +168,41 @@
       "step": {
         "user": {
           "data": {
-            "model": "The model to use for the AI Task agent"
+            "model": "The model to use for the AI Task agent",
+            "supported_attributes": "Supported Attributes"
+          },
+          "sections": {
+            "tooling": {
+              "name": "Tool Providers & Options",
+              "description": "Supported for Generate Data actions",
+              "data": {
+                "llm_hass_api": "Tool Providers",
+                "parallel_tool_calls": "Parallel tool calling"
+              },
+              "data_description": {
+                "parallel_tool_calls": "Allow the model to use multiple tools in a single turn"
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Reconfigure the AI Task",
+          "data": {
+            "model": "The model to use for the AI Task agent",
+            "supported_attributes": "Supported Attributes"
+          },
+          "sections": {
+            "tooling": {
+              "name": "Tool Providers & Options",
+              "description": "Supported for Generate Data actions",
+              "data": {
+                "llm_hass_api": "Tool Providers",
+                "parallel_tool_calls": "Parallel tool calling"
+              },
+              "data_description": {
+                "parallel_tool_calls": "Allow the model to use multiple tools in a single turn"
+              }
+            }
           }
         }
       },
@@ -178,7 +212,8 @@
       "entry_type": "AI task",
       "abort": {
         "cannot_connect": "Could not communicate with the server",
-        "unknown": "An unknown error occurred"
+        "unknown": "An unknown error occurred",
+        "reconfigure_successful": "AI Task has been reconfigured"
       }
     }
   }

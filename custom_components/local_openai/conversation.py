@@ -10,7 +10,7 @@ from homeassistant.helpers import llm
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LocalAiConfigEntry
-from .const import DOMAIN
+from .const import CONF_PARALLEL_TOOL_CALLS, DOMAIN
 from .entity import LocalAiEntity
 
 
@@ -56,6 +56,7 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         """Process the user input and call the API."""
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
+        parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
 
         hass_apis = [api.id for api in llm.async_get_apis(self.hass)]
 
@@ -73,6 +74,8 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         except conversation.ConverseError as err:
             return err.as_conversation_result()
 
-        await self._async_handle_chat_log(chat_log, user_input=user_input)
+        await self._async_handle_chat_log(
+            chat_log, user_input=user_input, parallel_tool_calls=parallel_tool_calls
+        )
 
         return conversation.async_get_result_from_chat_log(user_input, chat_log)
