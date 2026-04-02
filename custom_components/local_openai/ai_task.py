@@ -187,7 +187,9 @@ class LocalAITaskEntity(
         _LOGGER.debug("Sending image generation request to API")
         try:
             response = await client.images.generate(
-                prompt=ai_task.instructions, model=self.model, output_format="png"
+                prompt=ai_task.instructions,
+                model=self.model,
+                response_format="b64_json",
             )
         except openai.OpenAIError as err:
             _LOGGER.error("Error requesting image response from API: %s", err)
