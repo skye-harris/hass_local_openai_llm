@@ -69,6 +69,11 @@ _LOGGER = logging.getLogger(__name__)
 # Max number of back and forth with the LLM to generate a response
 MAX_TOOL_ITERATIONS = 10
 
+# Check if HA supports thinking_content (2026.4+)
+_SUPPORTS_THINKING = "thinking_content" in getattr(
+    conversation.AssistantContent, "__dataclass_fields__", {}
+)
+
 
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
     """Remove keys not supported in the tool schema."""
@@ -337,6 +342,14 @@ class LocalAiEntity(Entity):
                             tool_call.function.arguments or ""
                         )
 
+            # Handle reasoning_content field (used by reasoning models via OpenAI-compatible APIs)
+            reasoning_content = getattr(delta, "reasoning_content", None)
+            if reasoning_content:
+                if _SUPPORTS_THINKING:
+                    chunk["thinking_content"] = reasoning_content
+                else:
+                    _LOGGER.debug(f"LLM Thought: {reasoning_content}")
+
             if (content := delta.content) is not None:
                 if strip_emojis:
                     content = await loop.run_in_executor(
@@ -353,13 +366,23 @@ class LocalAiEntity(Entity):
                 if in_think:
                     if "</think>" in content:
                         in_think = False
-                        remaining = content.split("</think>", 1)[1]
-                        if pending_think.strip():
-                            _LOGGER.debug(f"LLM Thought: {pending_think}")
-                        pending_think = ""
+                        before_close, remaining = content.split("</think>", 1)
+                        pending_think += before_close
                         content = remaining
+
+                        if _SUPPORTS_THINKING:
+                            # HA 2026.4+: stream the final thinking fragment
+                            if before_close:
+                                chunk["thinking_content"] = before_close
+                        elif pending_think.strip():
+                            _LOGGER.debug(f"LLM Thought: {pending_think}")
+
+                        pending_think = ""
                     else:
                         pending_think += content
+                        if _SUPPORTS_THINKING:
+                            # HA 2026.4+: stream thinking content as it arrives
+                            chunk["thinking_content"] = content
                         content = ""
 
                 if not in_think and content.strip():
@@ -389,7 +412,7 @@ class LocalAiEntity(Entity):
                     ]
                     _LOGGER.debug(f"Calling tools: {pending_tool_calls}")
 
-            if seen_visible or chunk.get("tool_calls") or chunk.get("role"):
+            if seen_visible or chunk.get("tool_calls") or chunk.get("role") or chunk.get("thinking_content"):
                 yield chunk
 
     async def _async_handle_chat_log(
