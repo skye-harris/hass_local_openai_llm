@@ -157,13 +157,14 @@ class LocalAITaskEntity(
             image_buffer = io.BytesIO(img_data)
             img = Image.open(image_buffer)
             width, height = img.size
+            mime_type = img.get_format_mimetype()
         except Exception as err:
             _LOGGER.error("Error decoding base64 image response: %s", err)
             raise HomeAssistantError(f"Error decoding image response: {err}") from err
 
         _LOGGER.debug(
             "Generated image details: mime_type=%s, width=%s, height=%s",
-            "image/png",
+            mime_type,
             width,
             height,
         )
@@ -171,7 +172,7 @@ class LocalAITaskEntity(
         return ai_task.GenImageTaskResult(
             image_data=img_data,
             conversation_id=chat_log.conversation_id,
-            mime_type="image/png",
+            mime_type=mime_type,
             width=width,
             height=height,
             model=self.model,
