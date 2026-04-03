@@ -557,6 +557,14 @@ class LocalAiEntity(Entity):
             _LOGGER.debug(f"Chat template kwargs: {kwargs}")
             model_args["extra_body"] = {"chat_template_kwargs": kwargs}
 
+        # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
+        if user_input and hasattr(user_input, "conversation_id") and user_input.conversation_id:
+            if "extra_body" not in model_args:
+                model_args["extra_body"] = {}
+            model_args["extra_body"].setdefault("metadata", {})["session_id"] = (
+                user_input.conversation_id
+            )
+
         if structure:
             if TYPE_CHECKING:
                 assert structure_name is not None
