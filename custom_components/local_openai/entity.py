@@ -413,7 +413,12 @@ class LocalAiEntity(Entity):
                     ]
                     _LOGGER.debug(f"Calling tools: {pending_tool_calls}")
 
-            if seen_visible or chunk.get("tool_calls") or chunk.get("role") or chunk.get("thinking_content"):
+            if (
+                seen_visible
+                or chunk.get("tool_calls")
+                or chunk.get("role")
+                or chunk.get("thinking_content")
+            ):
                 yield chunk
 
     async def _async_handle_chat_log(
@@ -544,6 +549,10 @@ class LocalAiEntity(Entity):
             keypair for keypair in chat_template_args if keypair["Name"].strip()
         ]
 
+        # Additional args to be passed into extra_body:
+        # - chat_template_kwargs is supported in multiple inference servers, args depend on model support
+        # - metadata.session_id is supported by LiteLLM for observability & tracing in langfuse
+        extra_body_args = {}
         if chat_template_args:
             kwargs = {}
             for keypair in chat_template_args:
@@ -553,17 +562,22 @@ class LocalAiEntity(Entity):
                         keypair["Value"],
                         self.hass,
                     ).async_render()
-
-            _LOGGER.debug(f"Chat template kwargs: {kwargs}")
-            model_args["extra_body"] = {"chat_template_kwargs": kwargs}
+            extra_body_args["chat_template_kwargs"] = kwargs
 
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
-        if user_input and hasattr(user_input, "conversation_id") and user_input.conversation_id:
-            if "extra_body" not in model_args:
-                model_args["extra_body"] = {}
-            model_args["extra_body"].setdefault("metadata", {})["session_id"] = (
-                user_input.conversation_id
-            )
+        if (
+            user_input
+            and hasattr(user_input, "conversation_id")
+            and user_input.conversation_id
+        ):
+            extra_body_args["metadata"] = {
+                "session_id": user_input.conversation_id,
+            }
+
+        # Insert our extra_body args if we have any
+        if extra_body_args:
+            _LOGGER.debug(f"Extra-body args: {extra_body_args}")
+            model_args["extra_body"] = extra_body_args
 
         if structure:
             if TYPE_CHECKING:
