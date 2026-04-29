@@ -23,7 +23,8 @@ CONF_AI_TASK_SUPPORTED_ATTRIBUTES = "supported_attributes"
 CONF_AI_TASK_SUPPORTED_ATTRIBUTE_OPTIONS = {
     "generate_data": ai_task.AITaskEntityFeature.GENERATE_DATA
     | ai_task.AITaskEntityFeature.SUPPORT_ATTACHMENTS,
-    "generate_image": ai_task.AITaskEntityFeature.GENERATE_IMAGE,
+    "generate_image": ai_task.AITaskEntityFeature.GENERATE_IMAGE
+    | ai_task.AITaskEntityFeature.SUPPORT_ATTACHMENTS,
 }
 
 CONF_AI_TASK_TOOLS_SECTION = "tooling"
