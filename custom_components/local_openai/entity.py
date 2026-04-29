@@ -222,6 +222,12 @@ async def _convert_content_to_chat_message(
                 )
                 for tool_call in content.tool_calls
             ]
+        # Reasoning models (e.g. DeepSeek) return reasoning_content in the response.
+        # The API requires this to be passed back on subsequent turns in the conversation.
+        if isinstance(content, conversation.AssistantContent) and getattr(
+            content, "thinking_content", None
+        ):
+            param["reasoning_content"] = content.thinking_content
         return param
     _LOGGER.warning("Could not convert message to Completions API: %s", content)
     return None
