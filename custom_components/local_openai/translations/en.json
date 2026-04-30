@@ -12,6 +12,16 @@
           "api_key": "If required to authenticate with the service"
         },
         "sections": {
+          "server_options": {
+            "name": "Advanced configuration",
+            "description": "Advanced server-level options",
+            "data": {
+              "pass_session_id": "Pass conversation session ID to LiteLLM server"
+            },
+            "data_description": {
+              "pass_session_id": "Used for conversation tracing in LiteLLM"
+            }
+          },
           "weaviate_options": {
             "name": "Weaviate configuration",
             "description": "Query a Weaviate vector database with user messages and augment the generation with semantically-similar results",
@@ -37,6 +47,16 @@
           "api_key": "If required to authenticate with the service"
         },
         "sections": {
+          "server_options": {
+            "name": "Advanced configuration",
+            "description": "Advanced server-level options",
+            "data": {
+              "pass_session_id": "Pass conversation session ID to LiteLLM server"
+            },
+            "data_description": {
+              "pass_session_id": "Used for conversation tracing in LiteLLM"
+            }
+          },
           "weaviate_options": {
             "name": "Weaviate configuration",
             "data": {
