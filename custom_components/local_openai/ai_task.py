@@ -182,22 +182,46 @@ class LocalAITaskEntity(
         self,
         ai_task: ai_task.GenImageTask,
     ):
-        """Generate an image response using the Responses API."""
+        """Generate an image response using the Images API."""
         client = self.entry.runtime_data
+        attachments = ai_task.attachments or []
+
+        for attachment in attachments:
+            if not attachment.mime_type.startswith("image/"):
+                raise HomeAssistantError(
+                    f"Unsupported attachment type for image generation: {attachment.mime_type}"
+                )
 
         _LOGGER.debug("Sending image generation request to API")
         try:
-            response = await client.images.generate(
-                prompt=ai_task.instructions,
-                model=self.model,
-                response_format="b64_json",
-            )
+            if attachments:
+                def read_files():
+                    return [
+                        (a.path.name, a.path.read_bytes(), a.mime_type)
+                        for a in attachments
+                    ]
+
+                files = await self.hass.async_add_executor_job(read_files)
+                image_arg = files[0] if len(files) == 1 else files
+
+                response = await client.images.edit(
+                    image=image_arg,
+                    prompt=ai_task.instructions,
+                    model=self.model,
+                    response_format="b64_json",
+                )
+            else:
+                response = await client.images.generate(
+                    prompt=ai_task.instructions,
+                    model=self.model,
+                    response_format="b64_json",
+                )
         except openai.OpenAIError as err:
             _LOGGER.error("Error requesting image response from API: %s", err)
             raise HomeAssistantError(f"Error talking to API: {err}") from err
 
         if len(response.data) == 0:
-            _LOGGER.debug("No image received from API: %s")
+            _LOGGER.debug("No image received from API")
             raise HomeAssistantError("No image was returned by the API")
 
         return response.data[0]
