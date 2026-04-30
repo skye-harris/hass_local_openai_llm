@@ -56,6 +56,8 @@ from .const import (
     CONF_WEAVIATE_MAX_RESULTS_MAX,
     CONF_WEAVIATE_OPTIONS,
     CONF_WEAVIATE_THRESHOLD,
+    CONF_PASS_SESSION_ID,
+    CONF_SERVER_OPTIONS,
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
@@ -119,6 +121,17 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 ): str,
                 vol.Required(CONF_BASE_URL, default=""): str,
                 vol.Optional(CONF_API_KEY, default=""): str,
+                vol.Optional(CONF_SERVER_OPTIONS): section(
+                    schema=vol.Schema(
+                        schema={
+                            vol.Optional(
+                                CONF_PASS_SESSION_ID,
+                                default=False,
+                            ): bool,
+                        }
+                    ),
+                    options={"collapsed": True},
+                ),
                 vol.Optional(CONF_WEAVIATE_OPTIONS): section(
                     schema=vol.Schema(
                         schema={

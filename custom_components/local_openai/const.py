@@ -18,6 +18,8 @@ CONF_TEMPERATURE = "temperature"
 CONF_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
 CONF_CHAT_TEMPLATE_OPTS = "chat_template_opts"
 CONF_CHAT_TEMPLATE_KWARGS = "chat_template_kwargs"
+CONF_PASS_SESSION_ID = "pass_session_id"
+CONF_SERVER_OPTIONS = "server_options"
 
 CONF_AI_TASK_SUPPORTED_ATTRIBUTES = "supported_attributes"
 CONF_AI_TASK_SUPPORTED_ATTRIBUTE_OPTIONS = {
