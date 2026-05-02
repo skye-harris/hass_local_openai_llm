@@ -355,7 +355,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                             config={
                                 "multiple": True,
                                 "fields": {
-                                    "Name": {
+                                    "Key": {
                                         "selector": {"text": None},
                                         "required": True,
                                     },
