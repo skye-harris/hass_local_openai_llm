@@ -98,7 +98,7 @@ def options_to_selections_dict(opts: dict) -> list[SelectOptionDict]:
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Local OpenAI LLM."""
 
-    VERSION = 1
+    VERSION = 2
 
     @classmethod
     @callback
