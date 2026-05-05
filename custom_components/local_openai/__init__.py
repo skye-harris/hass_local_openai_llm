@@ -13,11 +13,66 @@ from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.typing import ConfigType
 from openai import AsyncOpenAI, AuthenticationError, OpenAIError
 
-from .const import CONF_BASE_URL, DOMAIN, LOGGER
+from .const import (
+    CONF_CHAT_TEMPLATE_KWARGS,
+    CONF_CHAT_TEMPLATE_OPTS,
+    CONF_BASE_URL,
+    DOMAIN,
+    LOGGER,
+)
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
 
 type LocalAiConfigEntry = ConfigEntry[AsyncOpenAI]
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate config entry to new version."""
+    LOGGER.debug(
+        "Migrating configuration from version %s.%s",
+        entry.version,
+        entry.minor_version or 1,
+    )
+
+    if entry.version > 2:
+        # User has downgraded from a future version
+        return False
+
+    if entry.version == 1:
+        # Migrate conversation subentries: rename "Name" key to "Key" in chat_template_kwargs
+        for subentry in entry.subentries.values():
+            if subentry.subentry_type != "conversation":
+                continue
+
+            data = dict(subentry.data)
+            chat_template_opts = data.get(CONF_CHAT_TEMPLATE_OPTS, {})
+            chat_template_kwargs = chat_template_opts.get(CONF_CHAT_TEMPLATE_KWARGS, [])
+
+            migrated = False
+            new_kwargs = []
+            for item in chat_template_kwargs:
+                item_dict = dict(item)
+                if "Name" in item_dict and "Key" not in item_dict:
+                    item_dict["Key"] = item_dict.pop("Name")
+                    migrated = True
+                new_kwargs.append(item_dict)
+
+            if migrated:
+                data[CONF_CHAT_TEMPLATE_OPTS] = {
+                    **chat_template_opts,
+                    CONF_CHAT_TEMPLATE_KWARGS: new_kwargs,
+                }
+                hass.config_entries.async_update_subentry(
+                    entry,
+                    subentry,
+                    data=data,
+                )
+
+        # Bump config entry version to prevent re-running migration
+        hass.config_entries.async_update_entry(entry, version=2)
+
+    LOGGER.debug("Migration to configuration version %s successful", 2)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
