@@ -47,6 +47,8 @@ from .const import (
     CONF_CONTENT_INJECTION_METHOD_TOOL,
     CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_MAX_MESSAGE_HISTORY,
+    CONF_PASS_SESSION_ID,
+    CONF_SERVER_OPTIONS,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
     CONF_WEAVIATE_API_KEY,
@@ -430,6 +432,7 @@ class LocalAiEntity(Entity):
     ) -> None:
         """Generate an answer for the chat log."""
         options = self.subentry.data
+        server_options = self.entry.data.get(CONF_SERVER_OPTIONS, {})
         strip_emojis = options.get(CONF_STRIP_EMOJIS)
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
         temperature = options.get(CONF_TEMPERATURE, 0.6)
@@ -546,7 +549,7 @@ class LocalAiEntity(Entity):
 
         # Filter args without a name - they are marked as required in the schema but this isn't being enforced on the front-end
         chat_template_args = [
-            keypair for keypair in chat_template_args if keypair["Name"].strip()
+            keypair for keypair in chat_template_args if keypair["Key"].strip()
         ]
 
         # Additional args to be passed into extra_body:
@@ -556,9 +559,9 @@ class LocalAiEntity(Entity):
         if chat_template_args:
             kwargs = {}
             for keypair in chat_template_args:
-                if keypair["Name"]:
+                if keypair["Key"]:
                     # Our value is a template, so that non-string data types and more complex structures can be provided by the user
-                    kwargs[keypair["Name"]] = template.Template(
+                    kwargs[keypair["Key"]] = template.Template(
                         keypair["Value"],
                         self.hass,
                     ).async_render()
@@ -566,7 +569,8 @@ class LocalAiEntity(Entity):
 
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         if (
-            user_input
+            server_options.get(CONF_PASS_SESSION_ID, False)
+            and user_input
             and hasattr(user_input, "conversation_id")
             and user_input.conversation_id
         ):

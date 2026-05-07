@@ -56,6 +56,8 @@ from .const import (
     CONF_WEAVIATE_MAX_RESULTS_MAX,
     CONF_WEAVIATE_OPTIONS,
     CONF_WEAVIATE_THRESHOLD,
+    CONF_PASS_SESSION_ID,
+    CONF_SERVER_OPTIONS,
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
@@ -96,7 +98,7 @@ def options_to_selections_dict(opts: dict) -> list[SelectOptionDict]:
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Local OpenAI LLM."""
 
-    VERSION = 1
+    VERSION = 2
 
     @classmethod
     @callback
@@ -119,6 +121,17 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 ): str,
                 vol.Required(CONF_BASE_URL, default=""): str,
                 vol.Optional(CONF_API_KEY, default=""): str,
+                vol.Optional(CONF_SERVER_OPTIONS): section(
+                    schema=vol.Schema(
+                        schema={
+                            vol.Optional(
+                                CONF_PASS_SESSION_ID,
+                                default=False,
+                            ): bool,
+                        }
+                    ),
+                    options={"collapsed": True},
+                ),
                 vol.Optional(CONF_WEAVIATE_OPTIONS): section(
                     schema=vol.Schema(
                         schema={
@@ -346,7 +359,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                             config={
                                 "multiple": True,
                                 "fields": {
-                                    "Name": {
+                                    "Key": {
                                         "selector": {"text": None},
                                         "required": True,
                                     },
