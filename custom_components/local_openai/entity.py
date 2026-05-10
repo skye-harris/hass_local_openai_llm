@@ -602,7 +602,12 @@ class LocalAiEntity(Entity):
         for _iteration in range(MAX_TOOL_ITERATIONS):
             try:
                 result_stream = await client.chat.completions.create(
-                    **model_args, stream=True
+                    **model_args,
+                    stream=True,
+                    stream_options={
+                        # Include usage statistics (token counts) in the final chunk of streamed responses
+                        "include_usage": True
+                    }
                 )
             except openai.OpenAIError as err:
                 _LOGGER.exception(err)
