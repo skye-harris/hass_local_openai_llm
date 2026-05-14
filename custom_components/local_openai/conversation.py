@@ -10,7 +10,7 @@ from homeassistant.helpers import llm
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LocalAiConfigEntry
-from .const import CONF_PARALLEL_TOOL_CALLS, DOMAIN
+from .const import CONF_CONVERSATION_MODE, CONF_CONVERSATION_MODE_DEFAULT, CONF_PARALLEL_TOOL_CALLS, DOMAIN
 from .entity import LocalAiEntity
 
 
@@ -57,6 +57,7 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
+        conversation_mode = options.get(CONF_CONVERSATION_MODE, CONF_CONVERSATION_MODE_DEFAULT)
 
         hass_apis = [api.id for api in llm.async_get_apis(self.hass)]
 
@@ -78,4 +79,9 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
             chat_log, user_input=user_input, parallel_tool_calls=parallel_tool_calls
         )
 
-        return conversation.async_get_result_from_chat_log(user_input, chat_log)
+        # Set continue_conversation flag based on conversation_mode setting
+        chat_log_result = conversation.async_get_result_from_chat_log(user_input, chat_log)
+        if conversation_mode and continue_conversation:
+            chat_log_result.continue_conversation = True
+
+        return chat_log_result

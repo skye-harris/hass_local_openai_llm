@@ -37,6 +37,8 @@ from .const import (
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
+    CONF_CONVERSATION_MODE,
+    CONF_CONVERSATION_MODE_DEFAULT,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHODS,
     CONF_MAX_MESSAGE_HISTORY,
@@ -317,6 +319,10 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             vol.Required(
                 CONF_STRIP_EMOJIS,
                 default=False,
+            ): bool,
+            vol.Required(
+                CONF_CONVERSATION_MODE,
+                default=CONF_CONVERSATION_MODE_DEFAULT,
             ): bool,
             vol.Required(
                 CONF_TEMPERATURE,
