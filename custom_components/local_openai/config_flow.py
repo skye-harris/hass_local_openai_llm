@@ -560,6 +560,30 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                         }
                     ),
                 ),
+                vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
+                    options=SectionConfig(collapsed=True),
+                    schema=vol.Schema(
+                        schema={
+                            vol.Required(
+                                CONF_CHAT_TEMPLATE_KWARGS, default=[]
+                            ): ObjectSelector(
+                                config={
+                                    "multiple": True,
+                                    "fields": {
+                                        "Key": {
+                                            "selector": {"text": None},
+                                            "required": True,
+                                        },
+                                        "Value": {
+                                            "selector": {"template": None},
+                                            "required": True,
+                                        },
+                                    },
+                                }
+                            ),
+                        }
+                    ),
+                ),
             }
         )
 
