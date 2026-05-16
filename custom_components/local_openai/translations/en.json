@@ -202,6 +202,12 @@
               "data_description": {
                 "parallel_tool_calls": "Allow the model to use multiple tools in a single turn"
               }
+            },
+            "chat_template_opts": {
+              "name": "Chat Template Arguments",
+              "data": {
+                "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
             }
           }
         },
@@ -221,6 +227,12 @@
               },
               "data_description": {
                 "parallel_tool_calls": "Allow the model to use multiple tools in a single turn"
+              }
+            },
+            "chat_template_opts": {
+              "name": "Chat Template Arguments",
+              "data": {
+                "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
             }
           }

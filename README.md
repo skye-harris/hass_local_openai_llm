@@ -185,6 +185,7 @@ These tools exist as a separate integration for compatibility across the wider H
 ## Acknowledgements
 
 - This integration is forked from the [OpenRouter](https://github.com/home-assistant/core/tree/dev/homeassistant/components/open_router) integration for Home Assistant by [@joostlek](https://github.com/joostlek)
+- [@NickM-27](https://github.com/NickM-27) for his contributions both in additions to the integration itself, and providing support and assistance with reported issues
 
 ---
 
