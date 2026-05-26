@@ -346,7 +346,8 @@ class LocalAiEntity(Entity):
                         )
 
             # Handle reasoning_content field (used by reasoning models via OpenAI-compatible APIs)
-            reasoning_content = getattr(delta, "reasoning_content", None)
+            # Naming for this field varies. See https://github.com/vllm-project/vllm/issues/27755
+            reasoning_content = getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None)
             if reasoning_content:
                 if _SUPPORTS_THINKING:
                     chunk["thinking_content"] = reasoning_content
