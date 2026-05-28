@@ -5,13 +5,17 @@ from __future__ import annotations
 import logging
 
 import voluptuous as vol
-from homeassistant.helpers import template
-from homeassistant.helpers.selector import ObjectSelector
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
 from custom_components.local_openai.ai_task import LocalAITaskEntity
 from custom_components.local_openai.const import (
     CONF_LLAMACPP_CONFIG,
-    CONF_LLAMACPP_SERVER_KWARGS,
+    CONF_LLAMACPP_ENABLE_THINKING,
+    CONF_LLAMACPP_ID_SLOT,
 )
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
@@ -20,20 +24,9 @@ _LOGGER = logging.getLogger(__name__)
 
 def _get_llama_cpp_schema() -> dict:
     return {
-        vol.Optional(CONF_LLAMACPP_SERVER_KWARGS, default=[]): ObjectSelector(
-            config={
-                "multiple": True,
-                "fields": {
-                    "Key": {
-                        "selector": {"text": None},
-                        "required": True,
-                    },
-                    "Value": {
-                        "selector": {"template": None},
-                        "required": True,
-                    },
-                },
-            }
+        vol.Required(CONF_LLAMACPP_ENABLE_THINKING, default=False): bool,
+        vol.Optional(CONF_LLAMACPP_ID_SLOT): NumberSelector(
+            NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX)
         ),
     }
 
@@ -48,31 +41,29 @@ def get_ai_task_config_schema() -> dict:
     return _get_llama_cpp_schema()
 
 
-def _llama_cpp_extra_body_args(hass, options: dict) -> dict:
+def _llama_cpp_extra_body_args(options: dict) -> dict:
     opts = options.get(CONF_LLAMACPP_CONFIG, {})
-    server_kwargs = opts.get(CONF_LLAMACPP_SERVER_KWARGS, [])
+    extras: dict = {}
 
-    rendered: dict = {}
-    for keypair in server_kwargs:
-        key = (keypair.get("Key") or "").strip()
-        if not key:
-            continue
-        rendered[key] = template.Template(
-            keypair.get("Value", ""),
-            hass,
-        ).async_render()
-    return rendered
+    id_slot = opts.get(CONF_LLAMACPP_ID_SLOT)
+    if id_slot is not None:
+        extras["id_slot"] = int(id_slot)
+
+    if opts.get(CONF_LLAMACPP_ENABLE_THINKING, False):
+        extras["chat_template_kwargs"] = {"enable_thinking": True}
+
+    return extras
 
 
 class LlamaCppConversationEntity(LocalAiConversationEntity):
     """Conversation agent for llama.cpp servers."""
 
     def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
-        return _llama_cpp_extra_body_args(self.hass, options)
+        return _llama_cpp_extra_body_args(options)
 
 
 class LlamaCppAITaskEntity(LocalAITaskEntity):
     """AI Task entity for llama.cpp servers."""
 
     def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
-        return _llama_cpp_extra_body_args(self.hass, options)
+        return _llama_cpp_extra_body_args(options)

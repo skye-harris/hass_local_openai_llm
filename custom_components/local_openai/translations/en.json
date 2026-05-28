@@ -125,10 +125,12 @@
             "llamacpp_config": {
               "name": "llama.cpp Configuration",
               "data": {
-                "llamacpp_server_kwargs": "Extra server arguments"
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
               },
               "data_description": {
-                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. id_slot, thinking_budget). Values support templates."
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
               }
             },
             "weaviate_options": {
@@ -185,10 +187,12 @@
             "llamacpp_config": {
               "name": "llama.cpp Configuration",
               "data": {
-                "llamacpp_server_kwargs": "Extra server arguments"
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
               },
               "data_description": {
-                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. top_k, min_p, cache_prompt). Values support templates."
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
               }
             },
             "weaviate_options": {
@@ -257,10 +261,12 @@
             "llamacpp_config": {
               "name": "llama.cpp Configuration",
               "data": {
-                "llamacpp_server_kwargs": "Extra server arguments"
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
               },
               "data_description": {
-                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. top_k, min_p, cache_prompt). Values support templates."
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
               }
             }
           }
@@ -301,10 +307,12 @@
             "llamacpp_config": {
               "name": "llama.cpp Configuration",
               "data": {
-                "llamacpp_server_kwargs": "Extra server arguments"
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
               },
               "data_description": {
-                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. top_k, min_p, cache_prompt). Values support templates."
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
               }
             }
           }
