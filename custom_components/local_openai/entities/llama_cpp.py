@@ -59,8 +59,9 @@ def _llama_cpp_extra_body_args(options: dict) -> dict:
     if id_slot is not None:
         extras["id_slot"] = int(id_slot)
 
-    if opts.get(CONF_LLAMACPP_ENABLE_THINKING, False):
-        extras["chat_template_kwargs"] = {"enable_thinking": True}
+    extras["chat_template_kwargs"] = {
+        "enable_thinking": bool(opts.get(CONF_LLAMACPP_ENABLE_THINKING, False)),
+    }
 
     return extras
 
