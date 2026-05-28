@@ -34,6 +34,12 @@ from openai import AsyncOpenAI, OpenAIError
 from custom_components.local_openai.entities.deepseek import (
     get_conversation_config_schema as _deepseek_conversation_schema,
 )
+from custom_components.local_openai.entities.llama_cpp import (
+    get_ai_task_config_schema as _llama_cpp_ai_task_schema,
+)
+from custom_components.local_openai.entities.llama_cpp import (
+    get_conversation_config_schema as _llama_cpp_conversation_schema,
+)
 
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
@@ -112,17 +118,19 @@ def options_to_selections_dict(opts: dict) -> list[SelectOptionDict]:
 
 
 def _get_conversation_config_schema(server_type: str) -> dict:
-    """Get the DeepSeek config for Conversation Agent entities."""
+    """Get the server-specific config fields for Conversation Agent entities."""
     provider = {
         SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+        SERVER_TYPE_LLAMACPP: _llama_cpp_conversation_schema,
     }.get(server_type)
     return provider() if provider else {}
 
 
 def _get_ai_task_config_schema(server_type: str) -> dict:
-    """Get the DeepSeek config for AI Task entities."""
+    """Get the server-specific config fields for AI Task entities."""
     provider = {
         SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+        SERVER_TYPE_LLAMACPP: _llama_cpp_ai_task_schema,
     }.get(server_type)
     return provider() if provider else {}
 

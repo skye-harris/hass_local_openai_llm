@@ -122,6 +122,15 @@
                 "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
               }
             },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_server_kwargs": "Extra server arguments"
+              },
+              "data_description": {
+                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. id_slot, thinking_budget). Values support templates."
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {
@@ -171,6 +180,15 @@
               },
               "data_description": {
                 "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
+            },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_server_kwargs": "Extra server arguments"
+              },
+              "data_description": {
+                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. top_k, min_p, cache_prompt). Values support templates."
               }
             },
             "weaviate_options": {
@@ -235,6 +253,15 @@
               "data_description": {
                 "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
               }
+            },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_server_kwargs": "Extra server arguments"
+              },
+              "data_description": {
+                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. top_k, min_p, cache_prompt). Values support templates."
+              }
             }
           }
         },
@@ -269,6 +296,15 @@
               },
               "data_description": {
                 "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
+            },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_server_kwargs": "Extra server arguments"
+              },
+              "data_description": {
+                "llamacpp_server_kwargs": "Additional request body fields sent to the llama.cpp server (e.g. top_k, min_p, cache_prompt). Values support templates."
               }
             }
           }
