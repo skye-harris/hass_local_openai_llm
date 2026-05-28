@@ -40,6 +40,9 @@ from custom_components.local_openai.entities.llama_cpp import (
 from custom_components.local_openai.entities.llama_cpp import (
     get_conversation_config_schema as _llama_cpp_conversation_schema,
 )
+from custom_components.local_openai.entities.llama_cpp import (
+    get_model_picker_name as _llama_cpp_model_picker_name,
+)
 
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
@@ -143,6 +146,14 @@ def _get_server_type_config_key(server_type: str) -> str:
         SERVER_TYPE_VLLM: CONF_VLLM_CONFIG,
         SERVER_TYPE_DEEPSEEK: CONF_DEEPSEEK_CONFIG,
     }.get(server_type, CONF_GENERIC_CONFIG)
+
+
+def _resolve_model_name(server_type: str, model: Any) -> str:
+    """Resolve a server-specific display/identifier name for a model picker entry."""
+    resolver = {
+        SERVER_TYPE_LLAMACPP: _llama_cpp_model_picker_name,
+    }.get(server_type)
+    return resolver(model) if resolver else model.id
 
 
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -341,15 +352,17 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
         llm_apis = self.get_llm_apis()
         entry = self._get_entry()
         client = entry.runtime_data
+        server_type = entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
 
         try:
             response = await client.models.list()
             downloaded_models: list[SelectOptionDict] = [
                 SelectOptionDict(
-                    label=model.id,
-                    value=model.id,
+                    label=name,
+                    value=name,
                 )
                 for model in response.data
+                if (name := _resolve_model_name(server_type, model))
             ]
         except OpenAIError as err:
             LOGGER.exception(f"OpenAI Error retrieving models list: {err}")
@@ -433,7 +446,6 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             ),
         }
 
-        server_type = entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
         server_type_schema_fields = _get_conversation_config_schema(server_type)
         if server_type_schema_fields:
             schema = {
@@ -579,15 +591,18 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
 
     async def get_schema(self) -> vol.Schema:
         """Get the schema for the AI task data subentry form."""
+        entry = self._get_entry()
+        server_type = entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
         try:
-            client = self._get_entry().runtime_data
+            client = entry.runtime_data
             response = await client.models.list()
             downloaded_models: list[SelectOptionDict] = [
                 SelectOptionDict(
-                    label=model.id,
-                    value=model.id,
+                    label=name,
+                    value=name,
                 )
                 for model in response.data
+                if (name := _resolve_model_name(server_type, model))
             ]
         except OpenAIError as err:
             LOGGER.exception(f"OpenAI Error retrieving models list: {err}")
@@ -659,7 +674,6 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
             ),
         }
 
-        server_type = self._get_entry().data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
         server_type_schema_fields = _get_ai_task_config_schema(server_type)
         if server_type_schema_fields:
             schema = {
