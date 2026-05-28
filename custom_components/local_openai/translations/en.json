@@ -6,7 +6,8 @@
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
-          "api_key": "API key"
+           "api_key": "API key",
+          "server_type": "Server Type"
         },
         "data_description": {
           "api_key": "If required to authenticate with the service"
@@ -41,7 +42,8 @@
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
-          "api_key": "API key"
+          "api_key": "API key",
+          "server_type": "Server Type"
         },
         "data_description": {
           "api_key": "If required to authenticate with the service"
@@ -111,6 +113,15 @@
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
             },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {
@@ -151,6 +162,15 @@
               "name": "Chat Template Arguments",
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
               }
             },
             "weaviate_options": {
@@ -206,6 +226,15 @@
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
+            },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
             }
           }
         },
@@ -231,6 +260,15 @@
               "name": "Chat Template Arguments",
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
               }
             }
           }

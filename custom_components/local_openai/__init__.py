@@ -2,21 +2,25 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import voluptuous as vol
 from homeassistant.components.conversation import DOMAIN as CONVERSATION_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, Platform
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import service
 from homeassistant.helpers.httpx_client import get_async_client
-from homeassistant.helpers.typing import ConfigType
 from openai import AsyncOpenAI, AuthenticationError, OpenAIError
 
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
+
 from .const import (
+    CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
-    CONF_BASE_URL,
     DOMAIN,
     LOGGER,
 )
@@ -34,7 +38,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.minor_version or 1,
     )
 
-    if entry.version > 2:
+    if entry.version > 2:  # noqa: PLR2004
         # User has downgraded from a future version
         return False
 
@@ -91,7 +95,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
             break
     except AuthenticationError as err:
         LOGGER.error("Invalid API key: %s", err)
-        raise ConfigEntryError("Invalid API key") from err
+        msg = "Invalid API key"
+        raise ConfigEntryError(msg) from err
     except OpenAIError as err:
         raise ConfigEntryNotReady(err) from err
 
@@ -133,7 +138,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def upsert_data_in_weaviate(entity, service_call):
+async def upsert_data_in_weaviate(entity, service_call) -> None:  # noqa: ANN001
     """Service action to add content to Weaviate."""
     await entity.upsert_data_in_weaviate(
         query=service_call.data.get("query"),

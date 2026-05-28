@@ -31,6 +31,10 @@ from homeassistant.helpers.selector import (
 )
 from openai import AsyncOpenAI, OpenAIError
 
+from custom_components.local_openai.entities.deepseek import (
+    get_conversation_config_schema as _deepseek_conversation_schema,
+)
+
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
     CONF_AI_TASK_TOOLS_SECTION,
@@ -39,11 +43,18 @@ from .const import (
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHODS,
+    CONF_DEEPSEEK_CONFIG,
+    CONF_GENERIC_CONFIG,
+    CONF_LLAMACPP_CONFIG,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
+    CONF_PASS_SESSION_ID,
     CONF_SERVER_NAME,
+    CONF_SERVER_OPTIONS,
+    CONF_SERVER_TYPE,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
+    CONF_VLLM_CONFIG,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_CLASS_NAME,
     CONF_WEAVIATE_DEFAULT_CLASS_NAME,
@@ -56,16 +67,21 @@ from .const import (
     CONF_WEAVIATE_MAX_RESULTS_MAX,
     CONF_WEAVIATE_OPTIONS,
     CONF_WEAVIATE_THRESHOLD,
-    CONF_PASS_SESSION_ID,
-    CONF_SERVER_OPTIONS,
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
+    SERVER_TYPE_DEEPSEEK,
+    SERVER_TYPE_GENERIC,
+    SERVER_TYPE_LLAMACPP,
+    SERVER_TYPE_OPTIONS,
+    SERVER_TYPE_VLLM,
 )
 from .weaviate import WeaviateClient, WeaviateError
 
 
-async def prepare_weaviate_class(hass: HomeAssistant, weaviate_opts: dict[str, Any]):
+async def prepare_weaviate_class(
+    hass: HomeAssistant, weaviate_opts: dict[str, Any]
+) -> None:
     """Prepare our object class."""
     host = weaviate_opts.get(CONF_WEAVIATE_HOST)
     if not host:
@@ -95,6 +111,32 @@ def options_to_selections_dict(opts: dict) -> list[SelectOptionDict]:
     return [SelectOptionDict(value=key, label=opts[key]) for key in opts]
 
 
+def _get_conversation_config_schema(server_type: str) -> dict:
+    """Get the DeepSeek config for Conversation Agent entities."""
+    provider = {
+        SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+    }.get(server_type)
+    return provider() if provider else {}
+
+
+def _get_ai_task_config_schema(server_type: str) -> dict:
+    """Get the DeepSeek config for AI Task entities."""
+    provider = {
+        SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+    }.get(server_type)
+    return provider() if provider else {}
+
+
+def _get_server_type_config_key(server_type: str) -> str:
+    """Return the config key for the given server type."""
+    return {
+        SERVER_TYPE_GENERIC: CONF_GENERIC_CONFIG,
+        SERVER_TYPE_LLAMACPP: CONF_LLAMACPP_CONFIG,
+        SERVER_TYPE_VLLM: CONF_VLLM_CONFIG,
+        SERVER_TYPE_DEEPSEEK: CONF_DEEPSEEK_CONFIG,
+    }.get(server_type, CONF_GENERIC_CONFIG)
+
+
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Local OpenAI LLM."""
 
@@ -103,7 +145,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     @classmethod
     @callback
     def async_get_supported_subentry_types(
-        cls, config_entry: ConfigEntry
+        cls, _config_entry: ConfigEntry
     ) -> dict[str, type[ConfigSubentryFlow]]:
         """Return subentries supported by this handler."""
         return {
@@ -112,7 +154,8 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
         }
 
     @staticmethod
-    def get_schema():
+    def get_schema() -> vol.Schema:
+        """Get the schema for the config flow form."""
         return vol.Schema(
             {
                 vol.Required(
@@ -121,6 +164,15 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 ): str,
                 vol.Required(CONF_BASE_URL, default=""): str,
                 vol.Optional(CONF_API_KEY, default=""): str,
+                vol.Required(
+                    CONF_SERVER_TYPE,
+                    default=SERVER_TYPE_GENERIC,
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        mode=SelectSelectorMode.DROPDOWN,
+                        options=options_to_selections_dict(SERVER_TYPE_OPTIONS),
+                    )
+                ),
                 vol.Optional(CONF_SERVER_OPTIONS): section(
                     schema=vol.Schema(
                         schema={
@@ -257,6 +309,7 @@ class LocalAiSubentryFlowHandler(ConfigSubentryFlow):
     """Handle subentry flow for Local OpenAI LLM."""
 
     def get_llm_apis(self) -> list[SelectOptionDict]:
+        """Get available LLM APIs as select options."""
         return [
             SelectOptionDict(
                 label=api.name,
@@ -275,7 +328,8 @@ class LocalAiSubentryFlowHandler(ConfigSubentryFlow):
 class ConversationFlowHandler(LocalAiSubentryFlowHandler):
     """Handle subentry flow."""
 
-    async def get_schema(self):
+    async def get_schema(self) -> vol.Schema:
+        """Get the schema for the conversation subentry form."""
         llm_apis = self.get_llm_apis()
         entry = self._get_entry()
         client = entry.runtime_data
@@ -370,6 +424,17 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 ),
             ),
         }
+
+        server_type = entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
+        server_type_schema_fields = _get_conversation_config_schema(server_type)
+        if server_type_schema_fields:
+            schema = {
+                **schema,
+                vol.Required(_get_server_type_config_key(server_type)): section(
+                    options=SectionConfig(collapsed=True),
+                    schema=vol.Schema(schema=server_type_schema_fields),
+                ),
+            }
 
         if entry.data.get(CONF_WEAVIATE_OPTIONS, {}).get(CONF_WEAVIATE_HOST):
             schema = {
@@ -504,7 +569,8 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
 class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
     """Handle subentry flow."""
 
-    async def get_schema(self):
+    async def get_schema(self) -> vol.Schema:
+        """Get the schema for the AI task data subentry form."""
         try:
             client = self._get_entry().runtime_data
             response = await client.models.list()
@@ -524,68 +590,79 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
 
         llm_apis = self.get_llm_apis()
 
-        return vol.Schema(
-            {
-                vol.Required(
-                    CONF_MODEL,
-                ): SelectSelector(
-                    SelectSelectorConfig(options=downloaded_models, custom_value=True)
+        schema = {
+            vol.Required(
+                CONF_MODEL,
+            ): SelectSelector(
+                SelectSelectorConfig(options=downloaded_models, custom_value=True)
+            ),
+            vol.Required(
+                CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=[
+                        {"value": "generate_data", "label": "Generate Data"},
+                        {"value": "generate_image", "label": "Generate Image"},
+                    ],
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Required(CONF_AI_TASK_TOOLS_SECTION): section(
+                options=SectionConfig(collapsed=True),
+                schema=vol.Schema(
+                    schema={
+                        vol.Optional(
+                            CONF_LLM_HASS_API,
+                            default=[],
+                        ): SelectSelector(
+                            SelectSelectorConfig(options=llm_apis, multiple=True)
+                        ),
+                        vol.Required(
+                            CONF_PARALLEL_TOOL_CALLS,
+                            default=True,
+                        ): bool,
+                    }
                 ),
-                vol.Required(
-                    CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
-                ): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            {"value": "generate_data", "label": "Generate Data"},
-                            {"value": "generate_image", "label": "Generate Image"},
-                        ],
-                        multiple=True,
-                        mode=SelectSelectorMode.LIST,
-                    )
-                ),
-                vol.Required(CONF_AI_TASK_TOOLS_SECTION): section(
-                    options=SectionConfig(collapsed=True),
-                    schema=vol.Schema(
-                        schema={
-                            vol.Optional(
-                                CONF_LLM_HASS_API,
-                                default=[],
-                            ): SelectSelector(
-                                SelectSelectorConfig(options=llm_apis, multiple=True)
-                            ),
-                            vol.Required(
-                                CONF_PARALLEL_TOOL_CALLS,
-                                default=True,
-                            ): bool,
-                        }
-                    ),
-                ),
-                vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
-                    options=SectionConfig(collapsed=True),
-                    schema=vol.Schema(
-                        schema={
-                            vol.Required(
-                                CONF_CHAT_TEMPLATE_KWARGS, default=[]
-                            ): ObjectSelector(
-                                config={
-                                    "multiple": True,
-                                    "fields": {
-                                        "Key": {
-                                            "selector": {"text": None},
-                                            "required": True,
-                                        },
-                                        "Value": {
-                                            "selector": {"template": None},
-                                            "required": True,
-                                        },
+            ),
+            vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
+                options=SectionConfig(collapsed=True),
+                schema=vol.Schema(
+                    schema={
+                        vol.Required(
+                            CONF_CHAT_TEMPLATE_KWARGS, default=[]
+                        ): ObjectSelector(
+                            config={
+                                "multiple": True,
+                                "fields": {
+                                    "Key": {
+                                        "selector": {"text": None},
+                                        "required": True,
                                     },
-                                }
-                            ),
-                        }
-                    ),
+                                    "Value": {
+                                        "selector": {"template": None},
+                                        "required": True,
+                                    },
+                                },
+                            }
+                        ),
+                    }
+                ),
+            ),
+        }
+
+        server_type = self._get_entry().data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
+        server_type_schema_fields = _get_ai_task_config_schema(server_type)
+        if server_type_schema_fields:
+            schema = {
+                **schema,
+                vol.Required(_get_server_type_config_key(server_type)): section(
+                    options=SectionConfig(collapsed=True),
+                    schema=vol.Schema(schema=server_type_schema_fields),
                 ),
             }
-        )
+
+        return vol.Schema(schema)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
