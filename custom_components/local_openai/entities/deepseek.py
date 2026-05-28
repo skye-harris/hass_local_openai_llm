@@ -66,7 +66,6 @@ async def _deepseek_augment_content_message(
     content: conversation.Content,
 ) -> ChatCompletionMessageParam | None:
     opts = subentry.data.get(CONF_DEEPSEEK_CONFIG, {})
-    _LOGGER.warning("DeepSeek inject reasoning context")
 
     if (
         opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
