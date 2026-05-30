@@ -22,14 +22,14 @@ from custom_components.local_openai.conversation import LocalAiConversationEntit
 _LOGGER = logging.getLogger(__name__)
 
 
-def get_model_picker_name(model) -> str:
-    """Return the name to display/store in the model picker for a llama.cpp model.
+def get_model_alias(model) -> str | None:
+    """Return the alias llama.cpp exposes for a model, if one is set.
 
     llama.cpp exposes the value supplied via ``--alias`` as an extra ``alias`` field
-    on the OpenAI-compatible model object; prefer it when set, otherwise fall back
-    to the raw model ``id`` (typically the file path).
+    on the OpenAI-compatible model object. Returns ``None`` when no alias is set so
+    the caller can fall back to (and clean up) the raw model ``id``.
     """
-    return getattr(model, "alias", None) or model.id
+    return getattr(model, "alias", None)
 
 
 def _get_llama_cpp_schema() -> dict:

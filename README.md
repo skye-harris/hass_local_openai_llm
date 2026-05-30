@@ -105,6 +105,29 @@ When enabled, thinking content returned by the model is also fed back into the c
 
 ---
 
+### llama.cpp Configuration
+
+When the server type is set to *llama.cpp*, both conversation and AI task agents show a **llama.cpp Configuration** section with the following options.
+
+#### Enable thinking
+
+Passes `enable_thinking=true` via `chat_template_kwargs` to enable reasoning on supported models.
+
+- **Disabled** (default) — no thinking tokens.
+- **Enabled** — requests reasoning from the model.
+
+When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on supported Home Assistant versions (2026.4+).
+
+#### Slot ID
+
+Pins requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty to allow any slot to be used.
+
+#### Model naming
+
+llama.cpp exposes the value supplied via its `--alias` flag on the model object. When an alias is set it is used as the model's display name; otherwise the raw model `id` (typically the full model file path) is used, with the path and `.gguf` extension stripped for a cleaner name.
+
+---
+
 ### Experimental: Date/Time Context Injection Role
 
 This integration supports injecting some dynamic content, presently the date and time, into the active Conversation Agent prompt when making a request.
