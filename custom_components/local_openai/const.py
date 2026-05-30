@@ -35,7 +35,7 @@ SERVER_TYPE_DEEPSEEK = "deepseek"
 SERVER_TYPE_OPTIONS = {
     SERVER_TYPE_GENERIC: "Generic OpenAI-Compatible",
     SERVER_TYPE_LLAMACPP: "llama.cpp",
-    SERVER_TYPE_VLLM: "vLLM",
+    # SERVER_TYPE_VLLM: "vLLM",
     SERVER_TYPE_DEEPSEEK: "DeepSeek Cloud",
 }
 
