@@ -36,11 +36,7 @@ from custom_components.local_openai.entities.deepseek import (
 )
 from custom_components.local_openai.entities.llama_cpp import (
     get_ai_task_config_schema as _llama_cpp_ai_task_schema,
-)
-from custom_components.local_openai.entities.llama_cpp import (
     get_conversation_config_schema as _llama_cpp_conversation_schema,
-)
-from custom_components.local_openai.entities.llama_cpp import (
     get_model_picker_name as _llama_cpp_model_picker_name,
 )
 
