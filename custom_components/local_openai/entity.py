@@ -579,11 +579,22 @@ class LocalAiEntity(Entity):
             kwargs = {}
             for keypair in chat_template_args:
                 if keypair["Key"]:
-                    # Our value is a template, so that non-string data types and more complex structures can be provided by the user
-                    kwargs[keypair["Key"]] = template.Template(
+                    # Our value is a template, so that non-string data types and more complex
+                    # structures can be provided by the user. Render the template and coerce the
+                    # result to the appropriate Python type (boolean, number, etc.) rather than
+                    # leaving it as a string.
+                    rendered = template.Template(
                         keypair["Value"],
                         self.hass,
                     ).async_render()
+                    if isinstance(rendered, str):
+                        try:
+                            parsed = json.loads(rendered)
+                            if not isinstance(parsed, str):
+                                rendered = parsed
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                    kwargs[keypair["Key"]] = rendered
             extra_body_args["chat_template_kwargs"] = kwargs
 
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
