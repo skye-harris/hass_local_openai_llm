@@ -37,7 +37,7 @@ from custom_components.local_openai.entities.deepseek import (
 from custom_components.local_openai.entities.llama_cpp import (
     get_ai_task_config_schema as _llama_cpp_ai_task_schema,
     get_conversation_config_schema as _llama_cpp_conversation_schema,
-    get_model_picker_name as _llama_cpp_model_picker_name,
+    get_model_alias as _llama_cpp_model_alias,
 )
 
 from .const import (
@@ -145,11 +145,16 @@ def _get_server_type_config_key(server_type: str) -> str:
 
 
 def _resolve_model_name(server_type: str, model: Any) -> str:
-    """Resolve a server-specific display/identifier name for a model picker entry."""
+    """Resolve a server-specific display name for a model picker entry.
+
+    Prefer a server-provided alias when one is available; otherwise fall back to the
+    raw model ``id``, stripping any file path and ``.gguf`` extension it may contain.
+    """
     resolver = {
-        SERVER_TYPE_LLAMACPP: _llama_cpp_model_picker_name,
+        SERVER_TYPE_LLAMACPP: _llama_cpp_model_alias,
     }.get(server_type)
-    return resolver(model) if resolver else model.id
+    alias = resolver(model) if resolver else None
+    return alias or LocalAiSubentryFlowHandler.strip_model_pathing(model.id)
 
 
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
