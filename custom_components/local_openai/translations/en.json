@@ -6,7 +6,8 @@
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
-          "api_key": "API key"
+           "api_key": "API key",
+          "server_type": "Server Type"
         },
         "data_description": {
           "api_key": "If required to authenticate with the service"
@@ -41,7 +42,8 @@
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
-          "api_key": "API key"
+          "api_key": "API key",
+          "server_type": "Server Type"
         },
         "data_description": {
           "api_key": "If required to authenticate with the service"
@@ -112,6 +114,26 @@
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
             },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
+            },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
+              },
+              "data_description": {
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {
@@ -153,6 +175,26 @@
               "name": "Chat Template Arguments",
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
+            },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
+              },
+              "data_description": {
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
               }
             },
             "weaviate_options": {
@@ -208,6 +250,26 @@
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
+            },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
+            },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
+              },
+              "data_description": {
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
+              }
             }
           }
         },
@@ -233,6 +295,26 @@
               "name": "Chat Template Arguments",
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
+            "deepseek_config": {
+              "name": "DeepSeek Configuration",
+              "data": {
+                "deepseek_reasoning_effort": "Reasoning effort"
+              },
+              "data_description": {
+                "deepseek_reasoning_effort": "Controls the depth of the model's reasoning. Leave empty to disable thinking."
+              }
+            },
+            "llamacpp_config": {
+              "name": "llama.cpp Configuration",
+              "data": {
+                "llamacpp_enable_thinking": "Enable thinking",
+                "llamacpp_id_slot": "Slot ID"
+              },
+              "data_description": {
+                "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
               }
             }
           }

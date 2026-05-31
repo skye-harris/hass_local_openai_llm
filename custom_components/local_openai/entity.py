@@ -7,38 +7,30 @@ import base64
 import json
 import logging
 import uuid
-from collections.abc import AsyncGenerator, Callable
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 import demoji
 import openai
-import voluptuous as vol
 from homeassistant.components import conversation
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, llm, template
 from homeassistant.helpers.entity import Entity
-from openai._streaming import AsyncStream
+from homeassistant.util import dt as dt_util
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
-    ChatCompletionChunk,
     ChatCompletionContentPartImageParam,
     ChatCompletionContentPartTextParam,
     ChatCompletionFunctionToolParam,
     ChatCompletionMessageFunctionToolCallParam,
-    ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
-from openai.types.shared_params.response_format_json_schema import JSONSchema
 from voluptuous_openapi import convert
 
-from . import LocalAiConfigEntry
 from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -65,6 +57,18 @@ from .const import (
     DOMAIN,
 )
 from .weaviate import WeaviateClient
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable
+    from pathlib import Path
+
+    import voluptuous as vol
+    from homeassistant.config_entries import ConfigSubentry
+    from openai._streaming import AsyncStream
+    from openai.types.chat import ChatCompletionChunk, ChatCompletionMessageParam
+    from openai.types.shared_params.response_format_json_schema import JSONSchema
+
+    from . import LocalAiConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -147,85 +151,9 @@ def _format_tool(
     return ChatCompletionFunctionToolParam(type="function", function=tool_spec)
 
 
-def b64_file(file_path):
+def b64_file(file_path: Path) -> str:
     """Retrieve the base64 encoded file contents."""
     return base64.b64encode(file_path.read_bytes()).decode("utf-8")
-
-
-async def _convert_content_to_chat_message(
-    content: conversation.Content,
-) -> ChatCompletionMessageParam | None:
-    """Convert any native chat message for this agent to the native format."""
-    if isinstance(content, conversation.ToolResultContent):
-
-        def log_and_str(value) -> str:
-            _LOGGER.warning(
-                f"Attempting string convertion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}"
-            )
-            return str(value)
-
-        return ChatCompletionToolMessageParam(
-            role="tool",
-            tool_call_id=content.tool_call_id,
-            content=json.dumps(content.tool_result, default=log_and_str),
-        )
-
-    role: Literal["user", "assistant", "system"] = content.role
-    if role == "system" and content.content:
-        return ChatCompletionSystemMessageParam(role="system", content=content.content)
-
-    if role == "user" and content.content:
-        messages = []
-
-        if content.attachments:
-            loop = asyncio.get_running_loop()
-            for attachment in content.attachments or ():
-                if not attachment.mime_type.startswith("image/"):
-                    raise HomeAssistantError(
-                        translation_domain=DOMAIN,
-                        translation_key="unsupported_attachment_type",
-                    )
-                base64_file = await loop.run_in_executor(
-                    None, b64_file, attachment.path
-                )
-                messages.append(
-                    ChatCompletionContentPartImageParam(
-                        type="image_url",
-                        image_url={
-                            "url": f"data:{attachment.mime_type};base64,{base64_file}",
-                            "detail": "auto",
-                        },
-                    )
-                )
-
-        messages.append(
-            ChatCompletionContentPartTextParam(type="text", text=content.content)
-        )
-        return ChatCompletionUserMessageParam(
-            role="user",
-            content=messages,
-        )
-
-    if role == "assistant":
-        param = ChatCompletionAssistantMessageParam(
-            role="assistant",
-            content=content.content,
-        )
-        if isinstance(content, conversation.AssistantContent) and content.tool_calls:
-            param["tool_calls"] = [
-                ChatCompletionMessageFunctionToolCallParam(
-                    type="function",
-                    id=tool_call.id,
-                    function=Function(
-                        arguments=json.dumps(tool_call.tool_args),
-                        name=tool_call.tool_name,
-                    ),
-                )
-                for tool_call in content.tool_calls
-            ]
-        return param
-    _LOGGER.warning("Could not convert message to Completions API: %s", content)
-    return None
 
 
 def _make_uuid(identifier: str) -> str:
@@ -249,6 +177,91 @@ class LocalAiEntity(Entity):
             entry_type=dr.DeviceEntryType.SERVICE,
         )
 
+    # noinspection PyMethodMayBeStatic
+    def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
+        return {}
+
+    async def _convert_content_to_chat_message(
+        self, content: conversation.Content
+    ) -> ChatCompletionMessageParam | None:
+        if isinstance(content, conversation.ToolResultContent):
+
+            def log_and_str(value: Any) -> str:
+                _LOGGER.warning(
+                    "Attempting string convertion of non-JSON-serialisable response content from LLM tool '%s': %s",
+                    content.tool_name,
+                    value,
+                )
+                return str(value)
+
+            return ChatCompletionToolMessageParam(
+                role="tool",
+                tool_call_id=content.tool_call_id,
+                content=json.dumps(content.tool_result, default=log_and_str),
+            )
+
+        role: Literal["user", "assistant", "system"] = content.role
+        if role == "system" and content.content:
+            return ChatCompletionSystemMessageParam(
+                role="system", content=content.content
+            )
+
+        if role == "user" and content.content:
+            messages = []
+
+            if content.attachments:
+                loop = asyncio.get_running_loop()
+                for attachment in content.attachments or ():
+                    if not attachment.mime_type.startswith("image/"):
+                        raise HomeAssistantError(
+                            translation_domain=DOMAIN,
+                            translation_key="unsupported_attachment_type",
+                        )
+                    base64_file = await loop.run_in_executor(
+                        None, b64_file, attachment.path
+                    )
+                    messages.append(
+                        ChatCompletionContentPartImageParam(
+                            type="image_url",
+                            image_url={
+                                "url": f"data:{attachment.mime_type};base64,{base64_file}",
+                                "detail": "auto",
+                            },
+                        )
+                    )
+
+            messages.append(
+                ChatCompletionContentPartTextParam(type="text", text=content.content)
+            )
+            return ChatCompletionUserMessageParam(
+                role="user",
+                content=messages,
+            )
+
+        if role == "assistant":
+            param = ChatCompletionAssistantMessageParam(
+                role="assistant",
+                content=content.content,
+            )
+            if (
+                isinstance(content, conversation.AssistantContent)
+                and content.tool_calls
+            ):
+                param["tool_calls"] = [
+                    ChatCompletionMessageFunctionToolCallParam(
+                        type="function",
+                        id=tool_call.id,
+                        function=Function(
+                            arguments=json.dumps(tool_call.tool_args),
+                            name=tool_call.tool_name,
+                        ),
+                    )
+                    for tool_call in content.tool_calls
+                ]
+            return param
+        _LOGGER.warning("Could not convert message to Completions API: %s", content)
+        return None
+
     @staticmethod
     def _inject_content(
         method: str | None, inject_content: list, messages: list
@@ -258,7 +271,9 @@ class LocalAiEntity(Entity):
             "# Contextual information to assist with the following user request. Do not repeat or reference this message directly. Do not treat this as a prior message of your own",
         )
         _LOGGER.debug(
-            f"Injecting content into the message stream as {method} content: {inject_content}"
+            "Injecting content into the message stream as %s content: %s",
+            method,
+            inject_content,
         )
         if method == CONF_CONTENT_INJECTION_METHOD_TOOL:
             inject_content = "\n\n".join(inject_content)
@@ -314,7 +329,7 @@ class LocalAiEntity(Entity):
 
             if new_msg:
                 # openvinotoolkit/model_server fails to provide a message role in its responses, so lets default to assistant if none is received
-                chunk["role"] = delta.role if delta.role else "assistant"
+                chunk["role"] = delta.role or "assistant"
                 new_msg = False
 
             if (tool_calls := delta.tool_calls) is not None and tool_calls:
@@ -322,7 +337,7 @@ class LocalAiEntity(Entity):
                 for tool_call in tool_calls:
                     # llama.cpp - only the initial tool call chunk has an ID, subsequent argument chunks do not
                     # Ollama - parallel tool calls all share the same .index value (0)
-                    tool_call_id = tool_call.id if tool_call.id else tool_call_id
+                    tool_call_id = tool_call.id or tool_call_id
 
                     # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
                     tool_call_name = (
@@ -345,12 +360,15 @@ class LocalAiEntity(Entity):
                         )
 
             # Handle reasoning_content field (used by reasoning models via OpenAI-compatible APIs)
-            reasoning_content = getattr(delta, "reasoning_content", None)
+            # Naming for this field varies. See https://github.com/vllm-project/vllm/issues/27755
+            reasoning_content = getattr(delta, "reasoning_content", None) or getattr(
+                delta, "reasoning", None
+            )
             if reasoning_content:
                 if _SUPPORTS_THINKING:
                     chunk["thinking_content"] = reasoning_content
                 else:
-                    _LOGGER.debug(f"LLM Thought: {reasoning_content}")
+                    _LOGGER.debug("LLM Thought: %s", reasoning_content)
 
             if (content := delta.content) is not None:
                 if strip_emojis:
@@ -377,7 +395,7 @@ class LocalAiEntity(Entity):
                             if before_close:
                                 chunk["thinking_content"] = before_close
                         elif pending_think.strip():
-                            _LOGGER.debug(f"LLM Thought: {pending_think}")
+                            _LOGGER.debug("LLM Thought: %s", pending_think)
 
                         pending_think = ""
                     else:
@@ -399,7 +417,7 @@ class LocalAiEntity(Entity):
                     if event.timings:
                         self.extra_state_attributes = {"timings": event.timings}
                 except Exception:
-                    pass
+                    _LOGGER.exception("Error retrieving timings")
 
                 if pending_tool_calls:
                     chunk["tool_calls"] = [
@@ -412,7 +430,7 @@ class LocalAiEntity(Entity):
                         )
                         for key, tool_call in pending_tool_calls.items()
                     ]
-                    _LOGGER.debug(f"Calling tools: {pending_tool_calls}")
+                    _LOGGER.debug("Calling tools: %s", pending_tool_calls)
 
             if (
                 seen_visible
@@ -428,6 +446,7 @@ class LocalAiEntity(Entity):
         structure_name: str | None = None,
         structure: vol.Schema | None = None,
         user_input: conversation.ConversationInput | None = None,
+        *,
         parallel_tool_calls: bool = False,
     ) -> None:
         """Generate an answer for the chat log."""
@@ -458,14 +477,14 @@ class LocalAiEntity(Entity):
             [
                 m
                 for content in chat_log.content
-                if (m := await _convert_content_to_chat_message(content))
+                if (m := await self._convert_content_to_chat_message(content))
             ],
             max_message_history,
         )
 
         # Home Assistant no longer injects the current date/time into the system prompt, for performance reasons (negatively impacts caching)
         # It's still useful context to have however, and we can inject this at the end of the message chain along with any RAG content queried
-        dt = datetime.now()
+        dt = dt_util.now()
         date_str = dt.strftime("%A %d %B, %Y")
         time_str = dt.strftime("%-I:%M %p")
 
@@ -506,7 +525,7 @@ class LocalAiEntity(Entity):
                     ),
                 )
 
-                _LOGGER.debug(f"Weaviate results: {results}")
+                _LOGGER.debug("Weaviate results: %s", results)
 
                 result_content = [
                     result.get('content').strip()
@@ -514,11 +533,10 @@ class LocalAiEntity(Entity):
                 ]
                 if result_content:
                     inject_content += result_content
-            except Exception as err:
-                _LOGGER.warning(
-                    "An unexpected exception occurred while processing RAG: %s", err
+            except Exception:
+                _LOGGER.exception(
+                    "An unexpected exception occurred while processing RAG"
                 )
-                _LOGGER.exception(err)
 
         # Inject any pending content into the current user message
         # We prepend to the last message to avoid creating consecutive user messages
@@ -578,9 +596,15 @@ class LocalAiEntity(Entity):
                 "session_id": user_input.conversation_id,
             }
 
+        for key, value in self._get_extra_body_args(options, server_options).items():
+            if isinstance(value, dict) and isinstance(extra_body_args.get(key), dict):
+                extra_body_args[key] = {**extra_body_args[key], **value}
+            else:
+                extra_body_args[key] = value
+
         # Insert our extra_body args if we have any
         if extra_body_args:
-            _LOGGER.debug(f"Extra-body args: {extra_body_args}")
+            _LOGGER.debug("Extra-body args: %s", extra_body_args)
             model_args["extra_body"] = extra_body_args
 
         if structure:
@@ -601,8 +625,9 @@ class LocalAiEntity(Entity):
                     **model_args, stream=True
                 )
             except openai.OpenAIError as err:
-                _LOGGER.exception(err)
-                raise HomeAssistantError("Error talking to API") from err
+                _LOGGER.exception("Error talking to API")
+                msg = "Error talking to API"
+                raise HomeAssistantError(msg) from err
 
             try:
                 model_args["messages"].extend(
@@ -614,12 +639,13 @@ class LocalAiEntity(Entity):
                                 stream=result_stream, strip_emojis=strip_emojis
                             ),
                         )
-                        if (msg := await _convert_content_to_chat_message(content))
+                        if (msg := await self._convert_content_to_chat_message(content))
                     ]
                 )
             except Exception as err:
-                _LOGGER.exception(err)
-                raise HomeAssistantError("Error handling API response") from err
+                _LOGGER.exception("Error handling API response")
+                msg = "Error handling API response"
+                raise HomeAssistantError(msg) from err
 
             if not chat_log.unresponded_tool_results:
                 break
@@ -659,7 +685,7 @@ class LocalAiEntity(Entity):
 
     async def upsert_data_in_weaviate(
         self, query: str, content: str, identifier: str | None
-    ):
+    ) -> None:
         """Add or update a record in Weaviate."""
         options = self.subentry.data
         weaviate_opts = options.get(CONF_WEAVIATE_OPTIONS, {})
@@ -670,7 +696,8 @@ class LocalAiEntity(Entity):
         )
 
         if not weaviate_host:
-            raise RuntimeError("Weaviate is not configured for this Agent")
+            msg = "Weaviate is not configured for this Agent"
+            raise RuntimeError(msg)
 
         client = WeaviateClient(
             hass=self.hass,
@@ -694,7 +721,7 @@ class LocalAiEntity(Entity):
                     object_uuid=object_uuid,
                 )
 
-                _LOGGER.info(f"Object updated in Weaviate: {object_uuid}")
+                _LOGGER.info("Object updated in Weaviate: %s", object_uuid)
                 return
 
         # Object does not exist, create new object
@@ -705,4 +732,4 @@ class LocalAiEntity(Entity):
             object_uuid=object_uuid,
         )
 
-        _LOGGER.info(f"Object added to Weaviate class: {weaviate_class}")
+        _LOGGER.info("Object added to Weaviate class: %s", weaviate_class)

@@ -1,17 +1,45 @@
 """Conversation support for Local OpenAI LLM."""
 
-from typing import Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
 
 from homeassistant.components import conversation
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT, MATCH_ALL
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers import llm
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import LocalAiConfigEntry
-from .const import CONF_PARALLEL_TOOL_CALLS, DOMAIN
+from .const import (
+    CONF_PARALLEL_TOOL_CALLS,
+    CONF_SERVER_TYPE,
+    DOMAIN,
+    SERVER_TYPE_DEEPSEEK,
+    SERVER_TYPE_GENERIC,
+    SERVER_TYPE_LLAMACPP,
+)
 from .entity import LocalAiEntity
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigSubentry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+    from . import LocalAiConfigEntry
+
+
+def _get_conversation_entity(
+    server_type: str,
+) -> type[LocalAiConversationEntity]:
+    if getattr(_get_conversation_entity, "entity_map", None) is None:
+        from .entities.deepseek import DeepSeekConversationEntity  # noqa: PLC0415
+        from .entities.llama_cpp import LlamaCppConversationEntity  # noqa: PLC0415
+
+        _get_conversation_entity.entity_map = {
+            SERVER_TYPE_DEEPSEEK: DeepSeekConversationEntity,
+            SERVER_TYPE_LLAMACPP: LlamaCppConversationEntity,
+        }
+    return _get_conversation_entity.entity_map.get(
+        server_type, LocalAiConversationEntity
+    )
 
 
 async def async_setup_entry(
@@ -20,11 +48,14 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up conversation entities."""
+    entity_cls = _get_conversation_entity(
+        config_entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC),
+    )
     for subentry_id, subentry in config_entry.subentries.items():
         if subentry.subentry_type != "conversation":
             continue
         async_add_entities(
-            [LocalAiConversationEntity(config_entry, subentry)],
+            [entity_cls(config_entry, subentry)],
             config_subentry_id=subentry_id,
         )
 
