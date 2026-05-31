@@ -118,6 +118,8 @@ Passes `enable_thinking=true` via `chat_template_kwargs` to enable reasoning on 
 
 When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on supported Home Assistant versions (2026.4+).
 
+_Note: This option completely overrides any existing `enable_thinking` option in your Chat Template Arguments._
+
 #### Slot ID
 
 Pins requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty to allow any slot to be used.
