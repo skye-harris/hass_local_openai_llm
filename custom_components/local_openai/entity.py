@@ -597,7 +597,11 @@ class LocalAiEntity(Entity):
                 "session_id": user_input.conversation_id,
             }
 
-        extra_body_args |= self._get_extra_body_args(options, server_options)
+        for key, value in self._get_extra_body_args(options, server_options).items():
+            if isinstance(value, dict) and isinstance(extra_body_args.get(key), dict):
+                extra_body_args[key] = {**extra_body_args[key], **value}
+            else:
+                extra_body_args[key] = value
 
         # Insert our extra_body args if we have any
         if extra_body_args:
