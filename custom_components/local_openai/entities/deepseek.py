@@ -29,6 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_deepseek_schema() -> dict:
+    """DeepSeek server configuration schema."""
     return {
         vol.Optional(
             CONF_DEEPSEEK_REASONING_EFFORT,
@@ -50,6 +51,7 @@ def get_conversation_config_schema() -> dict:
 
 
 def _deepseek_extra_body_args(options: dict) -> dict:
+    """Handle extra_body args for DeepSeek."""
     opts = options.get(CONF_DEEPSEEK_CONFIG, {})
     reasoning_effort = opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
     if reasoning_effort:
@@ -65,6 +67,7 @@ async def _deepseek_augment_content_message(
     param: ChatCompletionMessageParam | None,
     content: conversation.Content,
 ) -> ChatCompletionMessageParam | None:
+    """If thinking is enabled, and the message has thinking content, pass this back in the request."""
     opts = subentry.data.get(CONF_DEEPSEEK_CONFIG, {})
 
     if (
@@ -81,11 +84,13 @@ class DeepSeekConversationEntity(LocalAiConversationEntity):
     """Conversation agent for DeepSeek Cloud servers."""
 
     def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
+        """Handle extra arguments for DeepSeek."""
         return _deepseek_extra_body_args(options)
 
     async def _convert_content_to_chat_message(
         self, content: conversation.Content
     ) -> ChatCompletionMessageParam | None:
+        """Handle chat message conversion for DeepSeek."""
         param = await super()._convert_content_to_chat_message(content)
         return await _deepseek_augment_content_message(self.subentry, param, content)
 
@@ -94,10 +99,12 @@ class DeepSeekAITaskEntity(LocalAITaskEntity):
     """AI Task entity for DeepSeek Cloud servers."""
 
     def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
+        """Handle extra arguments for DeepSeek."""
         return _deepseek_extra_body_args(options)
 
     async def _convert_content_to_chat_message(
         self, content: conversation.Content
     ) -> ChatCompletionMessageParam | None:
+        """Handle chat message conversion for DeepSeek."""
         param = await super()._convert_content_to_chat_message(content)
         return await _deepseek_augment_content_message(self.subentry, param, content)
