@@ -62,6 +62,7 @@ from .weaviate import WeaviateClient
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
     from pathlib import Path
+    from types import MappingProxyType
 
     import voluptuous as vol
     from homeassistant.config_entries import ConfigSubentry
@@ -179,7 +180,14 @@ class LocalAiEntity(Entity):
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
+    def _get_extra_body_args(self, _options: dict) -> dict:
+        return {}
+
+    def _get_model_args(
+        self,
+        _options: MappingProxyType[str, Any],
+    ) -> dict:
+        """Add server-specific args to model_args (root level)."""
         return {}
 
     async def _convert_content_to_chat_message(
@@ -454,6 +462,11 @@ class LocalAiEntity(Entity):
         options = self.subentry.data
         server_options = self.entry.data.get(CONF_SERVER_OPTIONS, {})
         strip_emojis = options.get(CONF_STRIP_EMOJIS)
+
+        # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
+        pass_session_id = self.entry.data.get(CONF_SERVER_OPTIONS, {}).get(
+            CONF_PASS_SESSION_ID, False
+        )
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
         temperature = options.get(CONF_TEMPERATURE, 0.6)
 
@@ -465,6 +478,7 @@ class LocalAiEntity(Entity):
                 "HTTP-Referer": "https://github.com/skye-harris/hass_local_openai_llm",
                 "X-Title": "Home Assistant",
             },
+            **self._get_model_args(options),
         }
 
         tools: list[ChatCompletionFunctionToolParam] | None = None
@@ -588,7 +602,7 @@ class LocalAiEntity(Entity):
 
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         if (
-            server_options.get(CONF_PASS_SESSION_ID, False)
+            pass_session_id
             and user_input
             and hasattr(user_input, "conversation_id")
             and user_input.conversation_id
