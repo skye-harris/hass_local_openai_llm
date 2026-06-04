@@ -36,7 +36,11 @@ from custom_components.local_openai.entities.deepseek import (
 )
 from custom_components.local_openai.entities.llama_cpp import (
     get_ai_task_config_schema as _llama_cpp_ai_task_schema,
+)
+from custom_components.local_openai.entities.llama_cpp import (
     get_conversation_config_schema as _llama_cpp_conversation_schema,
+)
+from custom_components.local_openai.entities.llama_cpp import (
     get_model_alias as _llama_cpp_model_alias,
 )
 
@@ -144,8 +148,9 @@ def _get_server_type_config_key(server_type: str) -> str:
     }.get(server_type, CONF_GENERIC_CONFIG)
 
 
-def _resolve_model_name(server_type: str, model: Any) -> str:
-    """Resolve a server-specific display name for a model picker entry.
+def _resolve_model_name(server_type: str, model: object) -> str:
+    """
+    Resolve a server-specific display name for a model picker entry.
 
     Prefer a server-provided alias when one is available; otherwise fall back to the
     raw model ``id``, stripping any file path and ``.gguf`` extension it may contain.
@@ -254,7 +259,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             except OpenAIError as err:
                 LOGGER.exception(f"OpenAI Error: {err}")
                 errors["base"] = "cannot_connect"
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001
                 LOGGER.exception(f"Unexpected exception: {err}")
                 errors["base"] = "unknown"
             else:
@@ -303,7 +308,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             except OpenAIError as err:
                 LOGGER.exception(f"OpenAI Error: {err}")
                 errors["base"] = "cannot_connect"
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001
                 LOGGER.exception(f"Unexpected exception: {err}")
                 errors["base"] = "unknown"
             else:
@@ -368,7 +373,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
         except OpenAIError as err:
             LOGGER.exception(f"OpenAI Error retrieving models list: {err}")
             downloaded_models = []
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             LOGGER.exception(f"Unexpected exception retrieving models list: {err}")
             downloaded_models = []
 
@@ -608,7 +613,7 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
         except OpenAIError as err:
             LOGGER.exception(f"OpenAI Error retrieving models list: {err}")
             downloaded_models = []
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             LOGGER.exception(f"Unexpected exception retrieving models list: {err}")
             downloaded_models = []
 
