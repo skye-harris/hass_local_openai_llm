@@ -18,6 +18,7 @@ from custom_components.local_openai.const import (
     CONF_LLAMACPP_CONFIG,
     CONF_LLAMACPP_ENABLE_THINKING,
     CONF_LLAMACPP_ID_SLOT,
+    CONF_LLAMACPP_INCLUDE_PRIOR_THINKING,
     CONF_LLAMACPP_MIN_P,
     CONF_LLAMACPP_PRESENCE_PENALTY,
     CONF_LLAMACPP_REPEAT_PENALTY,
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def get_model_alias(model) -> str | None:
+def get_model_alias(model: dict | object) -> str | None:
     """
     Return the alias llama.cpp exposes for a model, if one is set.
 
@@ -49,6 +50,7 @@ def _get_llama_cpp_schema() -> dict:
     """llama.cpp server configuration schema."""
     return {
         vol.Required(CONF_LLAMACPP_ENABLE_THINKING, default=False): bool,
+        vol.Required(CONF_LLAMACPP_INCLUDE_PRIOR_THINKING, default=True): bool,
         vol.Optional(CONF_LLAMACPP_ID_SLOT): NumberSelector(
             NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX),
         ),
@@ -163,12 +165,12 @@ class LlamaCppMixin:
         self,
         content: conversation.Content,
     ) -> ChatCompletionMessageParam | None:
-        """If thinking is enabled, and the message has thinking content, pass this back in the request."""
+        """If include_prior_reasoning is enabled, pass prior thinking content back in the request."""
         opts = self.subentry.data.get(CONF_LLAMACPP_CONFIG, {})
         param = await super()._convert_content_to_chat_message(content)
 
         if (
-            opts.get(CONF_LLAMACPP_ENABLE_THINKING)
+            opts.get(CONF_LLAMACPP_INCLUDE_PRIOR_THINKING, True)
             and isinstance(content, conversation.AssistantContent)
             and hasattr(content, "thinking_content")
             and content.thinking_content
