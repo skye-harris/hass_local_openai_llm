@@ -39,7 +39,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.minor_version or 1,
     )
 
-    if entry.version > 2:  # noqa: PLR2004
+    if entry.version > 2:
         # User has downgraded from a future version
         return False
 
@@ -111,7 +111,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
 
 
 async def _async_update_listener(
-    hass: HomeAssistant, entry: LocalAiConfigEntry
+    hass: HomeAssistant,
+    entry: LocalAiConfigEntry,
 ) -> None:
     """Handle update."""
     await hass.config_entries.async_reload(entry.entry_id)

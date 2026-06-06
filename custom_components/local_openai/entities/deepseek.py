@@ -42,7 +42,7 @@ def _get_deepseek_schema() -> dict:
                     SelectOptionDict(value="max", label="Max"),
                 ],
                 mode=SelectSelectorMode.DROPDOWN,
-            )
+            ),
         ),
     }
 
@@ -90,7 +90,8 @@ class DeepSeekConversationEntity(LocalAiConversationEntity):
         return _deepseek_extra_body_args(options)
 
     async def _convert_content_to_chat_message(
-        self, content: conversation.Content
+        self,
+        content: conversation.Content,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
         param = await super()._convert_content_to_chat_message(content)
@@ -105,7 +106,8 @@ class DeepSeekAITaskEntity(LocalAITaskEntity):
         return _deepseek_extra_body_args(options)
 
     async def _convert_content_to_chat_message(
-        self, content: conversation.Content
+        self,
+        content: conversation.Content,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
         param = await super()._convert_content_to_chat_message(content)

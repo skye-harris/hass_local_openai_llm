@@ -38,7 +38,8 @@ def _get_conversation_entity(
             SERVER_TYPE_LLAMACPP: LlamaCppConversationEntity,
         }
     return _get_conversation_entity.entity_map.get(
-        server_type, LocalAiConversationEntity
+        server_type,
+        LocalAiConversationEntity,
     )
 
 
@@ -106,7 +107,9 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
             return err.as_conversation_result()
 
         await self._async_handle_chat_log(
-            chat_log, user_input=user_input, parallel_tool_calls=parallel_tool_calls
+            chat_log,
+            user_input=user_input,
+            parallel_tool_calls=parallel_tool_calls,
         )
 
         return conversation.async_get_result_from_chat_log(user_input, chat_log)
