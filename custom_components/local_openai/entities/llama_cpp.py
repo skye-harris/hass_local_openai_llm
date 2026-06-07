@@ -120,29 +120,6 @@ def get_ai_task_config_schema() -> dict:
 class LlamaCppMixin:
     """Mixin for llama.cpp entities with shared logic."""
 
-    def _get_model_args(
-        self,
-        options: MappingProxyType[str, Any],
-    ) -> dict:
-        """Handle model_args for llama.cpp (sampling parameters at root level)."""
-        opts = options.get(CONF_LLAMACPP_CONFIG, {})
-        model_args: dict = {}
-
-        sampling_params = [
-            (CONF_LLAMACPP_TOP_P, float, "top_p"),
-            (CONF_LLAMACPP_TOP_K, int, "top_k"),
-            (CONF_LLAMACPP_MIN_P, float, "min_p"),
-            (CONF_LLAMACPP_REPEAT_PENALTY, float, "repeat_penalty"),
-            (CONF_LLAMACPP_PRESENCE_PENALTY, float, "presence_penalty"),
-        ]
-
-        for conf_key, converter, arg_name in sampling_params:
-            value = opts.get(conf_key)
-            if value is not None:
-                model_args[arg_name] = converter(value)
-
-        return model_args
-
     def _get_extra_body_args(
         self,
         options: MappingProxyType[str, Any],
@@ -158,6 +135,19 @@ class LlamaCppMixin:
         extras["chat_template_kwargs"] = {
             "enable_thinking": bool(opts.get(CONF_LLAMACPP_ENABLE_THINKING, False)),
         }
+
+        sampling_params = [
+            (CONF_LLAMACPP_TOP_P, float, "top_p"),
+            (CONF_LLAMACPP_TOP_K, int, "top_k"),
+            (CONF_LLAMACPP_MIN_P, float, "min_p"),
+            (CONF_LLAMACPP_REPEAT_PENALTY, float, "repeat_penalty"),
+            (CONF_LLAMACPP_PRESENCE_PENALTY, float, "presence_penalty"),
+        ]
+
+        for conf_key, converter, arg_name in sampling_params:
+            value = opts.get(conf_key)
+            if value is not None:
+                extras[arg_name] = converter(value)
 
         return extras
 
