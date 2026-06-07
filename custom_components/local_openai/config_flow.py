@@ -715,8 +715,9 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
         """User flow to create a sensor subentry."""
         if user_input is not None:
             model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
+            server_name = self._get_entry().title
             return self.async_create_entry(
-                title=f"{model_name} AI Task",
+                title=f"{server_name}: {model_name} AI Task",
                 data=user_input,
             )
 
