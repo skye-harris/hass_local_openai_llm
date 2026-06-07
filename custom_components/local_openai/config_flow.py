@@ -547,8 +547,9 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 LOGGER.exception(f"Unexpected exception: {err}")
                 errors["base"] = "cannot_connect_weaviate"
             else:
+                server_name = self._get_entry().title
                 return self.async_create_entry(
-                    title=f"{model_name} AI Agent",
+                    title=f"{server_name}: {model_name} AI Agent",
                     data=user_input,
                 )
 
