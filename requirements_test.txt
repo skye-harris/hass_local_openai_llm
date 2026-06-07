@@ -1,0 +1,13 @@
+homeassistant==2026.5.0
+ruff==0.13.2
+flake8
+flake8-docstrings
+pytest
+pytest-cov
+pytest-homeassistant-custom-component
+pytest-asyncio
+hassil
+home-assistant-intents
+openai>=2.8.0
+demoji>=1.1.0
+pre-commit
