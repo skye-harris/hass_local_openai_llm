@@ -69,24 +69,24 @@ After installation, configure the integration through Home Assistant's UI:
 ### Configuration Notes
 
 - The Server URL must be a fully qualified URL pointing to an OpenAI-compatible API.
-  - This typically ends with `/v1` but may differ depending on your server configuration.
+    - This typically ends with `/v1` but may differ depending on your server configuration.
 - A Server Type configuration can be set to expose some additional options for different inference servers and providers, where they have been implemented.
 - Assist requires a fairly lengthy context for tooling and entity definitions.
-  - It is strongly recommended to use _at least_ 10k context size and to limit history length and exposed entities to avoid context overflow issues.
-  - This is not configurable through OpenAI-compatible APIs, and needs to be configured with the inference server directly.
+    - It is strongly recommended to use _at least_ 10k context size and to limit history length and exposed entities to avoid context overflow issues.
+    - This is not configurable through OpenAI-compatible APIs, and needs to be configured with the inference server directly.
 - Tool calling must be enabled in your inference engine, eg:
-  - **vLLM**: https://docs.vllm.ai/en/latest/features/tool_calling/
-  - **llama.cpp**: https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md
+    - **vLLM**: https://docs.vllm.ai/en/latest/features/tool_calling/
+    - **llama.cpp**: https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md
 - Parallel tool calling requires support from both your model and inference server.
-  - In some cases, control of this is handled by the server directly, in which case toggling this will not have any result.
+    - In some cases, control of this is handled by the server directly, in which case toggling this will not have any result.
 - Chat Template Arguments allow you to provide custom arguments to your model
-  - Arguments are supplied as key/value pairs and provided to the `chat_template_kwargs` request parameter
-  - Values support Jinja2 templates, in order to provide non-string and more complex data structures
-  - Arguments differ per model, and not all models make use of user-provided arguments
-  - See your models documentation for what arguments are available to be used
+    - Arguments are supplied as key/value pairs and provided to the `chat_template_kwargs` request parameter
+    - Values support Jinja2 templates, in order to provide non-string and more complex data structures
+    - Arguments differ per model, and not all models make use of user-provided arguments
+    - See your models documentation for what arguments are available to be used
 - AI Task entities can be configured for Text and/or Image generation capabilities
-  - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and requires support from your chosen image generation server
-  - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
+    - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and requires support from your chosen image generation server
+    - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
 
 ---
 
@@ -116,9 +116,16 @@ Passes `enable_thinking=true` via `chat_template_kwargs` to enable reasoning on 
 - **Disabled** (default) — no thinking tokens.
 - **Enabled** — requests reasoning from the model.
 
-When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on supported Home Assistant versions (2026.4+).
-
 _Note: This option completely overrides any existing `enable_thinking` option in your Chat Template Arguments._
+
+#### Include prior thinking
+
+Controls whether thinking/reasoning content from prior conversation turns is sent back in new completion requests.
+
+Some reasoning models require this enabled, and others require it disabled. Check the documentation for your model if unsure. 
+
+- **Enabled** (default) — prior-turn `thinking_content` is passed as `reasoning_content` in the next request, allowing the model to see its own prior reasoning.
+- **Disabled** — prior thinking context is stripped before sending. Use for models that reject prior reasoning context (e.g., Gemma 4).
 
 #### Slot ID
 
@@ -126,7 +133,21 @@ Pins requests to a specific llama.cpp server slot for prompt-cache reuse. Leave 
 
 #### Model naming
 
-llama.cpp exposes the value supplied via its `--alias` flag on the model object. When an alias is set it is used as the model's display name; otherwise the raw model `id` (typically the full model file path) is used, with the path and `.gguf` extension stripped for a cleaner name.
+llama.cpp exposes the value supplied via its `--alias` flag on the model object. When an alias is set it is used as the model's display name; otherwise the raw model `id` (typically the full model file path) is used, with the path and `.gguf`
+extension stripped for a cleaner name.
+
+#### Sampling Parameters
+
+These options control how llama.cpp selects tokens during text generation.<br>
+Please refer to the [llama.cpp documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/completion/README.md#generation-flags) for further information and usage.
+
+| Parameter            | Description                                                                                                | Range  |
+|----------------------|------------------------------------------------------------------------------------------------------------|--------|
+| **Top-P**            | Restricts sampling to the top-p probability mass of tokens.                                                | 0–1    |
+| **Min-P**            | Minimum probability threshold for nucleus sampling, providing additional control when combined with top-p. | 0–1    |
+| **Top-K**            | Limits sampling to the k highest-probability tokens.                                                       | 1–1000 |
+| **Repeat Penalty**   | Penalizes repeat sequences of tokens.                                                                      | -2–2   |
+| **Presence Penalty** | Penalizes tokens already present in the context.                                                           | -2–2   |
 
 ---
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.components import conversation
@@ -22,6 +22,8 @@ from custom_components.local_openai.const import (
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
 if TYPE_CHECKING:
+    from types import MappingProxyType
+
     from homeassistant.config_entries import ConfigSubentry
     from openai.types.chat import ChatCompletionMessageParam
 
@@ -40,7 +42,7 @@ def _get_deepseek_schema() -> dict:
                     SelectOptionDict(value="max", label="Max"),
                 ],
                 mode=SelectSelectorMode.DROPDOWN,
-            )
+            ),
         ),
     }
 
@@ -50,7 +52,7 @@ def get_conversation_config_schema() -> dict:
     return _get_deepseek_schema()
 
 
-def _deepseek_extra_body_args(options: dict) -> dict:
+def _deepseek_extra_body_args(options: MappingProxyType[str, Any]) -> dict:
     """Handle extra_body args for DeepSeek."""
     opts = options.get(CONF_DEEPSEEK_CONFIG, {})
     reasoning_effort = opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
@@ -83,12 +85,13 @@ async def _deepseek_augment_content_message(
 class DeepSeekConversationEntity(LocalAiConversationEntity):
     """Conversation agent for DeepSeek Cloud servers."""
 
-    def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
+    def _get_extra_body_args(self, options: MappingProxyType[str, Any]) -> dict:
         """Handle extra arguments for DeepSeek."""
         return _deepseek_extra_body_args(options)
 
     async def _convert_content_to_chat_message(
-        self, content: conversation.Content
+        self,
+        content: conversation.Content,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
         param = await super()._convert_content_to_chat_message(content)
@@ -98,12 +101,13 @@ class DeepSeekConversationEntity(LocalAiConversationEntity):
 class DeepSeekAITaskEntity(LocalAITaskEntity):
     """AI Task entity for DeepSeek Cloud servers."""
 
-    def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
+    def _get_extra_body_args(self, options: MappingProxyType[str, Any]) -> dict:
         """Handle extra arguments for DeepSeek."""
         return _deepseek_extra_body_args(options)
 
     async def _convert_content_to_chat_message(
-        self, content: conversation.Content
+        self,
+        content: conversation.Content,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
         param = await super()._convert_content_to_chat_message(content)

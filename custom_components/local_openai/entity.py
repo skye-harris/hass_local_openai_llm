@@ -78,7 +78,9 @@ MAX_TOOL_ITERATIONS = 10
 
 # Check if HA supports thinking_content (2026.4+)
 _SUPPORTS_THINKING = "thinking_content" in getattr(
-    conversation.AssistantContent, "__dataclass_fields__", {}
+    conversation.AssistantContent,
+    "__dataclass_fields__",
+    {},
 )
 
 
@@ -112,7 +114,9 @@ def _adjust_schema(schema: dict[str, Any]) -> None:
 
 
 def _format_structured_output(
-    name: str, schema: vol.Schema, llm_api: llm.APIInstance | None
+    name: str,
+    schema: vol.Schema,
+    llm_api: llm.APIInstance | None,
 ) -> JSONSchema:
     """Format the schema to be compatible with OpenAI API."""
     result: JSONSchema = {
@@ -179,11 +183,12 @@ class LocalAiEntity(Entity):
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_extra_body_args(self, options: dict, server_options: dict) -> dict:
+    def _get_extra_body_args(self, _options: dict) -> dict:
         return {}
 
     async def _convert_content_to_chat_message(
-        self, content: conversation.Content
+        self,
+        content: conversation.Content,
     ) -> ChatCompletionMessageParam | None:
         if isinstance(content, conversation.ToolResultContent):
 
@@ -204,7 +209,8 @@ class LocalAiEntity(Entity):
         role: Literal["user", "assistant", "system"] = content.role
         if role == "system" and content.content:
             return ChatCompletionSystemMessageParam(
-                role="system", content=content.content
+                role="system",
+                content=content.content,
             )
 
         if role == "user" and content.content:
@@ -219,7 +225,9 @@ class LocalAiEntity(Entity):
                             translation_key="unsupported_attachment_type",
                         )
                     base64_file = await loop.run_in_executor(
-                        None, b64_file, attachment.path
+                        None,
+                        b64_file,
+                        attachment.path,
                     )
                     messages.append(
                         ChatCompletionContentPartImageParam(
@@ -228,11 +236,11 @@ class LocalAiEntity(Entity):
                                 "url": f"data:{attachment.mime_type};base64,{base64_file}",
                                 "detail": "auto",
                             },
-                        )
+                        ),
                     )
 
             messages.append(
-                ChatCompletionContentPartTextParam(type="text", text=content.content)
+                ChatCompletionContentPartTextParam(type="text", text=content.content),
             )
             return ChatCompletionUserMessageParam(
                 role="user",
@@ -265,7 +273,9 @@ class LocalAiEntity(Entity):
 
     @staticmethod
     def _inject_content(
-        method: str | None, inject_content: list, messages: list
+        method: str | None,
+        inject_content: list,
+        messages: list,
     ) -> list:
         inject_content.insert(
             0,
@@ -291,7 +301,8 @@ class LocalAiEntity(Entity):
             messages.insert(
                 -1,
                 ChatCompletionAssistantMessageParam(
-                    role="assistant", content=inject_content
+                    role="assistant",
+                    content=inject_content,
                 ),
             )
         elif method == CONF_CONTENT_INJECTION_METHOD_USER:
@@ -363,7 +374,9 @@ class LocalAiEntity(Entity):
             # Handle reasoning_content field (used by reasoning models via OpenAI-compatible APIs)
             # Naming for this field varies. See https://github.com/vllm-project/vllm/issues/27755
             reasoning_content = getattr(delta, "reasoning_content", None) or getattr(
-                delta, "reasoning", None
+                delta,
+                "reasoning",
+                None,
             )
             if reasoning_content:
                 if _SUPPORTS_THINKING:
@@ -374,7 +387,10 @@ class LocalAiEntity(Entity):
             if (content := delta.content) is not None:
                 if strip_emojis:
                     content = await loop.run_in_executor(
-                        None, demoji.replace, content, ""
+                        None,
+                        demoji.replace,
+                        content,
+                        "",
                     )
 
                 # Handle <think> tags that may appear within larger chunks
@@ -417,8 +433,8 @@ class LocalAiEntity(Entity):
                     # Retrieve timings from llamacpp responses, if available
                     if event.timings:
                         self.extra_state_attributes = {"timings": event.timings}
-                except Exception:
-                    _LOGGER.exception("Error retrieving timings")
+                except Exception:  # noqa: S110
+                    pass
 
                 if pending_tool_calls:
                     chunk["tool_calls"] = [
@@ -454,6 +470,9 @@ class LocalAiEntity(Entity):
         options = self.subentry.data
         server_options = self.entry.data.get(CONF_SERVER_OPTIONS, {})
         strip_emojis = options.get(CONF_STRIP_EMOJIS)
+
+        # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
+        pass_session_id = server_options.get(CONF_PASS_SESSION_ID, False)
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
         temperature = options.get(CONF_TEMPERATURE, 0.6)
 
@@ -498,7 +517,8 @@ class LocalAiEntity(Entity):
         weaviate_server_opts = self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})
         weaviate_host = weaviate_server_opts.get(CONF_WEAVIATE_HOST)
         weaviate_class = weaviate_opts.get(
-            CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
+            CONF_WEAVIATE_CLASS_NAME,
+            CONF_WEAVIATE_DEFAULT_CLASS_NAME,
         )
 
         if weaviate_host and user_input and user_input.text:
@@ -517,12 +537,14 @@ class LocalAiEntity(Entity):
                         CONF_WEAVIATE_DEFAULT_HYBRID_SEARCH_ALPHA,
                     ),
                     threshold=weaviate_opts.get(
-                        CONF_WEAVIATE_THRESHOLD, CONF_WEAVIATE_DEFAULT_THRESHOLD
+                        CONF_WEAVIATE_THRESHOLD,
+                        CONF_WEAVIATE_DEFAULT_THRESHOLD,
                     ),
                     limit=int(
                         weaviate_opts.get(
-                            CONF_WEAVIATE_MAX_RESULTS, CONF_WEAVIATE_DEFAULT_MAX_RESULTS
-                        )
+                            CONF_WEAVIATE_MAX_RESULTS,
+                            CONF_WEAVIATE_DEFAULT_MAX_RESULTS,
+                        ),
                     ),
                 )
 
@@ -536,7 +558,7 @@ class LocalAiEntity(Entity):
                     inject_content += result_content
             except Exception:
                 _LOGGER.exception(
-                    "An unexpected exception occurred while processing RAG"
+                    "An unexpected exception occurred while processing RAG",
                 )
 
         # Inject any pending content into the current user message
@@ -588,7 +610,7 @@ class LocalAiEntity(Entity):
 
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         if (
-            server_options.get(CONF_PASS_SESSION_ID, False)
+            pass_session_id
             and user_input
             and hasattr(user_input, "conversation_id")
             and user_input.conversation_id
@@ -597,7 +619,7 @@ class LocalAiEntity(Entity):
                 "session_id": user_input.conversation_id,
             }
 
-        for key, value in self._get_extra_body_args(options, server_options).items():
+        for key, value in self._get_extra_body_args(options).items():
             if isinstance(value, dict) and isinstance(extra_body_args.get(key), dict):
                 extra_body_args[key] = {**extra_body_args[key], **value}
             else:
@@ -614,7 +636,9 @@ class LocalAiEntity(Entity):
             model_args["response_format"] = ResponseFormatJSONSchema(
                 type="json_schema",
                 json_schema=_format_structured_output(
-                    structure_name, structure, chat_log.llm_api
+                    structure_name,
+                    structure,
+                    chat_log.llm_api,
                 ),
             )
 
@@ -623,7 +647,8 @@ class LocalAiEntity(Entity):
         for _iteration in range(MAX_TOOL_ITERATIONS):
             try:
                 result_stream = await client.chat.completions.create(
-                    **model_args, stream=True
+                    **model_args,
+                    stream=True,
                 )
             except openai.OpenAIError as err:
                 _LOGGER.exception("Error talking to API")
@@ -637,11 +662,12 @@ class LocalAiEntity(Entity):
                         async for content in chat_log.async_add_delta_content_stream(
                             self.entity_id,
                             self._transform_stream(
-                                stream=result_stream, strip_emojis=strip_emojis
+                                stream=result_stream,
+                                strip_emojis=strip_emojis,
                             ),
                         )
                         if (msg := await self._convert_content_to_chat_message(content))
-                    ]
+                    ],
                 )
             except Exception as err:
                 _LOGGER.exception("Error handling API response")
@@ -685,7 +711,10 @@ class LocalAiEntity(Entity):
         return messages
 
     async def upsert_data_in_weaviate(
-        self, query: str, content: str, identifier: str | None
+        self,
+        query: str,
+        content: str,
+        identifier: str | None,
     ) -> None:
         """Add or update a record in Weaviate."""
         options = self.subentry.data
@@ -693,7 +722,8 @@ class LocalAiEntity(Entity):
         weaviate_server_opts = self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})
         weaviate_host = weaviate_server_opts.get(CONF_WEAVIATE_HOST)
         weaviate_class = weaviate_opts.get(
-            CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
+            CONF_WEAVIATE_CLASS_NAME,
+            CONF_WEAVIATE_DEFAULT_CLASS_NAME,
         )
 
         if not weaviate_host:
@@ -710,7 +740,8 @@ class LocalAiEntity(Entity):
         object_uuid = _make_uuid(identifier) if identifier else None
         if object_uuid:
             object_exists = await client.does_object_exist(
-                class_name=weaviate_class, object_uuid=object_uuid
+                class_name=weaviate_class,
+                object_uuid=object_uuid,
             )
 
             if object_exists:

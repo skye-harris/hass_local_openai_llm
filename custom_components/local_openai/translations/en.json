@@ -126,11 +126,23 @@
               "name": "llama.cpp Configuration",
               "data": {
                 "llamacpp_enable_thinking": "Enable thinking",
-                "llamacpp_id_slot": "Slot ID"
+                "llamacpp_include_prior_thinking": "Include prior reasoning",
+                "llamacpp_id_slot": "Slot ID",
+                "llamacpp_top_p": "Top-p",
+                "llamacpp_top_k": "Top-k",
+                "llamacpp_min_p": "Min-p",
+                "llamacpp_repeat_penalty": "Repeat penalty",
+                "llamacpp_presence_penalty": "Presence penalty"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
-                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
+                "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
+                "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
+                "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
+                "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
               }
             },
             "weaviate_options": {
@@ -188,11 +200,23 @@
               "name": "llama.cpp Configuration",
               "data": {
                 "llamacpp_enable_thinking": "Enable thinking",
-                "llamacpp_id_slot": "Slot ID"
+                "llamacpp_include_prior_thinking": "Include prior reasoning",
+                "llamacpp_id_slot": "Slot ID",
+                "llamacpp_top_p": "Top-p",
+                "llamacpp_top_k": "Top-k",
+                "llamacpp_min_p": "Min-p",
+                "llamacpp_repeat_penalty": "Repeat penalty",
+                "llamacpp_presence_penalty": "Presence penalty"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
-                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
+                "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
+                "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
+                "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
+                "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
               }
             },
             "weaviate_options": {
@@ -262,11 +286,23 @@
               "name": "llama.cpp Configuration",
               "data": {
                 "llamacpp_enable_thinking": "Enable thinking",
-                "llamacpp_id_slot": "Slot ID"
+                "llamacpp_include_prior_thinking": "Include prior reasoning",
+                "llamacpp_id_slot": "Slot ID",
+                "llamacpp_top_p": "Top-p",
+                "llamacpp_top_k": "Top-k",
+                "llamacpp_min_p": "Min-p",
+                "llamacpp_repeat_penalty": "Repeat penalty",
+                "llamacpp_presence_penalty": "Presence penalty"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
-                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
+                "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
+                "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
+                "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
+                "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
               }
             }
           }
@@ -308,11 +344,23 @@
               "name": "llama.cpp Configuration",
               "data": {
                 "llamacpp_enable_thinking": "Enable thinking",
-                "llamacpp_id_slot": "Slot ID"
+                "llamacpp_include_prior_thinking": "Include prior reasoning",
+                "llamacpp_id_slot": "Slot ID",
+                "llamacpp_top_p": "Top-p",
+                "llamacpp_top_k": "Top-k",
+                "llamacpp_min_p": "Min-p",
+                "llamacpp_repeat_penalty": "Repeat penalty",
+                "llamacpp_presence_penalty": "Presence penalty"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
-                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot."
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
+                "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
+                "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
+                "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
+                "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
               }
             }
           }
