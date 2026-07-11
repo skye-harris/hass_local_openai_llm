@@ -84,6 +84,17 @@ _SUPPORTS_THINKING = "thinking_content" in getattr(
 )
 
 
+class ToolArgsException(Exception):
+    tool_id: str
+    name: str
+    args: str | None
+
+    def __init__(self, tool_id: str, name: str, args: str | None):
+        self.tool_id = tool_id
+        self.name = name
+        self.args = args
+
+
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
     """Remove keys not supported in the tool schema."""
     for key in ("allOf", "anyOf", "oneOf"):
@@ -462,18 +473,24 @@ class LocalAiEntity(Entity):
                     pass
 
                 if pending_tool_calls:
-                    chunk["tool_calls"] = [
-                        llm.ToolInput(
-                            id=tool_call["id"],
-                            tool_name=tool_call["name"],
-                            tool_args=json.loads(tool_call["args"])
-                            if tool_call["args"]
-                            else {},
-                        )
-                        for key, tool_call in pending_tool_calls.items()
-                    ]
-                    _LOGGER.debug("Calling tools: %s", pending_tool_calls)
+                    chunk["tool_calls"] = []
+                    for key, tool_call in pending_tool_calls.items():
+                        try:
+                            chunk["tool_calls"].append(
+                                llm.ToolInput(
+                                    id=tool_call["id"],
+                                    tool_name=tool_call["name"],
+                                    tool_args=json.loads(tool_call["args"])
+                                    if tool_call["args"]
+                                    else {},
+                                )
+                            )
+                        except Exception:
+                            _LOGGER.exception("Failed to parse tool call: %s", tool_call)
+                            raise ToolArgsException(tool_call["id"], tool_call["name"], tool_call["args"])
+                        _LOGGER.debug("Calling tools: %s", pending_tool_calls)
                     pending_tool_calls.clear()
+
 
             if (
                 seen_visible
