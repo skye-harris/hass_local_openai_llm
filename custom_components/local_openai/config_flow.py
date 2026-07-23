@@ -43,6 +43,12 @@ from custom_components.local_openai.entities.llama_cpp import (
 from custom_components.local_openai.entities.llama_cpp import (
     get_model_alias as _llama_cpp_model_alias,
 )
+from custom_components.local_openai.entities.vllm import (
+    get_ai_task_config_schema as _vllm_ai_task_schema,
+)
+from custom_components.local_openai.entities.vllm import (
+    get_conversation_config_schema as _vllm_conversation_schema,
+)
 
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
@@ -127,6 +133,7 @@ def _get_conversation_config_schema(server_type: str) -> dict:
     provider = {
         SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
         SERVER_TYPE_LLAMACPP: _llama_cpp_conversation_schema,
+        SERVER_TYPE_VLLM: _vllm_conversation_schema,
     }.get(server_type)
     return provider() if provider else {}
 
@@ -136,6 +143,7 @@ def _get_ai_task_config_schema(server_type: str) -> dict:
     provider = {
         SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
         SERVER_TYPE_LLAMACPP: _llama_cpp_ai_task_schema,
+        SERVER_TYPE_VLLM: _vllm_ai_task_schema,
     }.get(server_type)
     return provider() if provider else {}
 

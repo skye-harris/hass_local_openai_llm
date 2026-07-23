@@ -145,6 +145,15 @@
                 "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
               }
             },
+            "vllm_config": {
+              "name": "vLLM Configuration",
+              "data": {
+                "vllm_thinking_token_budget": "Thinking token budget"
+              },
+              "data_description": {
+                "vllm_thinking_token_budget": "Limits how many tokens the model may spend on reasoning, with 0 meaning no thinking at all. Does not enable thinking itself. Leave empty for the server default."
+              }
+            },
             "weaviate_options": {
               "name": "Weaviate configuration",
               "data": {
@@ -217,6 +226,15 @@
                 "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
                 "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
                 "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
+              }
+            },
+            "vllm_config": {
+              "name": "vLLM Configuration",
+              "data": {
+                "vllm_thinking_token_budget": "Thinking token budget"
+              },
+              "data_description": {
+                "vllm_thinking_token_budget": "Limits how many tokens the model may spend on reasoning, with 0 meaning no thinking at all. Does not enable thinking itself. Leave empty for the server default."
               }
             },
             "weaviate_options": {
@@ -304,6 +322,15 @@
                 "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
                 "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
               }
+            },
+            "vllm_config": {
+              "name": "vLLM Configuration",
+              "data": {
+                "vllm_thinking_token_budget": "Thinking token budget"
+              },
+              "data_description": {
+                "vllm_thinking_token_budget": "Limits how many tokens the model may spend on reasoning, with 0 meaning no thinking at all. Does not enable thinking itself. Leave empty for the server default."
+              }
             }
           }
         },
@@ -361,6 +388,15 @@
                 "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
                 "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
                 "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
+              }
+            },
+            "vllm_config": {
+              "name": "vLLM Configuration",
+              "data": {
+                "vllm_thinking_token_budget": "Thinking token budget"
+              },
+              "data_description": {
+                "vllm_thinking_token_budget": "Limits how many tokens the model may spend on reasoning, with 0 meaning no thinking at all. Does not enable thinking itself. Leave empty for the server default."
               }
             }
           }
