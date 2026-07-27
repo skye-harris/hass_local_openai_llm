@@ -87,12 +87,13 @@ _SUPPORTS_THINKING = "thinking_content" in getattr(
 class ToolArgsException(Exception):
     tool_id: str
     name: str
-    args: str | None
+    tool_args: str | None
 
-    def __init__(self, tool_id: str, name: str, args: str | None):
+    def __init__(self, tool_id: str, name: str, tool_args: str | None):
         self.tool_id = tool_id
         self.name = name
-        self.args = args
+        self.tool_args = tool_args
+        super().__init__(f"Tool '{name}' failed to parse arguments: {tool_args}")
 
 
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
@@ -659,6 +660,9 @@ class LocalAiEntity(Entity):
         client = self.entry.runtime_data
 
         for _iteration in range(MAX_TOOL_ITERATIONS):
+            if _iteration == MAX_TOOL_ITERATIONS - 1:
+                messages = self._inject_stop_directive(messages)
+
             try:
                 result_stream = await client.chat.completions.create(
                     **model_args,
@@ -690,6 +694,23 @@ class LocalAiEntity(Entity):
 
             if not chat_log.unresponded_tool_results:
                 break
+
+    @staticmethod
+    def _inject_stop_directive(messages: list) -> list:
+        """Append a stop-directive to the last tool result if present."""
+        if not messages:
+            return messages
+        last_msg = messages[-1]
+        if last_msg.get("role") != "tool":
+            return messages
+        directive = (
+            "\n\nYou have reached the maximum number of tool call iterations. "
+            "You must now provide your final response directly to the user "
+            "without calling any more tools."
+        )
+        existing_content = last_msg.get("content", "")
+        last_msg["content"] = existing_content + directive
+        return messages
 
     @staticmethod
     def _trim_history(messages: list, max_messages: int) -> list:
