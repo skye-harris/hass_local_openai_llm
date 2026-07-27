@@ -2,6 +2,7 @@
 select = ["ALL"]
 ignore = [
     "D203",    # Incompatible with D211
+    "TD002",   # Missing author in TODO
     "TD003",   # missing issue link in TODO
     "TD004",   # missing version in TODO
     "TD005",   # missing description in TODO
