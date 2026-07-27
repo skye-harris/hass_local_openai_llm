@@ -15,6 +15,7 @@ from .const import (
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_LLAMACPP,
+    SERVER_TYPE_LOCALAI,
 )
 from .entity import LocalAiEntity
 
@@ -32,13 +33,17 @@ def _get_conversation_entity(
     if getattr(_get_conversation_entity, "entity_map", None) is None:
         from .entities.deepseek import DeepSeekConversationEntity  # noqa: PLC0415
         from .entities.llama_cpp import LlamaCppConversationEntity  # noqa: PLC0415
+        from .entities.localai import LocalAIServerConversationEntity  # noqa: PLC0415
 
         _get_conversation_entity.entity_map = {
             SERVER_TYPE_DEEPSEEK: DeepSeekConversationEntity,
             SERVER_TYPE_LLAMACPP: LlamaCppConversationEntity,
+            SERVER_TYPE_LOCALAI: LocalAIServerConversationEntity,
         }
+
     return _get_conversation_entity.entity_map.get(
-        server_type, LocalAiConversationEntity
+        server_type,
+        LocalAiConversationEntity,
     )
 
 
@@ -106,7 +111,9 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
             return err.as_conversation_result()
 
         await self._async_handle_chat_log(
-            chat_log, user_input=user_input, parallel_tool_calls=parallel_tool_calls
+            chat_log,
+            user_input=user_input,
+            parallel_tool_calls=parallel_tool_calls,
         )
 
         return conversation.async_get_result_from_chat_log(user_input, chat_log)

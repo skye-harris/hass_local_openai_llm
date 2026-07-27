@@ -15,6 +15,7 @@ from openai import AsyncOpenAI, AuthenticationError, OpenAIError
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity import Entity
     from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -38,7 +39,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.minor_version or 1,
     )
 
-    if entry.version > 2:  # noqa: PLR2004
+    if entry.version > 2:
         # User has downgraded from a future version
         return False
 
@@ -110,7 +111,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
 
 
 async def _async_update_listener(
-    hass: HomeAssistant, entry: LocalAiConfigEntry
+    hass: HomeAssistant,
+    entry: LocalAiConfigEntry,
 ) -> None:
     """Handle update."""
     await hass.config_entries.async_reload(entry.entry_id)
@@ -138,7 +140,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def upsert_data_in_weaviate(entity, service_call) -> None:  # noqa: ANN001
+async def upsert_data_in_weaviate(
+    entity: Entity,
+    service_call: service.ServiceCall,
+) -> None:
     """Service action to add content to Weaviate."""
     await entity.upsert_data_in_weaviate(
         query=service_call.data.get("query"),

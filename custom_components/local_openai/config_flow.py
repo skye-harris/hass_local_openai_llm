@@ -36,7 +36,11 @@ from custom_components.local_openai.entities.deepseek import (
 )
 from custom_components.local_openai.entities.llama_cpp import (
     get_ai_task_config_schema as _llama_cpp_ai_task_schema,
+)
+from custom_components.local_openai.entities.llama_cpp import (
     get_conversation_config_schema as _llama_cpp_conversation_schema,
+)
+from custom_components.local_openai.entities.llama_cpp import (
     get_model_alias as _llama_cpp_model_alias,
 )
 
@@ -85,7 +89,8 @@ from .weaviate import WeaviateClient, WeaviateError
 
 
 async def prepare_weaviate_class(
-    hass: HomeAssistant, weaviate_opts: dict[str, Any]
+    hass: HomeAssistant,
+    weaviate_opts: dict[str, Any],
 ) -> None:
     """Prepare our object class."""
     host = weaviate_opts.get(CONF_WEAVIATE_HOST)
@@ -100,7 +105,8 @@ async def prepare_weaviate_class(
     )
 
     class_name = weaviate_opts.get(
-        CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
+        CONF_WEAVIATE_CLASS_NAME,
+        CONF_WEAVIATE_DEFAULT_CLASS_NAME,
     )
 
     # if the class already exists, we're good
@@ -144,8 +150,9 @@ def _get_server_type_config_key(server_type: str) -> str:
     }.get(server_type, CONF_GENERIC_CONFIG)
 
 
-def _resolve_model_name(server_type: str, model: Any) -> str:
-    """Resolve a server-specific display name for a model picker entry.
+def _resolve_model_name(server_type: str, model: object) -> str:
+    """
+    Resolve a server-specific display name for a model picker entry.
 
     Prefer a server-provided alias when one is available; otherwise fall back to the
     raw model ``id``, stripping any file path and ``.gguf`` extension it may contain.
@@ -165,7 +172,8 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     @classmethod
     @callback
     def async_get_supported_subentry_types(
-        cls, _config_entry: ConfigEntry
+        cls,
+        _config_entry: ConfigEntry,
     ) -> dict[str, type[ConfigSubentryFlow]]:
         """Return subentries supported by this handler."""
         return {
@@ -191,7 +199,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                     SelectSelectorConfig(
                         mode=SelectSelectorMode.DROPDOWN,
                         options=options_to_selections_dict(SERVER_TYPE_OPTIONS),
-                    )
+                    ),
                 ),
                 vol.Optional(CONF_SERVER_OPTIONS): section(
                     schema=vol.Schema(
@@ -200,7 +208,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                                 CONF_PASS_SESSION_ID,
                                 default=False,
                             ): bool,
-                        }
+                        },
                     ),
                     options={"collapsed": True},
                 ),
@@ -215,22 +223,23 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                                 CONF_WEAVIATE_API_KEY,
                                 default="",
                             ): str,
-                        }
+                        },
                     ),
                     options={"collapsed": True},
                 ),
-            }
+            },
         )
 
     async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
             self._async_abort_entries_match(user_input)
             LOGGER.debug(
-                f"Initialising OpenAI client with base_url: {user_input[CONF_BASE_URL]}"
+                f"Initialising OpenAI client with base_url: {user_input[CONF_BASE_URL]}",
             )
 
             try:
@@ -272,14 +281,15 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         errors = {}
         if user_input is not None:
             self._async_abort_entries_match(user_input)
             LOGGER.debug(
-                f"Initialising OpenAI client with base_url: {user_input[CONF_BASE_URL]}"
+                f"Initialising OpenAI client with base_url: {user_input[CONF_BASE_URL]}",
             )
 
             try:
@@ -376,7 +386,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             vol.Required(
                 CONF_MODEL,
             ): SelectSelector(
-                SelectSelectorConfig(options=downloaded_models, custom_value=True)
+                SelectSelectorConfig(options=downloaded_models, custom_value=True),
             ),
             vol.Optional(
                 CONF_PROMPT,
@@ -403,8 +413,11 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 default=0.6,
             ): NumberSelector(
                 NumberSelectorConfig(
-                    min=0, max=1, step=0.01, mode=NumberSelectorMode.BOX
-                )
+                    min=0,
+                    max=1,
+                    step=0.01,
+                    mode=NumberSelectorMode.BOX,
+                ),
             ),
             vol.Optional(
                 CONF_MAX_MESSAGE_HISTORY,
@@ -415,7 +428,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                     max=50,
                     step=1,
                     mode=NumberSelectorMode.BOX,
-                )
+                ),
             ),
             vol.Optional(
                 CONF_CONTENT_INJECTION_METHOD,
@@ -423,14 +436,15 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 SelectSelectorConfig(
                     mode=SelectSelectorMode.DROPDOWN,
                     options=CONF_CONTENT_INJECTION_METHODS,
-                )
+                ),
             ),
             vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
                 options=SectionConfig(collapsed=True),
                 schema=vol.Schema(
                     schema={
                         vol.Required(
-                            CONF_CHAT_TEMPLATE_KWARGS, default=[]
+                            CONF_CHAT_TEMPLATE_KWARGS,
+                            default=[],
                         ): ObjectSelector(
                             config={
                                 "multiple": True,
@@ -444,9 +458,9 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                                         "required": True,
                                     },
                                 },
-                            }
+                            },
                         ),
-                    }
+                    },
                 ),
             ),
         }
@@ -480,7 +494,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                                     max=CONF_WEAVIATE_MAX_RESULTS_MAX,
                                     step=1,
                                     mode=NumberSelectorMode.SLIDER,
-                                )
+                                ),
                             ),
                             vol.Optional(
                                 CONF_WEAVIATE_THRESHOLD,
@@ -491,7 +505,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                                     max=1,
                                     step=0.01,
                                     mode=NumberSelectorMode.SLIDER,
-                                )
+                                ),
                             ),
                             vol.Optional(
                                 CONF_WEAVIATE_HYBRID_SEARCH_ALPHA,
@@ -502,9 +516,9 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                                     max=1,
                                     step=0.01,
                                     mode=NumberSelectorMode.SLIDER,
-                                )
+                                ),
                             ),
-                        }
+                        },
                     ),
                     options=SectionConfig(collapsed=True),
                 ),
@@ -513,7 +527,8 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
         return vol.Schema(schema)
 
     async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         errors = {}
@@ -536,8 +551,10 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 LOGGER.exception(f"Unexpected exception: {err}")
                 errors["base"] = "cannot_connect_weaviate"
             else:
+                server_name = self._get_entry().title
                 return self.async_create_entry(
-                    title=f"{model_name} AI Agent", data=user_input
+                    title=f"{server_name}: {model_name} AI Agent",
+                    data=user_input,
                 )
 
         return self.async_show_form(
@@ -547,7 +564,8 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
         )
 
     async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         errors = {}
@@ -587,7 +605,9 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
         schema = self.add_suggested_values_to_schema(await self.get_schema(), options)
 
         return self.async_show_form(
-            step_id="reconfigure", data_schema=schema, errors=errors
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
         )
 
 
@@ -622,7 +642,7 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
             vol.Required(
                 CONF_MODEL,
             ): SelectSelector(
-                SelectSelectorConfig(options=downloaded_models, custom_value=True)
+                SelectSelectorConfig(options=downloaded_models, custom_value=True),
             ),
             vol.Required(
                 CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
@@ -634,7 +654,7 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                     ],
                     multiple=True,
                     mode=SelectSelectorMode.LIST,
-                )
+                ),
             ),
             vol.Required(CONF_AI_TASK_TOOLS_SECTION): section(
                 options=SectionConfig(collapsed=True),
@@ -644,13 +664,13 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                             CONF_LLM_HASS_API,
                             default=[],
                         ): SelectSelector(
-                            SelectSelectorConfig(options=llm_apis, multiple=True)
+                            SelectSelectorConfig(options=llm_apis, multiple=True),
                         ),
                         vol.Required(
                             CONF_PARALLEL_TOOL_CALLS,
                             default=True,
                         ): bool,
-                    }
+                    },
                 ),
             ),
             vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
@@ -658,7 +678,8 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                 schema=vol.Schema(
                     schema={
                         vol.Required(
-                            CONF_CHAT_TEMPLATE_KWARGS, default=[]
+                            CONF_CHAT_TEMPLATE_KWARGS,
+                            default=[],
                         ): ObjectSelector(
                             config={
                                 "multiple": True,
@@ -672,9 +693,9 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                                         "required": True,
                                     },
                                 },
-                            }
+                            },
                         ),
-                    }
+                    },
                 ),
             ),
         }
@@ -692,20 +713,24 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
         return vol.Schema(schema)
 
     async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         if user_input is not None:
             model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
+            server_name = self._get_entry().title
             return self.async_create_entry(
-                title=f"{model_name} AI Task", data=user_input
+                title=f"{server_name}: {model_name} AI Task",
+                data=user_input,
             )
 
         schema = await self.get_schema()
         return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None
+        self,
+        user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         errors = {}
