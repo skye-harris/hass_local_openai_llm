@@ -641,6 +641,16 @@ class LocalAiEntity(Entity):
 
         client = self.entry.runtime_data
 
+        await self._run_agent_loop(client, model_args, chat_log, strip_emojis)
+
+    async def _run_agent_loop(
+        self,
+        client: openai.AsyncOpenAI,
+        model_args: dict[str, Any],
+        chat_log: conversation.ChatLog,
+        strip_emojis: bool,
+    ) -> None:
+        """Run the LLM agent loop with tool call iteration."""
         for _iteration in range(MAX_TOOL_ITERATIONS):
             try:
                 result_stream = await client.chat.completions.create(
