@@ -175,6 +175,22 @@ def mock_llm_api():
     return api
 
 
+@pytest.fixture
+async def mock_conversation_entity(
+    hass: HomeAssistant,
+    mock_config_entry: ConfigEntry,
+    mock_conversation_subentry: ConfigSubentry,
+) -> conversation.ConversationAgent:
+    """Create a mock conversation entity."""
+    from custom_components.local_openai.conversation import LocalAiConversationEntity
+
+    entity = LocalAiConversationEntity(mock_config_entry, mock_conversation_subentry)
+    entity.hass = hass
+    entity._attr_has_entity_name = False
+    entity._attr_name = "Test"
+    return entity
+
+
 class MockAssistantContent(conversation.AssistantContent):
     """Mock AssistantContent that allows setting thinking_content."""
 
