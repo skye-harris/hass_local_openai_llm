@@ -1,6 +1,7 @@
 """Weaviate vector DB with hybrid search."""
 
 from datetime import datetime
+from typing import Any
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -40,7 +41,7 @@ class WeaviateClient:
 
     async def near_text(
         self, class_name: str, query: str, threshold: float, limit: int
-    ):
+    ) -> list[dict[str, Any]]:
         """Query weaviate for vector similarity."""
         class_name = self.prepare_class_name(class_name)
         query_obj = {
@@ -76,7 +77,7 @@ class WeaviateClient:
 
     async def hybrid_search(
         self, class_name: str, query: str, alpha: float, threshold: float, limit: int
-    ):
+    ) -> list[dict[str, Any]]:
         """Query Weaviate Hybrid search."""
         class_name = self.prepare_class_name(class_name)
 
@@ -130,13 +131,16 @@ class WeaviateClient:
                 return [
                     res
                     for res in results
-                    if float(res.get("_additional", {}).get("rerank")[0].get("score", 0)) > 0 # reranker doesnt use regular threshold scoring
+                    if float(
+                        res.get("_additional", {}).get("rerank")[0].get("score", 0)
+                    )
+                    > 0  # reranker doesnt use regular threshold scoring
                 ]
         except aiohttp.ClientError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
             raise WeaviateError("Unable to query Weaviate") from err
 
-    async def create_class(self, class_name: str):
+    async def create_class(self, class_name: str) -> None:
         """Create our object class in Weaviate."""
         class_name = self.prepare_class_name(class_name)
 
@@ -289,7 +293,7 @@ class WeaviateClient:
             )
             raise WeaviateError("Unable to update object in Weaviate") from err
 
-    async def seed_sample_data(self, class_name: str):
+    async def seed_sample_data(self, class_name: str) -> None:
         """Seed some sample objects into our database."""
         data = []  # TODO
 
