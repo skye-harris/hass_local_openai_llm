@@ -78,6 +78,7 @@ from .const import (
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
     LOGGER,
+    PLACEHOLDER_API_KEY,
     RECOMMENDED_CONVERSATION_OPTIONS,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
@@ -245,7 +246,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 client = AsyncOpenAI(
                     base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY, ""),
+                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
                     http_client=get_async_client(self.hass),
                 )
 
@@ -295,7 +296,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 client = AsyncOpenAI(
                     base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY, ""),
+                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
                     http_client=get_async_client(self.hass),
                 )
 

@@ -9,6 +9,8 @@ from homeassistant.helpers import llm
 DOMAIN = "local_openai"
 LOGGER = logging.getLogger(__package__)
 
+PLACEHOLDER_API_KEY = "local-openai"
+
 CONF_RECOMMENDED = "recommended"
 CONF_BASE_URL = "base_url"
 CONF_SERVER_NAME = "server_name"
