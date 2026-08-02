@@ -52,7 +52,7 @@ class TestVllmExtraBodyArgs:
             ({CONF_VLLM_THINKING_TOKEN_BUDGET: 2048}, {}),
         ],
     )
-    def test_vllm_extra_body_args(self, options: dict, extra_expected: dict):
+    def test_vllm_extra_body_args(self, options: dict, extra_expected: dict) -> None:
         """Test extra body arguments generation with various configurations."""
         result = _StubVllmEntity()._get_extra_body_args(options)
         assert result == BASE_EXTRA_BODY_ARGS | extra_expected
