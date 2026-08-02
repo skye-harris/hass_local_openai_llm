@@ -6,7 +6,7 @@
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
-           "api_key": "API key",
+          "api_key": "API key",
           "server_type": "Server Type"
         },
         "data_description": {
@@ -97,18 +97,18 @@
             "temperature": "Temperature",
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
-            "content_injection_method": "Date/Time context injection role"
+            "content_injection_method": "Date/Time context injection role",
+            "conversation_mode": "Enable continuous conversation flow"
           },
           "data_description": {
-             "model": "The model to use for the conversation agent",
-             "prompt": "Instruct how the LLM should respond. This can be a template",
-             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
-             "temperature": "Lower for more predictable responses, higher for more randomness",
-             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
-             "conversation_mode": "Enable continuous conversation flow"
-           },
-           "sections": {
-             "chat_template_opts": {
+            "model": "The model to use for the conversation agent",
+            "prompt": "Instruct how the LLM should respond. This can be a template",
+            "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
+            "temperature": "Lower for more predictable responses, higher for more randomness",
+            "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
+          },
+          "sections": {
+            "chat_template_opts": {
               "name": "Chat Template Arguments",
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
@@ -181,18 +181,18 @@
             "temperature": "Temperature",
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
-            "content_injection_method": "Date/Time context injection role"
+            "content_injection_method": "Date/Time context injection role",
+            "conversation_mode": "Enable continuous conversation flow"
           },
           "data_description": {
-             "model": "The model to use for the conversation agent",
-             "prompt": "Instruct how the LLM should respond. This can be a template",
-             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
-             "temperature": "Lower for more predictable responses, higher for more randomness",
-             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
-             "conversation_mode": "Enable continuous conversation flow"
-           },
-           "sections": {
-             "chat_template_opts": {
+            "model": "The model to use for the conversation agent",
+            "prompt": "Instruct how the LLM should respond. This can be a template",
+            "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
+            "temperature": "Lower for more predictable responses, higher for more randomness",
+            "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
+          },
+          "sections": {
+            "chat_template_opts": {
               "name": "Chat Template Arguments",
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"

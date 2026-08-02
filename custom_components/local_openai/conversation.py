@@ -125,7 +125,7 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
 
         # Set continue_conversation flag based on conversation_mode setting
         chat_log_result = conversation.async_get_result_from_chat_log(user_input, chat_log)
-        if conversation_mode and continue_conversation:
+        if conversation_mode:
             chat_log_result.continue_conversation = True
 
         return chat_log_result
