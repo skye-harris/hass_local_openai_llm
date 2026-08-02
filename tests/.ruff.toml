@@ -1,0 +1,12 @@
+# Ruff configuration for test files
+# Inherits from parent .ruff.toml
+
+[lint.per-file-ignores]
+"**/{tests,docs,tools}/*" = [
+    "S101", # Use of assert
+    "PLR2004", # Magic numbers
+    "PLR0913", # Too many arguments in function definition (tests have many parametrize args)
+    "SLF001", # Private member accessed
+    "E501", # Line too long
+    "EXE002", #shebang
+]

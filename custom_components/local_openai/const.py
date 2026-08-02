@@ -9,6 +9,8 @@ from homeassistant.helpers import llm
 DOMAIN = "local_openai"
 LOGGER = logging.getLogger(__package__)
 
+PLACEHOLDER_API_KEY = "local-openai"
+
 CONF_RECOMMENDED = "recommended"
 CONF_BASE_URL = "base_url"
 CONF_SERVER_NAME = "server_name"
@@ -18,8 +20,36 @@ CONF_TEMPERATURE = "temperature"
 CONF_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
 CONF_CHAT_TEMPLATE_OPTS = "chat_template_opts"
 CONF_CHAT_TEMPLATE_KWARGS = "chat_template_kwargs"
-CONF_PASS_SESSION_ID = "pass_session_id"
+CONF_PASS_SESSION_ID = "pass_session_id"  # noqa: S105
 CONF_SERVER_OPTIONS = "server_options"
+CONF_SERVER_TYPE = "server_type"
+CONF_GENERIC_CONFIG = "generic_config"
+CONF_LLAMACPP_CONFIG = "llamacpp_config"
+CONF_LLAMACPP_ENABLE_THINKING = "llamacpp_enable_thinking"
+CONF_LLAMACPP_INCLUDE_PRIOR_THINKING = "llamacpp_include_prior_thinking"
+CONF_LLAMACPP_ID_SLOT = "llamacpp_id_slot"
+CONF_LLAMACPP_TOP_P = "llamacpp_top_p"
+CONF_LLAMACPP_TOP_K = "llamacpp_top_k"
+CONF_LLAMACPP_MIN_P = "llamacpp_min_p"
+CONF_LLAMACPP_REPEAT_PENALTY = "llamacpp_repeat_penalty"
+CONF_LLAMACPP_PRESENCE_PENALTY = "llamacpp_presence_penalty"
+CONF_VLLM_CONFIG = "vllm_config"
+CONF_DEEPSEEK_CONFIG = "deepseek_config"
+CONF_DEEPSEEK_REASONING_EFFORT = "deepseek_reasoning_effort"
+
+SERVER_TYPE_GENERIC = "generic"
+SERVER_TYPE_LLAMACPP = "llama_cpp"
+SERVER_TYPE_VLLM = "vllm"
+SERVER_TYPE_DEEPSEEK = "deepseek"
+SERVER_TYPE_LOCALAI = "localai"
+
+SERVER_TYPE_OPTIONS = {
+    SERVER_TYPE_GENERIC: "Generic OpenAI-Compatible",
+    SERVER_TYPE_LLAMACPP: "llama.cpp",
+    # SERVER_TYPE_VLLM: "vLLM",
+    SERVER_TYPE_DEEPSEEK: "DeepSeek Cloud",
+    SERVER_TYPE_LOCALAI: "LocalAI",
+}
 CONF_CONVERSATION_MODE = "conversation_mode"
 CONF_CONVERSATION_MODE_DEFAULT = False
 

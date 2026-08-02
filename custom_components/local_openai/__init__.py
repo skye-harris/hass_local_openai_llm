@@ -2,23 +2,29 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import voluptuous as vol
 from homeassistant.components.conversation import DOMAIN as CONVERSATION_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, Platform
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import service
 from homeassistant.helpers.httpx_client import get_async_client
-from homeassistant.helpers.typing import ConfigType
 from openai import AsyncOpenAI, AuthenticationError, OpenAIError
 
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity import Entity
+    from homeassistant.helpers.typing import ConfigType
+
 from .const import (
+    CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
-    CONF_BASE_URL,
     DOMAIN,
     LOGGER,
+    PLACEHOLDER_API_KEY,
 )
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
@@ -79,7 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
     """Set up Local OpenAI LLM from a config entry."""
     client = AsyncOpenAI(
         base_url=entry.data[CONF_BASE_URL],
-        api_key=entry.data.get(CONF_API_KEY, ""),
+        api_key=entry.data.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
         http_client=get_async_client(hass),
     )
 
@@ -91,7 +97,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
             break
     except AuthenticationError as err:
         LOGGER.error("Invalid API key: %s", err)
-        raise ConfigEntryError("Invalid API key") from err
+        msg = "Invalid API key"
+        raise ConfigEntryError(msg) from err
     except OpenAIError as err:
         raise ConfigEntryNotReady(err) from err
 
@@ -105,7 +112,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
 
 
 async def _async_update_listener(
-    hass: HomeAssistant, entry: LocalAiConfigEntry
+    hass: HomeAssistant,
+    entry: LocalAiConfigEntry,
 ) -> None:
     """Handle update."""
     await hass.config_entries.async_reload(entry.entry_id)
@@ -133,7 +141,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def upsert_data_in_weaviate(entity, service_call):
+async def upsert_data_in_weaviate(
+    entity: Entity,
+    service_call: service.ServiceCall,
+) -> None:
     """Service action to add content to Weaviate."""
     await entity.upsert_data_in_weaviate(
         query=service_call.data.get("query"),

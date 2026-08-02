@@ -7,7 +7,10 @@
 - LM Studio
 - Ollama
 - OpenRouter
+- Requesty
 - Scaleway
+- DeepSeek
+- LocalAI
 
 **This integration has been forked from Home Assistants OpenRouter integration, with the following changes:**
 
@@ -63,14 +66,15 @@ After installation, configure the integration through Home Assistant's UI:
 3. Search for `Local OpenAI LLM`.
 4. Follow the setup wizard to configure your desired services.
 
+---
+
 ### Configuration Notes
 
 - The Server URL must be a fully qualified URL pointing to an OpenAI-compatible API.
     - This typically ends with `/v1` but may differ depending on your server configuration.
-- If you have the `Extended OpenAI Conversation` integration installed, this has a dependency of an older version of the OpenAI client library.
-    - It is strongly recommended this be uninstalled to ensure that HACS installs the correct OpenAI client library.
+- A Server Type configuration can be set to expose some additional options for different inference servers and providers, where they have been implemented.
 - Assist requires a fairly lengthy context for tooling and entity definitions.
-    - It is strongly recommended to use _at least_ 8k context size and to limit history length to avoid context overflow issues.
+    - It is strongly recommended to use _at least_ 10k context size and to limit history length and exposed entities to avoid context overflow issues.
     - This is not configurable through OpenAI-compatible APIs, and needs to be configured with the inference server directly.
 - Tool calling must be enabled in your inference engine, eg:
     - **vLLM**: https://docs.vllm.ai/en/latest/features/tool_calling/
@@ -86,6 +90,80 @@ After installation, configure the integration through Home Assistant's UI:
     - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and requires support from your chosen image generation server
     - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
 
+---
+
+### DeepSeek Cloud Configuration
+
+#### Reasoning Effort
+
+When the server type is set to *DeepSeek Cloud*, both conversation and AI task agents show a new **DeepSeek Configuration** section with a **Reasoning Effort** option.
+This option controls whether thinking is enabled, and what level of reasoning to perform on the request.
+
+- **Disabled** (default) — no thinking tokens.
+- **High** — enables thinking with standard reasoning effort.
+- **Max** — enables thinking with maximum reasoning effort.
+
+When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on supported Home Assistant versions (2026.4+).
+
+---
+
+### llama.cpp Configuration
+
+When the server type is set to *llama.cpp*, both conversation and AI task agents show a **llama.cpp Configuration** section with the following options.
+
+#### Enable thinking
+
+Passes `enable_thinking=true` via `chat_template_kwargs` to enable reasoning on supported models.
+
+- **Disabled** (default) — no thinking tokens.
+- **Enabled** — requests reasoning from the model.
+
+_Note: This option completely overrides any existing `enable_thinking` option in your Chat Template Arguments._
+
+#### Include prior thinking
+
+Controls whether thinking/reasoning content from prior conversation turns is sent back in new completion requests.
+
+Some reasoning models require this enabled, and others require it disabled. Check the documentation for your model if unsure. 
+
+- **Enabled** (default) — prior-turn `thinking_content` is passed as `reasoning_content` in the next request, allowing the model to see its own prior reasoning.
+- **Disabled** — prior thinking context is stripped before sending. Use for models that reject prior reasoning context (e.g., Gemma 4).
+
+#### Slot ID
+
+Pins requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty to allow any slot to be used.
+
+#### Model naming
+
+llama.cpp exposes the value supplied via its `--alias` flag on the model object. When an alias is set it is used as the model's display name; otherwise the raw model `id` (typically the full model file path) is used, with the path and `.gguf`
+extension stripped for a cleaner name.
+
+#### Sampling Parameters
+
+These options control how llama.cpp selects tokens during text generation.<br>
+Please refer to the [llama.cpp documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/completion/README.md#generation-flags) for further information and usage.
+
+| Parameter            | Description                                                                                                | Range  |
+|----------------------|------------------------------------------------------------------------------------------------------------|--------|
+| **Top-P**            | Restricts sampling to the top-p probability mass of tokens.                                                | 0–1    |
+| **Min-P**            | Minimum probability threshold for nucleus sampling, providing additional control when combined with top-p. | 0–1    |
+| **Top-K**            | Limits sampling to the k highest-probability tokens.                                                       | 1–1000 |
+| **Repeat Penalty**   | Penalizes repeat sequences of tokens.                                                                      | -2–2   |
+| **Presence Penalty** | Penalizes tokens already present in the context.                                                           | -2–2   |
+
+---
+
+### LocalAI Configuration
+
+When the server type is set to *LocalAI*, Chat Template Arguments are sent via the
+OpenAI `metadata` request field rather than a top-level `chat_template_kwargs` field,
+as this is where LocalAI reads chat template variables from. Values are coerced to
+strings, per LocalAI's metadata convention.
+
+See [LocalAI model configuration](https://localai.io/advanced/model-configuration/index.html#custom-chat_template_kwargs).
+
+---
+
 ### Experimental: Date/Time Context Injection Role
 
 This integration supports injecting some dynamic content, presently the date and time, into the active Conversation Agent prompt when making a request.
@@ -98,24 +176,27 @@ To this end I have provided a number of options so that users can try them out a
 The available options are:
 
 #### <u>Tool Result</u>:
+
 The date and time are inserted as a `Tool Call Result` message to the model, before the current user message.
 
 As long as the model does not reject it, this is the recommended method to use and produces the most reliable results during testing.
 
 #### <u>Assistant</u>:
+
 The date and time are inserted as an additional `Assistant` message to the model, before the current user message.
 
 In cases where the `Tool Call Result` role method does not work for a model, this is the next recommended to test with.
 
 #### <u>User</u>:
+
 The date and time are inserted as an additional `User` message to the model, before the current user message.
 
 Recommended only where neither the `System` nor `Assistant` injection methods work for the model, but may not produce desirable results.
 Some models have been known to repeat the date/time back to the user without request.
 
 #### <u>Disabled (no selection)</u>:
-If your model simply refuses to work well with any method, simply remove the value from the configuration option to disable this again.
 
+If your model simply refuses to work well with any method, simply remove the value from the configuration option to disable this again.
 
 ## Experimental: Retrieval Augmented Generation (RAG) with Weaviate
 
@@ -127,6 +208,8 @@ Once configured, user messages to the Agent will be queried against the Weaviate
 This is not a general-purpose "memory" for the Agent: content is only provided to the Agent if it matches on the current user input message to the model.
 
 See the [Weaviate documentation](https://docs.weaviate.io/weaviate) for further information on Weaviate.
+
+---
 
 ### Weaviate Configuration
 
@@ -176,15 +259,20 @@ _This is not a general-purpose Weaviate management tool, rather it is purpose-bu
     - GPT-OSS-120B on Scaleway.
 - A service action, `local_openai.add_to_weaviate`, can be used from within Home Assistant to add content to the database.
 
+---
+
 ## Web Search & Additional Tools
 
 Looking to add some more functionality to your Home Assistant conversation agent, such as web and localised business/location search? Check out my [Tools for Assist](https://github.com/skye-harris/llm_intents) integration here!
 
 These tools exist as a separate integration for compatibility across the wider Home Assistant Conversation ecosystem.
 
+---
+
 ## Acknowledgements
 
 - This integration is forked from the [OpenRouter](https://github.com/home-assistant/core/tree/dev/homeassistant/components/open_router) integration for Home Assistant by [@joostlek](https://github.com/joostlek)
+- [@NickM-27](https://github.com/NickM-27) for his contributions both in additions to the integration itself, and providing support and assistance with reported issues
 
 ---
 
