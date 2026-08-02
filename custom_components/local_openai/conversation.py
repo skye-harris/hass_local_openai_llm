@@ -18,6 +18,7 @@ from .const import (
     SERVER_TYPE_LOCALAI,
     CONF_CONVERSATION_MODE,
     CONF_CONVERSATION_MODE_DEFAULT,
+    SERVER_TYPE_VLLM,
 )
 
 from .entity import LocalAiEntity
@@ -37,11 +38,13 @@ def _get_conversation_entity(
         from .entities.deepseek import DeepSeekConversationEntity  # noqa: PLC0415
         from .entities.llama_cpp import LlamaCppConversationEntity  # noqa: PLC0415
         from .entities.localai import LocalAIServerConversationEntity  # noqa: PLC0415
+        from .entities.vllm import VllmConversationEntity  # noqa: PLC0415
 
         _get_conversation_entity.entity_map = {
             SERVER_TYPE_DEEPSEEK: DeepSeekConversationEntity,
             SERVER_TYPE_LLAMACPP: LlamaCppConversationEntity,
             SERVER_TYPE_LOCALAI: LocalAIServerConversationEntity,
+            SERVER_TYPE_VLLM: VllmConversationEntity,
         }
 
     return _get_conversation_entity.entity_map.get(
