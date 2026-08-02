@@ -24,6 +24,7 @@ from .const import (
     CONF_CHAT_TEMPLATE_OPTS,
     DOMAIN,
     LOGGER,
+    PLACEHOLDER_API_KEY,
 )
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
@@ -84,7 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
     """Set up Local OpenAI LLM from a config entry."""
     client = AsyncOpenAI(
         base_url=entry.data[CONF_BASE_URL],
-        api_key=entry.data.get(CONF_API_KEY, ""),
+        api_key=entry.data.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
         http_client=get_async_client(hass),
     )
 
