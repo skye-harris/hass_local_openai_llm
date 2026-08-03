@@ -113,6 +113,12 @@
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
             },
+            "request_body_opts": {
+              "name": "Request Body Parameters",
+              "data": {
+                "request_body_parameters": "Add provider-specific top-level parameters to the chat completion request body"
+              }
+            },
             "deepseek_config": {
               "name": "DeepSeek Configuration",
               "data": {
@@ -187,6 +193,12 @@
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
             },
+            "request_body_opts": {
+              "name": "Request Body Parameters",
+              "data": {
+                "request_body_parameters": "Add provider-specific top-level parameters to the chat completion request body"
+              }
+            },
             "deepseek_config": {
               "name": "DeepSeek Configuration",
               "data": {
@@ -240,7 +252,9 @@
       },
       "entry_type": "Conversation agent",
       "error": {
-        "cannot_connect_weaviate": "Could not communicate with the Weaviate server"
+        "cannot_connect_weaviate": "Could not communicate with the Weaviate server",
+        "request_body_parameter_already_configurable": "The request body parameter \"{key}\" already has a dedicated configuration option.",
+        "reserved_request_body_parameter": "The request body parameter \"{key}\" is reserved and cannot be configured here."
       },
       "abort": {
         "cannot_connect": "Could not communicate with the LLM server",
@@ -271,6 +285,12 @@
               "name": "Chat Template Arguments",
               "data": {
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
+              }
+            },
+            "request_body_opts": {
+              "name": "Request Body Parameters",
+              "data": {
+                "request_body_parameters": "Add provider-specific top-level parameters to the chat completion request body"
               }
             },
             "deepseek_config": {
@@ -331,6 +351,12 @@
                 "chat_template_kwargs": "Add custom arguments that are supported by your chosen model"
               }
             },
+            "request_body_opts": {
+              "name": "Request Body Parameters",
+              "data": {
+                "request_body_parameters": "Add provider-specific top-level parameters to the chat completion request body"
+              }
+            },
             "deepseek_config": {
               "name": "DeepSeek Configuration",
               "data": {
@@ -370,6 +396,10 @@
         "user": "Add AI task"
       },
       "entry_type": "AI task",
+      "error": {
+        "request_body_parameter_already_configurable": "The request body parameter \"{key}\" already has a dedicated configuration option.",
+        "reserved_request_body_parameter": "The request body parameter \"{key}\" is reserved and cannot be configured here."
+      },
       "abort": {
         "cannot_connect": "Could not communicate with the server",
         "unknown": "An unknown error occurred",
