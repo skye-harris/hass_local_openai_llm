@@ -43,6 +43,12 @@ from custom_components.local_openai.entities.llama_cpp import (
 from custom_components.local_openai.entities.llama_cpp import (
     get_model_alias as _llama_cpp_model_alias,
 )
+from custom_components.local_openai.entities.vllm import (
+    get_ai_task_config_schema as _vllm_ai_task_schema,
+)
+from custom_components.local_openai.entities.vllm import (
+    get_conversation_config_schema as _vllm_conversation_schema,
+)
 
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
@@ -78,6 +84,7 @@ from .const import (
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
     LOGGER,
+    PLACEHOLDER_API_KEY,
     RECOMMENDED_CONVERSATION_OPTIONS,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
@@ -127,6 +134,7 @@ def _get_conversation_config_schema(server_type: str) -> dict:
     provider = {
         SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
         SERVER_TYPE_LLAMACPP: _llama_cpp_conversation_schema,
+        SERVER_TYPE_VLLM: _vllm_conversation_schema,
     }.get(server_type)
     return provider() if provider else {}
 
@@ -136,6 +144,7 @@ def _get_ai_task_config_schema(server_type: str) -> dict:
     provider = {
         SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
         SERVER_TYPE_LLAMACPP: _llama_cpp_ai_task_schema,
+        SERVER_TYPE_VLLM: _vllm_ai_task_schema,
     }.get(server_type)
     return provider() if provider else {}
 
@@ -245,7 +254,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 client = AsyncOpenAI(
                     base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY, ""),
+                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
                     http_client=get_async_client(self.hass),
                 )
 
@@ -295,7 +304,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 client = AsyncOpenAI(
                     base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY, ""),
+                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
                     http_client=get_async_client(self.hass),
                 )
 
