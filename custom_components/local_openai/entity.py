@@ -84,18 +84,6 @@ _SUPPORTS_THINKING = "thinking_content" in getattr(
 )
 
 
-class ToolArgsException(Exception):
-    tool_id: str
-    name: str
-    tool_args: str | None
-
-    def __init__(self, tool_id: str, name: str, tool_args: str | None):
-        self.tool_id = tool_id
-        self.name = name
-        self.tool_args = tool_args
-        super().__init__(f"Tool '{name}' failed to parse arguments: {tool_args}")
-
-
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
     """Remove keys not supported in the tool schema."""
     for key in ("allOf", "anyOf", "oneOf"):
@@ -439,7 +427,7 @@ class LocalAiEntity(Entity):
                     ]
         return messages, tools
 
-    async def _transform_stream(
+    async def _transform_stream(  # noqa: C901 todo: will break this up
         self,
         stream: AsyncStream[ChatCompletionChunk],
         strip_emojis: bool,
@@ -553,6 +541,7 @@ class LocalAiEntity(Entity):
                 if seen_visible:
                     chunk["content"] = content
 
+            tool_error_deltas: list[dict] = []
             if choice.finish_reason:
                 try:
                     # Retrieve timings from llamacpp responses, if available
@@ -562,24 +551,47 @@ class LocalAiEntity(Entity):
                     pass
 
                 if pending_tool_calls:
-                    chunk["tool_calls"] = []
-                    for key, tool_call in pending_tool_calls.items():
+                    parsed_tool_calls: list[llm.ToolInput] = []
+                    for tool_call in pending_tool_calls.values():
                         try:
-                            chunk["tool_calls"].append(
+                            tool_call["args"] = "{invalid json"
+                            args = (
+                                json.loads(tool_call["args"])
+                                if tool_call["args"]
+                                else {}
+                            )
+                            parsed_tool_calls.append(
                                 llm.ToolInput(
                                     id=tool_call["id"],
                                     tool_name=tool_call["name"],
-                                    tool_args=json.loads(tool_call["args"])
-                                    if tool_call["args"]
-                                    else {},
+                                    tool_args=args,
                                 )
                             )
-                        except Exception:
-                            _LOGGER.exception("Failed to parse tool call: %s", tool_call)
-                            raise ToolArgsException(tool_call["id"], tool_call["name"], tool_call["args"])
-                        _LOGGER.debug("Calling tools: %s", pending_tool_calls)
-                    pending_tool_calls.clear()
+                        except json.JSONDecodeError:  # noqa: PERF203
+                            parsed_tool_calls.append(
+                                llm.ToolInput(
+                                    id=tool_call["id"],
+                                    tool_name=tool_call["name"],
+                                    tool_args={
+                                        "json_decode_failure": tool_call["args"]
+                                    },
+                                    external=True,
+                                )
+                            )
+                            tool_error_deltas.append(
+                                {
+                                    "role": "tool_result",
+                                    "tool_call_id": tool_call["id"],
+                                    "tool_name": tool_call["name"],
+                                    "tool_result": {
+                                        "error": f"Failed to parse tool arguments: {tool_call['args']}\n\nCheck your JSON and try again.",
+                                    },
+                                }
+                            )
 
+                    _LOGGER.debug("Calling tools: %s", parsed_tool_calls)
+                    chunk["tool_calls"] = parsed_tool_calls
+                    pending_tool_calls.clear()
 
             if (
                 seen_visible
@@ -588,6 +600,8 @@ class LocalAiEntity(Entity):
                 or chunk.get("thinking_content")
             ):
                 yield chunk
+                for error_delta in tool_error_deltas:
+                    yield error_delta
 
     async def _async_handle_chat_log(
         self,
@@ -686,21 +700,20 @@ class LocalAiEntity(Entity):
         strip_emojis: bool,
     ) -> None:
         """Run the LLM agent loop with tool call iteration."""
-        for _iteration in range(MAX_TOOL_ITERATIONS):
-            if _iteration == MAX_TOOL_ITERATIONS - 1:
-                messages = self._inject_stop_directive(messages)
+        for iteration in range(MAX_TOOL_ITERATIONS):
+            if iteration == MAX_TOOL_ITERATIONS - 1:
+                _LOGGER.debug("Max iterations reached, injecting stop message")
+                model_args["messages"] = self._inject_stop_directive(
+                    model_args["messages"]
+                )
+                model_args["tool_choice"] = "none"
 
             try:
                 result_stream = await client.chat.completions.create(
                     **model_args,
                     stream=True,
                 )
-            except openai.OpenAIError as err:
-                _LOGGER.exception("Error talking to API")
-                msg = "Error talking to API"
-                raise HomeAssistantError(msg) from err
 
-            try:
                 model_args["messages"].extend(
                     [
                         msg
@@ -714,9 +727,13 @@ class LocalAiEntity(Entity):
                         if (msg := await self._convert_content_to_chat_message(content))
                     ],
                 )
+            except openai.OpenAIError as err:
+                _LOGGER.exception("API server returned an error")
+                msg = "API server returned an error. Check the system logs for further details."
+                raise HomeAssistantError(msg) from err
             except Exception as err:
                 _LOGGER.exception("Error handling API response")
-                msg = "Error handling API response"
+                msg = "Error handling API response. Check the system logs for further details."
                 raise HomeAssistantError(msg) from err
 
             if not chat_log.unresponded_tool_results:
