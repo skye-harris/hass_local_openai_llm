@@ -554,7 +554,6 @@ class LocalAiEntity(Entity):
                     parsed_tool_calls: list[llm.ToolInput] = []
                     for tool_call in pending_tool_calls.values():
                         try:
-                            tool_call["args"] = "{invalid json"
                             args = (
                                 json.loads(tool_call["args"])
                                 if tool_call["args"]
