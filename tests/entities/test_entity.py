@@ -20,6 +20,9 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCallFunction,
 )
 
+from custom_components.local_openai.entities.llama_cpp import (
+    LlamaCppConversationEntity,
+)
 from custom_components.local_openai.entity import MAX_TOOL_ITERATIONS
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
@@ -161,6 +164,192 @@ class TestRunAgentLoopSingleIteration:
 
         assert call_count == MAX_TOOL_ITERATIONS
         assert len(model_args["messages"]) == MAX_TOOL_ITERATIONS
+
+
+class TestRunAgentLoopToolCallExtraContent:
+    """Test that provider-specific tool-call metadata survives a round trip."""
+
+    async def test_extra_content_echoed_on_follow_up_request(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test a tool call's extra_content is echoed back on the next request."""
+        entity = mock_conversation_entity
+
+        tool_call = ChoiceDeltaToolCall(
+            index=0,
+            id="call_1",
+            type="function",
+            function=ChoiceDeltaToolCallFunction(
+                name="test_fn",
+                arguments='{"arg": "val"}',
+            ),
+            extra_content={"google": {"thought_signature": "sig123"}},
+        )
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(role="assistant", tool_calls=[tool_call]),
+                    finish_reason="tool_calls",
+                )
+            ],
+        )
+
+        captured_messages = []
+
+        async def mock_stream():
+            yield chunk
+
+        def create_side_effect(**kwargs) -> AsyncGenerator[ChatCompletionChunk, None]:
+            captured_messages.append(list(kwargs["messages"]))
+            return mock_stream()
+
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            side_effect=create_side_effect
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            tool_calls = None
+            async for delta in stream_gen:
+                if delta.get("tool_calls"):
+                    tool_calls = delta["tool_calls"]
+            yield MockContent(content="", tool_calls=tool_calls)
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = [MagicMock()]
+
+        model_args = {"model": "test", "messages": []}
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        assert len(captured_messages) == MAX_TOOL_ITERATIONS
+        second_call_messages = captured_messages[1]
+        assistant_messages = [
+            m for m in second_call_messages if m.get("role") == "assistant"
+        ]
+        assert len(assistant_messages) == 1
+        tool_call_param = assistant_messages[0]["tool_calls"][0]
+        assert tool_call_param["extra_content"] == {
+            "google": {"thought_signature": "sig123"}
+        }
+
+    async def test_tool_call_iteration_on_llamacpp_override(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry_llamacpp,
+        mock_conversation_subentry_llamacpp,
+    ):
+        """Test the LlamaCppMixin override forwards tool_call_extra_content."""
+        entity = LlamaCppConversationEntity(
+            mock_config_entry_llamacpp,
+            mock_conversation_subentry_llamacpp,
+        )
+        entity.hass = hass
+
+        tool_call = ChoiceDeltaToolCall(
+            index=0,
+            id="call_1",
+            type="function",
+            function=ChoiceDeltaToolCallFunction(name="test_fn", arguments="{}"),
+        )
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(role="assistant", tool_calls=[tool_call]),
+                )
+            ],
+        )
+
+        def create_side_effect(**kwargs) -> AsyncGenerator[ChatCompletionChunk, None]:
+            async def mock_stream():
+                yield chunk
+
+            return mock_stream()
+
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            side_effect=create_side_effect
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            yield MockContent(content="")
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = [MagicMock()]
+
+        model_args = {"model": "test", "messages": []}
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        assert len(model_args["messages"]) == MAX_TOOL_ITERATIONS
+
+
+class TestToolCallExtraContentSurvivesAcrossTurns:
+    """Test that extra_content is re-attached on a LATER turn, not just within
+    the same _run_agent_loop call. This is what the entity-scoped
+    self._tool_call_extra_content cache (as opposed to a fresh dict per
+    _run_agent_loop invocation) exists for."""
+
+    async def test_historical_tool_call_gets_extra_content_from_a_prior_turn(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """A tool call recorded on entity._tool_call_extra_content by an
+        earlier turn is still re-attached when that call shows up as history
+        in a later, separate call to _convert_content_to_chat_message."""
+        entity = mock_conversation_entity
+
+        # Simulates what turn 1's _run_agent_loop would have populated.
+        entity._tool_call_extra_content["call_1"] = {
+            "google": {"thought_signature": "sig123"}
+        }
+
+        # Simulates turn 2 rebuilding history from chat_log.content, the way
+        # _async_handle_chat_log does, well after turn 1's _run_agent_loop
+        # (and any of ITS local state) has already returned.
+        historical_content = MockContent(
+            content="",
+            tool_calls=[
+                llm.ToolInput(id="call_1", tool_name="test_fn", tool_args={}),
+            ],
+        )
+
+        message = await entity._convert_content_to_chat_message(
+            historical_content,
+            tool_call_extra_content=entity._tool_call_extra_content,
+        )
+
+        assert message is not None
+        assert message["tool_calls"][0]["extra_content"] == {
+            "google": {"thought_signature": "sig123"}
+        }
 
 
 class TestRunAgentLoopErrorHandling:

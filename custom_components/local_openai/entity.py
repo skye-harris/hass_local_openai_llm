@@ -176,6 +176,11 @@ class LocalAiEntity(Entity):
         self.subentry = subentry
         self.model = subentry.data[CONF_MODEL]
         self._attr_unique_id = subentry.subentry_id
+        # Provider-specific tool-call metadata (e.g. Gemini 3.x
+        # thought_signature) keyed by tool_call.id, kept across turns since
+        # chat_log.content is rebuilt into `messages` fresh on every turn.
+        # GC'd in _async_handle_chat_log against the current chat_log.
+        self._tool_call_extra_content: dict[str, Any] = {}
         self._attr_device_info = dr.DeviceInfo(
             identifiers={(DOMAIN, subentry.subentry_id)},
             name=subentry.title,
@@ -229,6 +234,7 @@ class LocalAiEntity(Entity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
+        tool_call_extra_content: dict[str, Any] | None = None,
     ) -> ChatCompletionMessageParam | None:
         if isinstance(content, conversation.ToolResultContent):
 
@@ -296,8 +302,9 @@ class LocalAiEntity(Entity):
                 isinstance(content, conversation.AssistantContent)
                 and content.tool_calls
             ):
-                param["tool_calls"] = [
-                    ChatCompletionMessageFunctionToolCallParam(
+                tool_call_params = []
+                for tool_call in content.tool_calls:
+                    tool_call_param = ChatCompletionMessageFunctionToolCallParam(
                         type="function",
                         id=tool_call.id,
                         function=Function(
@@ -305,8 +312,14 @@ class LocalAiEntity(Entity):
                             name=tool_call.tool_name,
                         ),
                     )
-                    for tool_call in content.tool_calls
-                ]
+                    if tool_call_extra_content and (
+                        extra_content := tool_call_extra_content.get(tool_call.id)
+                    ):
+                        # Providers such as Gemini 3.x require this to be echoed back
+                        # verbatim on the next turn (e.g. thought_signature)
+                        tool_call_param["extra_content"] = extra_content
+                    tool_call_params.append(tool_call_param)
+                param["tool_calls"] = tool_call_params
             return param
         _LOGGER.warning("Could not convert message to Completions API: %s", content)
         return None
@@ -427,10 +440,45 @@ class LocalAiEntity(Entity):
                     ]
         return messages, tools
 
+    @staticmethod
+    def _accumulate_tool_call_delta(
+        pending_tool_calls: dict[str, dict[str, Any]],
+        tool_key: str,
+        tool_call_id: str,
+        tool_call: Any,
+    ) -> None:
+        """Merge one streamed tool-call delta into the pending accumulator."""
+        # Non-standard field some providers (e.g. Gemini 3.x via an
+        # OpenAI-compatible proxy) attach to a tool call to be echoed
+        # back verbatim on the next turn (thought_signature and similar)
+        extra_content = getattr(tool_call, "extra_content", None)
+        if tool_key not in pending_tool_calls:
+            pending_tool_calls[tool_key] = {
+                "id": tool_call_id,
+                "name": tool_call.function.name,
+                "args": tool_call.function.arguments or "",
+                "extra_content": extra_content,
+            }
+        else:
+            pending_tool_calls[tool_key]["args"] += tool_call.function.arguments or ""
+            if extra_content is not None:
+                pending_tool_calls[tool_key]["extra_content"] = extra_content
+
+    @staticmethod
+    def _collect_tool_call_extra_content(
+        pending_tool_calls: dict[str, dict[str, Any]],
+        tool_call_extra_content: dict[str, Any],
+    ) -> None:
+        """Copy accumulated extra_content out by tool_call id for the next request."""
+        for tool_call in pending_tool_calls.values():
+            if tool_call["extra_content"] is not None:
+                tool_call_extra_content[tool_call["id"]] = tool_call["extra_content"]
+
     async def _transform_stream(  # noqa: C901 todo: will break this up
         self,
         stream: AsyncStream[ChatCompletionChunk],
         strip_emojis: bool,
+        tool_call_extra_content: dict[str, Any] | None = None,
     ) -> AsyncGenerator[conversation.AssistantContentDeltaDict, None]:
         """Transform a streaming OpenAI response to ChatLog format."""
         new_msg = True
@@ -473,16 +521,12 @@ class LocalAiEntity(Entity):
                     )
                     tool_key = tool_call_id + tool_call_name
 
-                    if tool_key not in pending_tool_calls:
-                        pending_tool_calls[tool_key] = {
-                            "id": tool_call_id,
-                            "name": tool_call.function.name,
-                            "args": tool_call.function.arguments or "",
-                        }
-                    else:
-                        pending_tool_calls[tool_key]["args"] += (
-                            tool_call.function.arguments or ""
-                        )
+                    self._accumulate_tool_call_delta(
+                        pending_tool_calls,
+                        tool_key,
+                        tool_call_id,
+                        tool_call,
+                    )
 
             # Handle reasoning_content field (used by reasoning models via OpenAI-compatible APIs)
             # Naming for this field varies. See https://github.com/vllm-project/vllm/issues/27755
@@ -590,6 +634,14 @@ class LocalAiEntity(Entity):
 
                     _LOGGER.debug("Calling tools: %s", parsed_tool_calls)
                     chunk["tool_calls"] = parsed_tool_calls
+                    if tool_call_extra_content is not None:
+                        # llm.ToolInput has no field for this, so it's tracked
+                        # separately and re-attached in
+                        # _convert_content_to_chat_message by tool_call.id
+                        self._collect_tool_call_extra_content(
+                            pending_tool_calls,
+                            tool_call_extra_content,
+                        )
                     pending_tool_calls.clear()
 
             if (
@@ -638,11 +690,31 @@ class LocalAiEntity(Entity):
                 for tool in chat_log.llm_api.tools
             ]
 
+        # Drop cached extra_content for tool calls no longer present in this
+        # chat_log so the entity-scoped cache doesn't grow across unrelated
+        # conversations over the entity's lifetime.
+        live_tool_call_ids = {
+            tool_call.id
+            for content in chat_log.content
+            if isinstance(content, conversation.AssistantContent) and content.tool_calls
+            for tool_call in content.tool_calls
+        }
+        self._tool_call_extra_content = {
+            tool_call_id: extra_content
+            for tool_call_id, extra_content in self._tool_call_extra_content.items()
+            if tool_call_id in live_tool_call_ids
+        }
+
         messages = self._trim_history(
             [
                 m
                 for content in chat_log.content
-                if (m := await self._convert_content_to_chat_message(content))
+                if (
+                    m := await self._convert_content_to_chat_message(
+                        content,
+                        tool_call_extra_content=self._tool_call_extra_content,
+                    )
+                )
             ],
             max_message_history,
         )
@@ -713,6 +785,12 @@ class LocalAiEntity(Entity):
                     stream=True,
                 )
 
+                # self._tool_call_extra_content carries provider-specific
+                # tool-call metadata (e.g. Gemini 3.x thought_signature) from
+                # the stream that produced a tool call to the request that
+                # echoes it back. It is entity-scoped, not local to this
+                # call, so it also survives into later conversation turns
+                # (see the GC + reuse in _async_handle_chat_log).
                 model_args["messages"].extend(
                     [
                         msg
@@ -721,9 +799,15 @@ class LocalAiEntity(Entity):
                             self._transform_stream(
                                 stream=result_stream,
                                 strip_emojis=strip_emojis,
+                                tool_call_extra_content=self._tool_call_extra_content,
                             ),
                         )
-                        if (msg := await self._convert_content_to_chat_message(content))
+                        if (
+                            msg := await self._convert_content_to_chat_message(
+                                content,
+                                tool_call_extra_content=self._tool_call_extra_content,
+                            )
+                        )
                     ],
                 )
             except openai.OpenAIError as err:

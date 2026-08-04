@@ -92,9 +92,13 @@ class DeepSeekConversationEntity(LocalAiConversationEntity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
+        tool_call_extra_content: dict[str, Any] | None = None,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
-        param = await super()._convert_content_to_chat_message(content)
+        param = await super()._convert_content_to_chat_message(
+            content,
+            tool_call_extra_content=tool_call_extra_content,
+        )
         return await _deepseek_augment_content_message(self.subentry, param, content)
 
 
@@ -108,7 +112,11 @@ class DeepSeekAITaskEntity(LocalAITaskEntity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
+        tool_call_extra_content: dict[str, Any] | None = None,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
-        param = await super()._convert_content_to_chat_message(content)
+        param = await super()._convert_content_to_chat_message(
+            content,
+            tool_call_extra_content=tool_call_extra_content,
+        )
         return await _deepseek_augment_content_message(self.subentry, param, content)
