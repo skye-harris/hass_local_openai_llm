@@ -231,7 +231,9 @@ class LocalAiEntity(Entity):
     def _get_request_body_args(self, options: dict) -> dict:
         """Build custom top-level request body parameters for the completion request."""
         request_body_opts = options.get(CONF_REQUEST_BODY_OPTS, {})
-        request_body_parameters = request_body_opts.get(CONF_REQUEST_BODY_PARAMETERS, [])
+        request_body_parameters = request_body_opts.get(
+            CONF_REQUEST_BODY_PARAMETERS, []
+        )
         request_body_parameters = [
             keypair
             for keypair in request_body_parameters
