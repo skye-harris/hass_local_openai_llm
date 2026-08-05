@@ -141,6 +141,7 @@ REQUEST_BODY_SERVER_TYPE_CONFIGURABLE_PARAMETERS = {
             "presence_penalty",
         },
     ),
+    SERVER_TYPE_VLLM: frozenset({"thinking_token_budget"}),
 }
 
 
