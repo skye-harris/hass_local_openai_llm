@@ -9,6 +9,8 @@ from homeassistant.helpers import llm
 DOMAIN = "local_openai"
 LOGGER = logging.getLogger(__package__)
 
+PLACEHOLDER_API_KEY = "local-openai"
+
 CONF_RECOMMENDED = "recommended"
 CONF_BASE_URL = "base_url"
 CONF_SERVER_NAME = "server_name"
@@ -34,6 +36,7 @@ CONF_LLAMACPP_MIN_P = "llamacpp_min_p"
 CONF_LLAMACPP_REPEAT_PENALTY = "llamacpp_repeat_penalty"
 CONF_LLAMACPP_PRESENCE_PENALTY = "llamacpp_presence_penalty"
 CONF_VLLM_CONFIG = "vllm_config"
+CONF_VLLM_THINKING_TOKEN_BUDGET = "vllm_thinking_token_budget"  # noqa: S105
 CONF_DEEPSEEK_CONFIG = "deepseek_config"
 CONF_DEEPSEEK_REASONING_EFFORT = "deepseek_reasoning_effort"
 
@@ -46,7 +49,7 @@ SERVER_TYPE_LOCALAI = "localai"
 SERVER_TYPE_OPTIONS = {
     SERVER_TYPE_GENERIC: "Generic OpenAI-Compatible",
     SERVER_TYPE_LLAMACPP: "llama.cpp",
-    # SERVER_TYPE_VLLM: "vLLM",
+    SERVER_TYPE_VLLM: "vLLM",
     SERVER_TYPE_DEEPSEEK: "DeepSeek Cloud",
     SERVER_TYPE_LOCALAI: "LocalAI",
 }
