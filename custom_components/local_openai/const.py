@@ -74,6 +74,8 @@ CONF_CONTENT_INJECTION_METHODS = [
     CONF_CONTENT_INJECTION_METHOD_USER,
 ]
 
+CONF_CUSTOM_HEADERS = "custom_headers"
+CONF_SERVER_HEADERS = "server_headers"
 CONF_WEAVIATE_OPTIONS = "weaviate_options"
 CONF_WEAVIATE_HOST = "weaviate_host"
 CONF_WEAVIATE_API_KEY = "weaviate_api_key"

@@ -22,6 +22,8 @@ from .const import (
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
+    CONF_CUSTOM_HEADERS,
+    CONF_SERVER_HEADERS,
     DOMAIN,
     LOGGER,
     PLACEHOLDER_API_KEY,
@@ -83,10 +85,17 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
     """Set up Local OpenAI LLM from a config entry."""
+    custom_headers_section = entry.data.get(CONF_CUSTOM_HEADERS, {}) or {}
+    custom_headers_list = custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
+    custom_headers = {
+        item["Key"]: item["Value"] for item in custom_headers_list
+    } or None
+
     client = AsyncOpenAI(
         base_url=entry.data[CONF_BASE_URL],
         api_key=entry.data.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
         http_client=get_async_client(hass),
+        default_headers=custom_headers,
     )
 
     # Cache current platform data which gets added to each request (caching done by library)

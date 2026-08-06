@@ -92,6 +92,12 @@ After installation, configure the integration through Home Assistant's UI:
 
 ---
 
+### All Server Types
+
+**Custom HTTP Headers**
+
+Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or provider-specific headers.
+
 ### DeepSeek Cloud Configuration
 
 #### Reasoning Effort
