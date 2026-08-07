@@ -154,10 +154,11 @@ class LlamaCppMixin:
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
+        conversation_id: str | None = None,
     ) -> ChatCompletionMessageParam | None:
         """If include_prior_reasoning is enabled, pass prior thinking content back in the request."""
         opts = self.subentry.data.get(CONF_LLAMACPP_CONFIG, {})
-        param = await super()._convert_content_to_chat_message(content)
+        param = await super()._convert_content_to_chat_message(content, conversation_id)
 
         if (
             opts.get(CONF_LLAMACPP_INCLUDE_PRIOR_THINKING, True)

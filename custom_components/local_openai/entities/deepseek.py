@@ -68,6 +68,7 @@ async def _deepseek_augment_content_message(
     subentry: ConfigSubentry,
     param: ChatCompletionMessageParam | None,
     content: conversation.Content,
+    conversation_id: str | None = None,
 ) -> ChatCompletionMessageParam | None:
     """If thinking is enabled, and the message has thinking content, pass this back in the request."""
     opts = subentry.data.get(CONF_DEEPSEEK_CONFIG, {})
@@ -92,10 +93,13 @@ class DeepSeekConversationEntity(LocalAiConversationEntity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
+        conversation_id: str | None = None,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
-        param = await super()._convert_content_to_chat_message(content)
-        return await _deepseek_augment_content_message(self.subentry, param, content)
+        param = await super()._convert_content_to_chat_message(content, conversation_id)
+        return await _deepseek_augment_content_message(
+            self.subentry, param, content, conversation_id
+        )
 
 
 class DeepSeekAITaskEntity(LocalAITaskEntity):
@@ -108,7 +112,10 @@ class DeepSeekAITaskEntity(LocalAITaskEntity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
+        conversation_id: str | None = None,
     ) -> ChatCompletionMessageParam | None:
         """Handle chat message conversion for DeepSeek."""
-        param = await super()._convert_content_to_chat_message(content)
-        return await _deepseek_augment_content_message(self.subentry, param, content)
+        param = await super()._convert_content_to_chat_message(content, conversation_id)
+        return await _deepseek_augment_content_message(
+            self.subentry, param, content, conversation_id
+        )
