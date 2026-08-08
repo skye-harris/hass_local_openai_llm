@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from custom_components.local_openai.const import (
     CONF_VLLM_CONFIG,
     CONF_VLLM_THINKING_TOKEN_BUDGET,
@@ -11,7 +10,9 @@ from custom_components.local_openai.const import (
 from custom_components.local_openai.entities.vllm import VllmMixin
 
 # Stands in for LocalAiEntity, whose _get_extra_body_args builds chat_template_kwargs
-BASE_EXTRA_BODY_ARGS = {"chat_template_kwargs": {"enable_thinking": True}}
+BASE_EXTRA_BODY_ARGS = {
+    "chat_template_kwargs": {"enable_thinking": True, "hello": "world"}
+}
 
 
 class _StubBase:
@@ -25,6 +26,12 @@ class _StubVllmEntity(VllmMixin, _StubBase):
 
 class TestVllmExtraBodyArgs:
     """Tests for _get_extra_body_args instance method."""
+
+    def test_super_call_retained(self) -> None:
+        """Test that data from the super call is retained in the result."""
+        result = _StubVllmEntity()._get_extra_body_args({})
+        assert result["chat_template_kwargs"]["hello"] == "world"
+        assert result["chat_template_kwargs"]["enable_thinking"] is True
 
     @pytest.mark.parametrize(
         "options,extra_expected",
