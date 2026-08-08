@@ -233,7 +233,7 @@ class LocalAiEntity(Entity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
-        conversation_id: str | None = None,
+        conversation_id: str,
     ) -> ChatCompletionMessageParam | None:
         if isinstance(content, conversation.ToolResultContent):
 
@@ -705,12 +705,9 @@ class LocalAiEntity(Entity):
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         if (
             pass_session_id
-            and user_input
-            and hasattr(user_input, "conversation_id")
-            and user_input.conversation_id
         ):
             extra_body_args.setdefault("metadata", {})["session_id"] = (
-                user_input.conversation_id
+                chat_log.conversation_id
             )
 
         # Insert our extra_body args if we have any
@@ -770,7 +767,7 @@ class LocalAiEntity(Entity):
                                 conversation_id=conversation_id,
                             ),
                         )
-                        if (msg := await self._convert_content_to_chat_message(content))
+                        if (msg := await self._convert_content_to_chat_message(content, conversation_id))
                     ],
                 )
             except openai.OpenAIError as err:

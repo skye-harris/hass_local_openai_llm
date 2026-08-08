@@ -71,19 +71,16 @@ class GoogleGeminiMixin(Entity):
             sig = google_data.get("thought_signature")
             if sig:
                 self._store_thought_signature(conversation_id, tool_call_id, sig)
-        except AttributeError:
-            pass
+        except AttributeError as err:
+            _LOGGER.exception(err)
 
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
-        conversation_id: str | None = None,
+        conversation_id: str,
     ) -> ChatCompletionMessageParam | None:
         """Re-attach extra_content from cache; drop thinking if signature missing."""
         param = await super()._convert_content_to_chat_message(content, conversation_id)
-
-        if param is None:
-            return param
 
         if not isinstance(content, conversation.AssistantContent):
             return param
@@ -91,24 +88,11 @@ class GoogleGeminiMixin(Entity):
         if not content.tool_calls:
             return param
 
-        if conversation_id is None:
-            param.pop("thinking_content", None)
-            return param
-
-        all_signed = all(
-            self._get_thought_signature(conversation_id, tc.id) is not None
-            for tc in content.tool_calls
-        )
-
-        if not all_signed:
-            param.pop("thinking_content", None)
-            return param
-
         if content.thinking_content:
             param["thinking_content"] = content.thinking_content
 
-        for i, tc in enumerate(content.tool_calls):
-            sig = self._get_thought_signature(conversation_id, tc.id)
+        for i, tc in enumerate(param.get("tool_calls")):
+            sig = self._get_thought_signature(conversation_id, tc.get("id"))
             if sig:
                 param["tool_calls"][i]["extra_content"] = {
                     "google": {"thought_signature": sig}
