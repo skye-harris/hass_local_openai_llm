@@ -126,15 +126,17 @@ class LlamaCppMixin:
     ) -> dict:
         """Handle extra_body args for llama.cpp."""
         opts = options.get(CONF_LLAMACPP_CONFIG, {})
-        extras: dict = {}
+        extras = super()._get_extra_body_args(options)
 
         id_slot = opts.get(CONF_LLAMACPP_ID_SLOT)
         if id_slot is not None:
             extras["id_slot"] = int(id_slot)
 
-        extras["chat_template_kwargs"] = {
-            "enable_thinking": bool(opts.get(CONF_LLAMACPP_ENABLE_THINKING, False)),
-        }
+        chat_template_kwargs = extras.get("chat_template_kwargs", {})
+        chat_template_kwargs["enable_thinking"] = bool(
+            opts.get(CONF_LLAMACPP_ENABLE_THINKING, False)
+        )
+        extras["chat_template_kwargs"] = chat_template_kwargs
 
         sampling_params = [
             (CONF_LLAMACPP_TOP_P, float, "top_p"),
