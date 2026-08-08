@@ -24,7 +24,7 @@
             }
           },
           "weaviate_options": {
-            "name": "Weaviate configuration",
+            "name": "Weaviate Configuration",
             "description": "Query a Weaviate vector database with user messages and augment the generation with semantically-similar results",
             "data": {
               "weaviate_host": "Weaviate server address",
@@ -60,7 +60,7 @@
             }
           },
           "weaviate_options": {
-            "name": "Weaviate configuration",
+            "name": "Weaviate Configuration",
             "data": {
               "weaviate_host": "Weaviate server address",
               "weaviate_api_key": "API key"
@@ -155,7 +155,7 @@
               }
             },
             "weaviate_options": {
-              "name": "Weaviate configuration",
+              "name": "Weaviate Configuration",
               "data": {
                 "weaviate_class_name": "Weaviate object class name",
                 "weaviate_max_results": "Maximum number of results",
@@ -238,7 +238,7 @@
               }
             },
             "weaviate_options": {
-              "name": "Weaviate configuration",
+              "name": "Weaviate Configuration",
               "data": {
                 "weaviate_class_name": "Weaviate object class name",
                 "weaviate_max_results": "Maximum number of results",
