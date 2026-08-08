@@ -226,10 +226,6 @@ class LocalAiEntity(Entity):
                     ).async_render()
             extra_body_args["chat_template_kwargs"] = kwargs
 
-        return extra_body_args
-
-    def _get_request_body_args(self, options: dict) -> dict:
-        """Build custom top-level request body parameters for the completion request."""
         request_body_opts = options.get(CONF_REQUEST_BODY_OPTS, {})
         request_body_parameters = request_body_opts.get(
             CONF_REQUEST_BODY_PARAMETERS, []
@@ -240,18 +236,15 @@ class LocalAiEntity(Entity):
             if keypair.get("Key", "").strip()
         ]
 
-        if not request_body_parameters:
-            return {}
-
-        args = {}
         for keypair in request_body_parameters:
             key = keypair.get("Key", "").strip()
             if key:
-                args[key] = template.Template(
+                extra_body_args[key] = template.Template(
                     keypair.get("Value", ""),
                     self.hass,
                 ).async_render()
-        return args
+
+        return extra_body_args
 
     async def _convert_content_to_chat_message(
         self,
@@ -686,7 +679,6 @@ class LocalAiEntity(Entity):
         if tools:
             model_args["tools"] = tools
         extra_body_args = self._get_extra_body_args(options)
-        extra_body_args.update(self._get_request_body_args(options))
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         if (
             pass_session_id

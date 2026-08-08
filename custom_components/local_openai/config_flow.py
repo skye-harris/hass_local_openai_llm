@@ -32,7 +32,19 @@ from homeassistant.helpers.selector import (
 from openai import AsyncOpenAI, OpenAIError
 
 from custom_components.local_openai.entities.deepseek import (
+    REQUEST_BODY_CONFIGURABLE_PARAMETERS as DEEPSEEK_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+)
+from custom_components.local_openai.entities.deepseek import (
+    REQUEST_BODY_RESERVED_PARAMETERS as DEEPSEEK_REQUEST_BODY_RESERVED_PARAMETERS,
+)
+from custom_components.local_openai.entities.deepseek import (
     get_conversation_config_schema as _deepseek_conversation_schema,
+)
+from custom_components.local_openai.entities.llama_cpp import (
+    REQUEST_BODY_CONFIGURABLE_PARAMETERS as LLAMACPP_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+)
+from custom_components.local_openai.entities.llama_cpp import (
+    REQUEST_BODY_RESERVED_PARAMETERS as LLAMACPP_REQUEST_BODY_RESERVED_PARAMETERS,
 )
 from custom_components.local_openai.entities.llama_cpp import (
     get_ai_task_config_schema as _llama_cpp_ai_task_schema,
@@ -42,6 +54,12 @@ from custom_components.local_openai.entities.llama_cpp import (
 )
 from custom_components.local_openai.entities.llama_cpp import (
     get_model_alias as _llama_cpp_model_alias,
+)
+from custom_components.local_openai.entities.vllm import (
+    REQUEST_BODY_CONFIGURABLE_PARAMETERS as VLLM_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+)
+from custom_components.local_openai.entities.vllm import (
+    REQUEST_BODY_RESERVED_PARAMETERS as VLLM_REQUEST_BODY_RESERVED_PARAMETERS,
 )
 from custom_components.local_openai.entities.vllm import (
     get_ai_task_config_schema as _vllm_ai_task_schema,
@@ -126,22 +144,15 @@ REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset(
 )
 
 REQUEST_BODY_SERVER_TYPE_RESERVED_PARAMETERS = {
-    SERVER_TYPE_DEEPSEEK: frozenset({"thinking"}),
+    SERVER_TYPE_DEEPSEEK: DEEPSEEK_REQUEST_BODY_RESERVED_PARAMETERS,
+    SERVER_TYPE_LLAMACPP: LLAMACPP_REQUEST_BODY_RESERVED_PARAMETERS,
+    SERVER_TYPE_VLLM: VLLM_REQUEST_BODY_RESERVED_PARAMETERS,
 }
 
 REQUEST_BODY_SERVER_TYPE_CONFIGURABLE_PARAMETERS = {
-    SERVER_TYPE_DEEPSEEK: frozenset({"reasoning_effort"}),
-    SERVER_TYPE_LLAMACPP: frozenset(
-        {
-            "id_slot",
-            "top_p",
-            "top_k",
-            "min_p",
-            "repeat_penalty",
-            "presence_penalty",
-        },
-    ),
-    SERVER_TYPE_VLLM: frozenset({"thinking_token_budget"}),
+    SERVER_TYPE_DEEPSEEK: DEEPSEEK_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+    SERVER_TYPE_LLAMACPP: LLAMACPP_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+    SERVER_TYPE_VLLM: VLLM_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
 }
 
 
