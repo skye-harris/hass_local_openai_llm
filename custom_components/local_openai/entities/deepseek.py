@@ -73,8 +73,8 @@ class DeepSeekMixin:
 
     async def _convert_content_to_chat_message(
         self,
-            content: conversation.Content,
-            conversation_id: str,
+        content: conversation.Content,
+        conversation_id: str,
     ) -> ChatCompletionMessageParam | None:
         """If thinking is enabled, pass prior thinking content back in the request."""
         param = await super()._convert_content_to_chat_message(content, conversation_id)

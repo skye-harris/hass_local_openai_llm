@@ -100,8 +100,10 @@ class TestConvertContentWithSignatures:
         }
         assert result["thinking_content"] == "reasoning here"
 
-    async def test_convert_with_missing_signature_drops_thinking(self, google_entity):
-        """Test that missing signature causes thinking_content to be dropped."""
+    async def test_convert_with_missing_signature_uses_skip_validator(
+        self, google_entity
+    ):
+        """Test that missing signature uses skip_thought_signature_validator fallback."""
         conversation_id = "conv_1"
         tool_call = llm.ToolInput(
             id="call_1",
@@ -123,13 +125,13 @@ class TestConvertContentWithSignatures:
         )
 
         assert result is not None
-        assert "thinking_content" not in result
-        assert "extra_content" not in result["tool_calls"][0]
+        assert result["thinking_content"] == "reasoning here"
+        assert result["tool_calls"][0]["extra_content"] == {
+            "google": {"thought_signature": "skip_thought_signature_validator"}
+        }
 
-    async def test_convert_with_any_missing_signature_drops_thinking(
-        self, google_entity
-    ):
-        """Test that if ANY tool_call lacks signature, thinking is dropped."""
+    async def test_convert_with_partial_missing_signatures(self, google_entity):
+        """Test that signed calls get real sig and unsigned get skip validator."""
         conversation_id = "conv_1"
         tool_call_1 = llm.ToolInput(
             id="call_1",
@@ -158,10 +160,18 @@ class TestConvertContentWithSignatures:
         )
 
         assert result is not None
-        assert "thinking_content" not in result
+        assert result["thinking_content"] == "reasoning here"
+        assert result["tool_calls"][0]["extra_content"] == {
+            "google": {"thought_signature": "sig_1"}
+        }
+        assert result["tool_calls"][1]["extra_content"] == {
+            "google": {"thought_signature": "skip_thought_signature_validator"}
+        }
 
-    async def test_convert_none_conversation_id_drops_thinking(self, google_entity):
-        """Test that None conversation_id causes thinking to be dropped."""
+    async def test_convert_none_conversation_id_uses_skip_validator(
+        self, google_entity
+    ):
+        """Test that None conversation_id uses skip validator and preserves thinking."""
         tool_call = llm.ToolInput(
             id="call_1",
             tool_name="test_fn",
@@ -180,7 +190,10 @@ class TestConvertContentWithSignatures:
         result = await google_entity._convert_content_to_chat_message(content, None)
 
         assert result is not None
-        assert "thinking_content" not in result
+        assert result["thinking_content"] == "reasoning here"
+        assert result["tool_calls"][0]["extra_content"] == {
+            "google": {"thought_signature": "skip_thought_signature_validator"}
+        }
 
     async def test_convert_assistant_without_tool_calls_unchanged(self, google_entity):
         """Test that assistant messages without tool_calls pass through."""

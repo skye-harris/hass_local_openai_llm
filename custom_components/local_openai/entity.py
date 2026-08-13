@@ -233,7 +233,7 @@ class LocalAiEntity(Entity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
-        conversation_id: str,
+        conversation_id: str | None = None,
     ) -> ChatCompletionMessageParam | None:
         if isinstance(content, conversation.ToolResultContent):
 
@@ -505,7 +505,6 @@ class LocalAiEntity(Entity):
 
             choice = event.choices[0]
             delta = choice.delta
-            _LOGGER.debug(event)
 
             if new_msg:
                 # openvinotoolkit/model_server fails to provide a message role in its responses, so lets default to assistant if none is received
@@ -703,9 +702,7 @@ class LocalAiEntity(Entity):
             model_args["tools"] = tools
         extra_body_args = self._get_extra_body_args(options)
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
-        if (
-            pass_session_id
-        ):
+        if pass_session_id:
             extra_body_args.setdefault("metadata", {})["session_id"] = (
                 chat_log.conversation_id
             )
@@ -767,7 +764,11 @@ class LocalAiEntity(Entity):
                                 conversation_id=conversation_id,
                             ),
                         )
-                        if (msg := await self._convert_content_to_chat_message(content, conversation_id))
+                        if (
+                            msg := await self._convert_content_to_chat_message(
+                                content, conversation_id
+                            )
+                        )
                     ],
                 )
             except openai.OpenAIError as err:
