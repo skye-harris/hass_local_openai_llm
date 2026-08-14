@@ -5,26 +5,50 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.const import CONF_MODEL
+
 from custom_components.local_openai.config_flow import (
     AI_TASK_SCHEMA_PROVIDERS,
     CONVERSATION_SCHEMA_PROVIDERS,
+    REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+    REQUEST_BODY_PARAMETER_RESERVED,
     _get_ai_task_config_schema,
     _get_conversation_config_schema,
+    _get_request_body_parameter_error,
     _get_server_type_config_key,
+    _key_value_template_section,
     _resolve_model_name,
     options_to_selections_dict,
     prepare_weaviate_class,
 )
 from custom_components.local_openai.const import (
+    CONF_CHAT_TEMPLATE_KWARGS,
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
     CONF_LLAMACPP_CONFIG,
+    CONF_REQUEST_BODY_OPTS,
+    CONF_REQUEST_BODY_PARAMETERS,
+    CONF_TEMPERATURE,
     CONF_VLLM_CONFIG,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_VLLM,
 )
+
+
+def _request_body_options(*parameters: dict[str, str]) -> dict:
+    """Return subentry options with request body parameters."""
+    return {
+        CONF_REQUEST_BODY_OPTS: {
+            CONF_REQUEST_BODY_PARAMETERS: list(parameters),
+        },
+    }
+
+
+def _request_body_parameter(key: str, value: str = "value") -> dict[str, str]:
+    """Return a request body parameter entry."""
+    return {"Key": key, "Value": value}
 
 
 class TestOptionsToSelectionsDict:
@@ -60,6 +84,110 @@ class TestOptionsToSelectionsDict:
         for item, exp in zip(result, expected):
             assert item["value"] == exp["value"]
             assert item["label"] == exp["label"]
+
+
+class TestKeyValueTemplateSection:
+    """Tests for _key_value_template_section."""
+
+    def test_key_value_template_section(self) -> None:
+        """Test key/value template section validation."""
+        schema = _key_value_template_section(CONF_REQUEST_BODY_PARAMETERS)
+
+        assert schema({}) == {CONF_REQUEST_BODY_PARAMETERS: []}
+
+
+class TestRequestBodyParameterError:
+    """Tests for _get_request_body_parameter_error."""
+
+    @pytest.mark.parametrize(
+        ("key", "expected_error"),
+        [
+            pytest.param("messages", REQUEST_BODY_PARAMETER_RESERVED, id="messages"),
+            pytest.param("metadata", REQUEST_BODY_PARAMETER_RESERVED, id="metadata"),
+            pytest.param(
+                CONF_MODEL,
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="model",
+            ),
+            pytest.param(
+                CONF_TEMPERATURE,
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="temperature",
+            ),
+            pytest.param(
+                CONF_CHAT_TEMPLATE_KWARGS,
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="chat_template_kwargs",
+            ),
+        ],
+    )
+    def test_global_errors(self, key: str, expected_error: str) -> None:
+        """Test global request body parameter denylist errors."""
+        assert _get_request_body_parameter_error(
+            _request_body_options(_request_body_parameter(key)),
+            SERVER_TYPE_GENERIC,
+        ) == (expected_error, key)
+
+    @pytest.mark.parametrize(
+        ("server_type", "key", "expected_error"),
+        [
+            pytest.param(
+                SERVER_TYPE_LLAMACPP,
+                "top_p",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="llamacpp_top_p",
+            ),
+            pytest.param(
+                SERVER_TYPE_LLAMACPP,
+                "id_slot",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="llamacpp_id_slot",
+            ),
+            pytest.param(
+                SERVER_TYPE_DEEPSEEK,
+                "reasoning_effort",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="deepseek_reasoning_effort",
+            ),
+            pytest.param(
+                SERVER_TYPE_DEEPSEEK,
+                "thinking",
+                REQUEST_BODY_PARAMETER_RESERVED,
+                id="deepseek_thinking",
+            ),
+            pytest.param(
+                SERVER_TYPE_VLLM,
+                "thinking_token_budget",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="vllm_thinking_token_budget",
+            ),
+        ],
+    )
+    def test_server_type_errors(
+        self,
+        server_type: str,
+        key: str,
+        expected_error: str,
+    ) -> None:
+        """Test server-specific request body parameter denylist errors."""
+        assert _get_request_body_parameter_error(
+            _request_body_options(_request_body_parameter(key)),
+            server_type,
+        ) == (expected_error, key)
+
+    def test_generic_server_allows_provider_specific_parameters(self) -> None:
+        """Test generic servers can use provider-specific parameters."""
+        assert (
+            _get_request_body_parameter_error(
+                _request_body_options(
+                    _request_body_parameter("reasoning_effort"),
+                    _request_body_parameter("top_p"),
+                    _request_body_parameter("max_tokens"),
+                ),
+                SERVER_TYPE_GENERIC,
+            )
+            is None
+        )
 
 
 class TestGetServerTypeConfigKey:
