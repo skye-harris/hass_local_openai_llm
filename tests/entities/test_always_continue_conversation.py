@@ -1,4 +1,4 @@
-"""Tests for conversation_mode in LocalAiConversationEntity."""
+"""Tests for always_continue_conversation in LocalAiConversationEntity."""
 
 from __future__ import annotations
 
@@ -8,31 +8,31 @@ import pytest
 from homeassistant.components import conversation
 from homeassistant.core import HomeAssistant
 
-from custom_components.local_openai.const import CONF_CONVERSATION_MODE
+from custom_components.local_openai.const import CONF_ALWAYS_CONTINUE_CONVERSATION
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
 
 @pytest.mark.parametrize(
-    ("conversation_mode", "expected"),
+    ("always_continue_conversation", "expected"),
     [
         pytest.param(True, True, id="enabled"),
         pytest.param(False, False, id="disabled"),
         pytest.param(None, False, id="missing_defaults_to_false"),
     ],
 )
-async def test_conversation_mode_sets_continue_conversation(
+async def test_always_continue_conversation_sets_continue_conversation(
     hass: HomeAssistant,
-    conversation_mode: bool | None,
+    always_continue_conversation: bool | None,
     expected: bool,
 ) -> None:
-    """Test conversation_mode controls continue_conversation on the result."""
+    """Test always_continue_conversation controls continue_conversation on the result."""
     entry = MagicMock()
     entry.data = {}
     entry.runtime_data = MagicMock()
 
     data: dict[str, object] = {"model": "test-model"}
-    if conversation_mode is not None:
-        data[CONF_CONVERSATION_MODE] = conversation_mode
+    if always_continue_conversation is not None:
+        data[CONF_ALWAYS_CONTINUE_CONVERSATION] = always_continue_conversation
     subentry = MagicMock()
     subentry.data = data
 

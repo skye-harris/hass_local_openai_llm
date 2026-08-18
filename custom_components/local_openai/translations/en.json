@@ -118,7 +118,7 @@
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
             "content_injection_method": "Date/Time context injection role",
-            "conversation_mode": "Enable continuous conversation flow"
+            "always_continue_conversation": "Always continue conversation"
           },
           "data_description": {
             "model": "The model to use for the conversation agent",
@@ -126,7 +126,7 @@
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
-            "conversation_mode": "Voice assistants will always be prompted to continue the conversation"
+            "always_continue_conversation": "Voice assistants will always be prompted to continue the conversation"
           },
           "sections": {
             "chat_template_opts": {
@@ -209,7 +209,7 @@
             "max_message_history": "Max message history size (0 for no limit)",
             "parallel_tool_calls": "Parallel tool calling",
             "content_injection_method": "Date/Time context injection role",
-            "conversation_mode": "Enable continuous conversation flow"
+            "always_continue_conversation": "Always continue conversation"
           },
           "data_description": {
             "model": "The model to use for the conversation agent",
@@ -217,7 +217,7 @@
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
-            "conversation_mode": "Voice assistants will always be prompted to continue the conversation"
+            "always_continue_conversation": "Voice assistants will always be prompted to continue the conversation"
           },
           "sections": {
             "chat_template_opts": {

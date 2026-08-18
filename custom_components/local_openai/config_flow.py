@@ -83,13 +83,13 @@ from custom_components.local_openai.entities.vllm import (
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
     CONF_AI_TASK_TOOLS_SECTION,
+    CONF_ALWAYS_CONTINUE_CONVERSATION,
+    CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHODS,
-    CONF_CONVERSATION_MODE,
-    CONF_CONVERSATION_MODE_DEFAULT,
     CONF_CUSTOM_HEADERS,
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
@@ -632,8 +632,8 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 default=False,
             ): bool,
             vol.Required(
-                CONF_CONVERSATION_MODE,
-                default=CONF_CONVERSATION_MODE_DEFAULT,
+                CONF_ALWAYS_CONTINUE_CONVERSATION,
+                default=CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
             ): bool,
             vol.Required(
                 CONF_TEMPERATURE,
