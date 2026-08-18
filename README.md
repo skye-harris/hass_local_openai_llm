@@ -318,84 +318,33 @@ This integration was forked from the [OpenRouter](https://github.com/home-assist
 
 I would like to thank the following people for their contributions.
 
-<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
-
-<div style="text-align:center">
-  <a href="https://github.com/NickM-27"><img src="https://avatars.githubusercontent.com/u/14866235?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/NickM-27">NickM-27</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/JulienDeveaux"><img src="https://avatars.githubusercontent.com/u/73243388?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/JulienDeveaux">JulienDeveaux</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/BryanCLieberman"><img src="https://avatars.githubusercontent.com/u/205995085?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/BryanCLieberman">BryanCLieberman</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/PollyBot13"><img src="https://avatars.githubusercontent.com/u/261872620?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/PollyBot13">PollyBot13</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/srwalter"><img src="https://avatars.githubusercontent.com/u/79127?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/srwalter">srwalter</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/alexjurkiewicz"><img src="https://avatars.githubusercontent.com/u/379509?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/alexjurkiewicz">alexjurkiewicz</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/ordex"><img src="https://avatars.githubusercontent.com/u/3433035?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/ordex">ordex</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/gtrev500"><img src="https://avatars.githubusercontent.com/u/203562600?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/gtrev500">gtrev500</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/whinis"><img src="https://avatars.githubusercontent.com/u/7612064?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/whinis">whinis</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/Johnson145"><img src="https://avatars.githubusercontent.com/u/6339078?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/Johnson145">Johnson145</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/ksmarty"><img src="https://avatars.githubusercontent.com/u/2217505?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/ksmarty">ksmarty</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/Mugga6315"><img src="https://avatars.githubusercontent.com/u/14247483?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/Mugga6315">Mugga6315</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/Thibaultjaigu"><img src="https://avatars.githubusercontent.com/u/84420566?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/Thibaultjaigu">Thibaultjaigu</a>
-</div>
-
-<div style="text-align:center">
-  <a href="https://github.com/Thyraz"><img src="https://avatars.githubusercontent.com/u/170099?v=4" width="64" height="64" style="border-radius:50%"></a><br>
-  <a href="https://github.com/Thyraz">Thyraz</a>
-</div>
-
-</div>
+<table>
+<tr>
+  <td align="center"><a href="https://github.com/NickM-27"><img src="https://avatars.githubusercontent.com/u/14866235?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/NickM-27">NickM-27</a></b></sub></td>
+  <td align="center"><a href="https://github.com/JulienDeveaux"><img src="https://avatars.githubusercontent.com/u/73243388?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/JulienDeveaux">JulienDeveaux</a></b></sub></td>
+  <td align="center"><a href="https://github.com/BryanCLieberman"><img src="https://avatars.githubusercontent.com/u/205995085?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/BryanCLieberman">BryanCLieberman</a></b></sub></td>
+  <td align="center"><a href="https://github.com/PollyBot13"><img src="https://avatars.githubusercontent.com/u/261872620?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/PollyBot13">PollyBot13</a></b></sub></td>
+  <td align="center"><a href="https://github.com/srwalter"><img src="https://avatars.githubusercontent.com/u/79127?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/srwalter">srwalter</a></b></sub></td>
+  <td align="center"><a href="https://github.com/alexjurkiewicz"><img src="https://avatars.githubusercontent.com/u/379509?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/alexjurkiewicz">alexjurkiewicz</a></b></sub></td>
+</tr>
+<tr>
+  <td align="center"><a href="https://github.com/ordex"><img src="https://avatars.githubusercontent.com/u/3433035?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/ordex">ordex</a></b></sub></td>
+  <td align="center"><a href="https://github.com/gtrev500"><img src="https://avatars.githubusercontent.com/u/203562600?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/gtrev500">gtrev500</a></b></sub></td>
+  <td align="center"><a href="https://github.com/whinis"><img src="https://avatars.githubusercontent.com/u/7612064?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/whinis">whinis</a></b></sub></td>
+  <td align="center"><a href="https://github.com/Johnson145"><img src="https://avatars.githubusercontent.com/u/6339078?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Johnson145">Johnson145</a></b></sub></td>
+  <td align="center"><a href="https://github.com/ksmarty"><img src="https://avatars.githubusercontent.com/u/2217505?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/ksmarty">ksmarty</a></b></sub></td>
+  <td align="center"><a href="https://github.com/Mugga6315"><img src="https://avatars.githubusercontent.com/u/14247483?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Mugga6315">Mugga6315</a></b></sub></td>
+</tr>
+<tr>
+  <td align="center"><a href="https://github.com/Thibaultjaigu"><img src="https://avatars.githubusercontent.com/u/84420566?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Thibaultjaigu">Thibaultjaigu</a></b></sub></td>
+  <td align="center"><a href="https://github.com/Thyraz"><img src="https://avatars.githubusercontent.com/u/170099?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Thyraz">Thyraz</a></b></sub></td>
+</tr>
+</table>
 
 ---
 
 ## Support Development
 
-If you find this integration useful and would like to support development, please consider buying me a coffee:
+If you find this integration useful and would like to support development, please consider [buying me a coffee](https://www.buymeacoffee.com/skyeharris).
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/skyeharris)
