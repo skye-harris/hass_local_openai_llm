@@ -16,9 +16,38 @@ from custom_components.local_openai.const import (
 )
 from custom_components.local_openai.entities.llama_cpp import LlamaCppMixin
 
+BASE_EXTRA_BODY_ARGS = {
+    "chat_template_kwargs": {"enable_thinking": False, "hello": "world"}
+}
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = {**result[key], **value}
+        else:
+            result[key] = value
+    return result
+
+
+class _StubBase:
+    def _get_extra_body_args(self, options: dict) -> dict:
+        return dict(BASE_EXTRA_BODY_ARGS)
+
+
+class _StubLlamaCppEntity(LlamaCppMixin, _StubBase):
+    pass
+
 
 class TestLlamaCppExtraBodyArgs:
     """Tests for _get_extra_body_args instance method."""
+
+    def test_super_call_retained(self) -> None:
+        """Test that data from the super call is retained in the result."""
+        result = _StubLlamaCppEntity()._get_extra_body_args({})
+        assert result["chat_template_kwargs"]["hello"] == "world"
+        assert result["chat_template_kwargs"]["enable_thinking"] is False
 
     @pytest.mark.parametrize(
         "options,expected",
@@ -62,10 +91,10 @@ class TestLlamaCppExtraBodyArgs:
             # No extra options
             (
                 {CONF_LLAMACPP_CONFIG: {}},
-                {"chat_template_kwargs": {"enable_thinking": False}},
+                {},
             ),
             # None config
-            ({}, {"chat_template_kwargs": {"enable_thinking": False}}),
+            ({}, {}),
             # Float id_slot converted to int
             (
                 {
@@ -96,8 +125,8 @@ class TestLlamaCppExtraBodyArgs:
     )
     def test_llama_cpp_extra_body_args(self, options: dict, expected: dict):
         """Test extra body arguments generation with various configurations."""
-        result = LlamaCppMixin()._get_extra_body_args(options)
-        assert result == expected
+        result = _StubLlamaCppEntity()._get_extra_body_args(options)
+        assert result == _deep_merge(BASE_EXTRA_BODY_ARGS, expected)
 
     @pytest.mark.parametrize(
         "options,expected",
@@ -151,8 +180,8 @@ class TestLlamaCppExtraBodyArgs:
         expected: dict,
     ):
         """Test extra_body with sampling parameters."""
-        result = LlamaCppMixin()._get_extra_body_args(options)
-        assert result == expected
+        result = _StubLlamaCppEntity()._get_extra_body_args(options)
+        assert result == _deep_merge(BASE_EXTRA_BODY_ARGS, expected)
 
     @pytest.mark.parametrize(
         "options,expected_sampling",
@@ -176,9 +205,9 @@ class TestLlamaCppExtraBodyArgs:
         expected_sampling: dict,
     ):
         """Test type conversion of sampling parameters in extra_body."""
-        result = LlamaCppMixin()._get_extra_body_args(options)
-        assert "chat_template_kwargs" in result
-        assert result["chat_template_kwargs"] == {"enable_thinking": False}
+        result = _StubLlamaCppEntity()._get_extra_body_args(options)
+        assert result["chat_template_kwargs"]["hello"] == "world"
+        assert result["chat_template_kwargs"]["enable_thinking"] is False
         for key, value in expected_sampling.items():
             assert result[key] == value
             assert isinstance(result[key], type(value))

@@ -24,7 +24,6 @@ from custom_components.local_openai.conversation import LocalAiConversationEntit
 if TYPE_CHECKING:
     from types import MappingProxyType
 
-    from homeassistant.config_entries import ConfigSubentry
     from openai.types.chat import ChatCompletionMessageParam
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,63 +51,47 @@ def get_conversation_config_schema() -> dict:
     return _get_deepseek_schema()
 
 
-def _deepseek_extra_body_args(options: MappingProxyType[str, Any]) -> dict:
-    """Handle extra_body args for DeepSeek."""
-    opts = options.get(CONF_DEEPSEEK_CONFIG, {})
-    reasoning_effort = opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
-    if reasoning_effort:
-        return {
-            "thinking": {"type": "enabled"},
-            "reasoning_effort": reasoning_effort,
-        }
-    return {"thinking": {"type": "disabled"}}
+def get_ai_task_config_schema() -> dict:
+    """Return AI task config schema fields for DeepSeek."""
+    return _get_deepseek_schema()
 
 
-async def _deepseek_augment_content_message(
-    subentry: ConfigSubentry,
-    param: ChatCompletionMessageParam | None,
-    content: conversation.Content,
-) -> ChatCompletionMessageParam | None:
-    """If thinking is enabled, and the message has thinking content, pass this back in the request."""
-    opts = subentry.data.get(CONF_DEEPSEEK_CONFIG, {})
+class DeepSeekMixin:
+    """Mixin for DeepSeek entities with shared logic."""
 
-    if (
-        opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
-        and isinstance(content, conversation.AssistantContent)
-        and hasattr(content, "thinking_content")
-        and content.thinking_content
-    ):
-        param["reasoning_content"] = content.thinking_content
-    return param
+    def _get_extra_body_args(self, options: MappingProxyType[str, Any]) -> dict:
+        """Handle extra_body args for DeepSeek."""
+        extra = super()._get_extra_body_args(options)
+        opts = options.get(CONF_DEEPSEEK_CONFIG, {})
+        reasoning_effort = opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
+        if reasoning_effort:
+            extra["thinking"] = {"type": "enabled"}
+            extra["reasoning_effort"] = reasoning_effort
+        else:
+            extra["thinking"] = {"type": "disabled"}
+        return extra
+
+    async def _convert_content_to_chat_message(
+        self,
+        content: conversation.Content,
+    ) -> ChatCompletionMessageParam | None:
+        """If thinking is enabled, pass prior thinking content back in the request."""
+        param = await super()._convert_content_to_chat_message(content)
+        opts = self.subentry.data.get(CONF_DEEPSEEK_CONFIG, {})
+
+        if (
+            opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
+            and isinstance(content, conversation.AssistantContent)
+            and hasattr(content, "thinking_content")
+            and content.thinking_content
+        ):
+            param["reasoning_content"] = content.thinking_content
+        return param
 
 
-class DeepSeekConversationEntity(LocalAiConversationEntity):
+class DeepSeekConversationEntity(DeepSeekMixin, LocalAiConversationEntity):
     """Conversation agent for DeepSeek Cloud servers."""
 
-    def _get_extra_body_args(self, options: MappingProxyType[str, Any]) -> dict:
-        """Handle extra arguments for DeepSeek."""
-        return _deepseek_extra_body_args(options)
 
-    async def _convert_content_to_chat_message(
-        self,
-        content: conversation.Content,
-    ) -> ChatCompletionMessageParam | None:
-        """Handle chat message conversion for DeepSeek."""
-        param = await super()._convert_content_to_chat_message(content)
-        return await _deepseek_augment_content_message(self.subentry, param, content)
-
-
-class DeepSeekAITaskEntity(LocalAITaskEntity):
+class DeepSeekAITaskEntity(DeepSeekMixin, LocalAITaskEntity):
     """AI Task entity for DeepSeek Cloud servers."""
-
-    def _get_extra_body_args(self, options: MappingProxyType[str, Any]) -> dict:
-        """Handle extra arguments for DeepSeek."""
-        return _deepseek_extra_body_args(options)
-
-    async def _convert_content_to_chat_message(
-        self,
-        content: conversation.Content,
-    ) -> ChatCompletionMessageParam | None:
-        """Handle chat message conversion for DeepSeek."""
-        param = await super()._convert_content_to_chat_message(content)
-        return await _deepseek_augment_content_message(self.subentry, param, content)
