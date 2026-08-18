@@ -41,6 +41,8 @@ from .const import (
     CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PASS_SESSION_ID,
+    CONF_REQUEST_BODY_OPTS,
+    CONF_REQUEST_BODY_PARAMETERS,
     CONF_SERVER_OPTIONS,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
@@ -223,6 +225,24 @@ class LocalAiEntity(Entity):
                         self.hass,
                     ).async_render()
             extra_body_args["chat_template_kwargs"] = kwargs
+
+        request_body_opts = options.get(CONF_REQUEST_BODY_OPTS, {})
+        request_body_parameters = request_body_opts.get(
+            CONF_REQUEST_BODY_PARAMETERS, []
+        )
+        request_body_parameters = [
+            keypair
+            for keypair in request_body_parameters
+            if keypair.get("Key", "").strip()
+        ]
+
+        for keypair in request_body_parameters:
+            key = keypair.get("Key", "").strip()
+            if key:
+                extra_body_args[key] = template.Template(
+                    keypair.get("Value", ""),
+                    self.hass,
+                ).async_render()
 
         return extra_body_args
 
