@@ -5,26 +5,52 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.const import CONF_MODEL
+
 from custom_components.local_openai.config_flow import (
     AI_TASK_SCHEMA_PROVIDERS,
     CONVERSATION_SCHEMA_PROVIDERS,
+    REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+    REQUEST_BODY_PARAMETER_RESERVED,
     _get_ai_task_config_schema,
     _get_conversation_config_schema,
+    _get_request_body_parameter_error,
     _get_server_type_config_key,
+    _key_value_template_section,
     _resolve_model_name,
     options_to_selections_dict,
     prepare_weaviate_class,
 )
 from custom_components.local_openai.const import (
+    CONF_CHAT_TEMPLATE_KWARGS,
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
     CONF_LLAMACPP_CONFIG,
+    CONF_LOCALAI_CONFIG,
+    CONF_REQUEST_BODY_OPTS,
+    CONF_REQUEST_BODY_PARAMETERS,
+    CONF_TEMPERATURE,
     CONF_VLLM_CONFIG,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_LLAMACPP,
+    SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
 )
+
+
+def _request_body_options(*parameters: dict[str, str]) -> dict:
+    """Return subentry options with request body parameters."""
+    return {
+        CONF_REQUEST_BODY_OPTS: {
+            CONF_REQUEST_BODY_PARAMETERS: list(parameters),
+        },
+    }
+
+
+def _request_body_parameter(key: str, value: str = "value") -> dict[str, str]:
+    """Return a request body parameter entry."""
+    return {"Key": key, "Value": value}
 
 
 class TestOptionsToSelectionsDict:
@@ -62,6 +88,110 @@ class TestOptionsToSelectionsDict:
             assert item["label"] == exp["label"]
 
 
+class TestKeyValueTemplateSection:
+    """Tests for _key_value_template_section."""
+
+    def test_key_value_template_section(self) -> None:
+        """Test key/value template section validation."""
+        schema = _key_value_template_section(CONF_REQUEST_BODY_PARAMETERS)
+
+        assert schema({}) == {CONF_REQUEST_BODY_PARAMETERS: []}
+
+
+class TestRequestBodyParameterError:
+    """Tests for _get_request_body_parameter_error."""
+
+    @pytest.mark.parametrize(
+        ("key", "expected_error"),
+        [
+            pytest.param("messages", REQUEST_BODY_PARAMETER_RESERVED, id="messages"),
+            pytest.param("metadata", REQUEST_BODY_PARAMETER_RESERVED, id="metadata"),
+            pytest.param(
+                CONF_MODEL,
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="model",
+            ),
+            pytest.param(
+                CONF_TEMPERATURE,
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="temperature",
+            ),
+            pytest.param(
+                CONF_CHAT_TEMPLATE_KWARGS,
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="chat_template_kwargs",
+            ),
+        ],
+    )
+    def test_global_errors(self, key: str, expected_error: str) -> None:
+        """Test global request body parameter denylist errors."""
+        assert _get_request_body_parameter_error(
+            _request_body_options(_request_body_parameter(key)),
+            SERVER_TYPE_GENERIC,
+        ) == (expected_error, key)
+
+    @pytest.mark.parametrize(
+        ("server_type", "key", "expected_error"),
+        [
+            pytest.param(
+                SERVER_TYPE_LLAMACPP,
+                "top_p",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="llamacpp_top_p",
+            ),
+            pytest.param(
+                SERVER_TYPE_LLAMACPP,
+                "id_slot",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="llamacpp_id_slot",
+            ),
+            pytest.param(
+                SERVER_TYPE_DEEPSEEK,
+                "reasoning_effort",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="deepseek_reasoning_effort",
+            ),
+            pytest.param(
+                SERVER_TYPE_DEEPSEEK,
+                "thinking",
+                REQUEST_BODY_PARAMETER_RESERVED,
+                id="deepseek_thinking",
+            ),
+            pytest.param(
+                SERVER_TYPE_VLLM,
+                "thinking_token_budget",
+                REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
+                id="vllm_thinking_token_budget",
+            ),
+        ],
+    )
+    def test_server_type_errors(
+        self,
+        server_type: str,
+        key: str,
+        expected_error: str,
+    ) -> None:
+        """Test server-specific request body parameter denylist errors."""
+        assert _get_request_body_parameter_error(
+            _request_body_options(_request_body_parameter(key)),
+            server_type,
+        ) == (expected_error, key)
+
+    def test_generic_server_allows_provider_specific_parameters(self) -> None:
+        """Test generic servers can use provider-specific parameters."""
+        assert (
+            _get_request_body_parameter_error(
+                _request_body_options(
+                    _request_body_parameter("reasoning_effort"),
+                    _request_body_parameter("top_p"),
+                    _request_body_parameter("max_tokens"),
+                ),
+                SERVER_TYPE_GENERIC,
+            )
+            is None
+        )
+
+
 class TestGetServerTypeConfigKey:
     """Tests for _get_server_type_config_key."""
 
@@ -72,6 +202,7 @@ class TestGetServerTypeConfigKey:
             pytest.param(SERVER_TYPE_LLAMACPP, CONF_LLAMACPP_CONFIG, id="llamacpp"),
             pytest.param(SERVER_TYPE_VLLM, CONF_VLLM_CONFIG, id="vllm"),
             pytest.param(SERVER_TYPE_DEEPSEEK, CONF_DEEPSEEK_CONFIG, id="deepseek"),
+            pytest.param(SERVER_TYPE_LOCALAI, CONF_LOCALAI_CONFIG, id="localai"),
             pytest.param(
                 "unknown_type", CONF_GENERIC_CONFIG, id="unknown_defaults_to_generic"
             ),
@@ -88,10 +219,10 @@ class TestGetServerTypeConfigKey:
 
 
 class TestServerTypeCountMatchesEntityFiles:
-    """Ensure SERVER_TYPE_TO_CONFIG_KEY has an entry for each entity file."""
+    """Ensure SERVER_TYPE_TO_CONFIG_KEY has an entry for each entity file plus generic."""
 
     def test_server_type_count_matches_entity_py_files(self) -> None:
-        """Assert the number of server types matches the number of entity py files (excluding __init__.py)."""
+        """Assert the number of server types equals entity py files plus the generic fallback."""
         import os
         from pathlib import Path
 
@@ -108,9 +239,10 @@ class TestServerTypeCountMatchesEntityFiles:
             for file in os.listdir(entities_dir)
             if file.endswith(".py") and file != "__init__.py"
         ]
-        assert len(SERVER_TYPE_TO_CONFIG_KEY) == len(entity_files), (
+        assert len(SERVER_TYPE_TO_CONFIG_KEY) == len(entity_files) + 1, (
             f"SERVER_TYPE_TO_CONFIG_KEY has {len(SERVER_TYPE_TO_CONFIG_KEY)} entries but "
-            f"entities/ has {len(entity_files)} py files (excluding __init__.py)"
+            f"entities/ has {len(entity_files)} py files (excluding __init__.py); "
+            "expected entity count + 1 for the generic fallback"
         )
 
 
@@ -119,7 +251,11 @@ class TestGetConversationConfigSchema:
 
     @pytest.mark.parametrize(
         "server_type",
-        [pytest.param(server, id=server) for server in CONVERSATION_SCHEMA_PROVIDERS],
+        [
+            pytest.param(server, id=server)
+            for server in CONVERSATION_SCHEMA_PROVIDERS
+            if server not in (SERVER_TYPE_LOCALAI,)
+        ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
         """Test each provider server type returns a non-empty schema dict."""
@@ -132,13 +268,22 @@ class TestGetConversationConfigSchema:
         result = _get_conversation_config_schema(SERVER_TYPE_GENERIC)
         assert result == {}
 
+    def test_localai_returns_empty(self) -> None:
+        """Test localai server type returns an empty dict."""
+        result = _get_conversation_config_schema(SERVER_TYPE_LOCALAI)
+        assert result == {}
+
 
 class TestGetAiTaskConfigSchema:
     """Tests for _get_ai_task_config_schema."""
 
     @pytest.mark.parametrize(
         "server_type",
-        [pytest.param(server, id=server) for server in AI_TASK_SCHEMA_PROVIDERS],
+        [
+            pytest.param(server, id=server)
+            for server in AI_TASK_SCHEMA_PROVIDERS
+            if server not in (SERVER_TYPE_LOCALAI,)
+        ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
         """Test each provider server type returns a non-empty schema dict."""
@@ -149,6 +294,11 @@ class TestGetAiTaskConfigSchema:
     def test_generic_returns_empty(self) -> None:
         """Test generic server type returns an empty dict."""
         result = _get_ai_task_config_schema(SERVER_TYPE_GENERIC)
+        assert result == {}
+
+    def test_localai_returns_empty(self) -> None:
+        """Test localai server type returns an empty dict."""
+        result = _get_ai_task_config_schema(SERVER_TYPE_LOCALAI)
         assert result == {}
 
 

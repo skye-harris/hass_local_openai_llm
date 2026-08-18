@@ -16,6 +16,9 @@ from custom_components.local_openai.const import (
 )
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
+REQUEST_BODY_RESERVED_PARAMETERS = frozenset()
+REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset({"thinking_token_budget"})
+
 
 def _get_vllm_schema() -> dict:
     """Return the vLLM server configuration schema."""
