@@ -9,6 +9,8 @@ from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT, MATCH_ALL
 from homeassistant.helpers import llm
 
 from .const import (
+    CONF_ALWAYS_CONTINUE_CONVERSATION,
+    CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_SERVER_TYPE,
     DOMAIN,
@@ -101,6 +103,9 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
+        always_continue_conversation = options.get(
+            CONF_ALWAYS_CONTINUE_CONVERSATION, CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT
+        )
 
         hass_apis = [api.id for api in llm.async_get_apis(self.hass)]
 
@@ -124,4 +129,11 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
             parallel_tool_calls=parallel_tool_calls,
         )
 
-        return conversation.async_get_result_from_chat_log(user_input, chat_log)
+        # Set continue_conversation flag based on always_continue_conversation setting
+        chat_log_result = conversation.async_get_result_from_chat_log(
+            user_input, chat_log
+        )
+        if always_continue_conversation:
+            chat_log_result.continue_conversation = True
+
+        return chat_log_result

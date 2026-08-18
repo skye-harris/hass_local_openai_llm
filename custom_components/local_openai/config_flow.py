@@ -83,6 +83,8 @@ from custom_components.local_openai.entities.vllm import (
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
     CONF_AI_TASK_TOOLS_SECTION,
+    CONF_ALWAYS_CONTINUE_CONVERSATION,
+    CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -629,6 +631,10 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             vol.Required(
                 CONF_STRIP_EMOJIS,
                 default=False,
+            ): bool,
+            vol.Required(
+                CONF_ALWAYS_CONTINUE_CONVERSATION,
+                default=CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
             ): bool,
             vol.Required(
                 CONF_TEMPERATURE,
