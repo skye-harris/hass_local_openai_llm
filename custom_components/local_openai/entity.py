@@ -41,6 +41,8 @@ from .const import (
     CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PASS_SESSION_ID,
+    CONF_REQUEST_BODY_OPTS,
+    CONF_REQUEST_BODY_PARAMETERS,
     CONF_SERVER_OPTIONS,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
@@ -223,6 +225,24 @@ class LocalAiEntity(Entity):
                         self.hass,
                     ).async_render()
             extra_body_args["chat_template_kwargs"] = kwargs
+
+        request_body_opts = options.get(CONF_REQUEST_BODY_OPTS, {})
+        request_body_parameters = request_body_opts.get(
+            CONF_REQUEST_BODY_PARAMETERS, []
+        )
+        request_body_parameters = [
+            keypair
+            for keypair in request_body_parameters
+            if keypair.get("Key", "").strip()
+        ]
+
+        for keypair in request_body_parameters:
+            key = keypair.get("Key", "").strip()
+            if key:
+                extra_body_args[key] = template.Template(
+                    keypair.get("Value", ""),
+                    self.hass,
+                ).async_render()
 
         return extra_body_args
 
@@ -427,7 +447,7 @@ class LocalAiEntity(Entity):
                     ]
         return messages, tools
 
-    async def _transform_stream(
+    async def _transform_stream(  # noqa: C901 todo: will break this up
         self,
         stream: AsyncStream[ChatCompletionChunk],
         strip_emojis: bool,
@@ -541,6 +561,7 @@ class LocalAiEntity(Entity):
                 if seen_visible:
                     chunk["content"] = content
 
+            tool_error_deltas: list[dict] = []
             if choice.finish_reason:
                 try:
                     # Retrieve timings from llamacpp responses, if available
@@ -550,17 +571,45 @@ class LocalAiEntity(Entity):
                     pass
 
                 if pending_tool_calls:
-                    chunk["tool_calls"] = [
-                        llm.ToolInput(
-                            id=tool_call["id"],
-                            tool_name=tool_call["name"],
-                            tool_args=json.loads(tool_call["args"])
-                            if tool_call["args"]
-                            else {},
-                        )
-                        for key, tool_call in pending_tool_calls.items()
-                    ]
-                    _LOGGER.debug("Calling tools: %s", pending_tool_calls)
+                    parsed_tool_calls: list[llm.ToolInput] = []
+                    for tool_call in pending_tool_calls.values():
+                        try:
+                            args = (
+                                json.loads(tool_call["args"])
+                                if tool_call["args"]
+                                else {}
+                            )
+                            parsed_tool_calls.append(
+                                llm.ToolInput(
+                                    id=tool_call["id"],
+                                    tool_name=tool_call["name"],
+                                    tool_args=args,
+                                )
+                            )
+                        except json.JSONDecodeError:  # noqa: PERF203
+                            parsed_tool_calls.append(
+                                llm.ToolInput(
+                                    id=tool_call["id"],
+                                    tool_name=tool_call["name"],
+                                    tool_args={
+                                        "json_decode_failure": tool_call["args"]
+                                    },
+                                    external=True,
+                                )
+                            )
+                            tool_error_deltas.append(
+                                {
+                                    "role": "tool_result",
+                                    "tool_call_id": tool_call["id"],
+                                    "tool_name": tool_call["name"],
+                                    "tool_result": {
+                                        "error": f"Failed to parse tool arguments: {tool_call['args']}\n\nCheck your JSON and try again.",
+                                    },
+                                }
+                            )
+
+                    _LOGGER.debug("Calling tools: %s", parsed_tool_calls)
+                    chunk["tool_calls"] = parsed_tool_calls
                     pending_tool_calls.clear()
 
             if (
@@ -570,6 +619,8 @@ class LocalAiEntity(Entity):
                 or chunk.get("thinking_content")
             ):
                 yield chunk
+                for error_delta in tool_error_deltas:
+                    yield error_delta
 
     async def _async_handle_chat_log(
         self,
@@ -668,18 +719,20 @@ class LocalAiEntity(Entity):
         strip_emojis: bool,
     ) -> None:
         """Run the LLM agent loop with tool call iteration."""
-        for _iteration in range(MAX_TOOL_ITERATIONS):
+        for iteration in range(MAX_TOOL_ITERATIONS):
+            if iteration == MAX_TOOL_ITERATIONS - 1:
+                _LOGGER.debug("Max iterations reached, injecting stop message")
+                model_args["messages"] = self._inject_stop_directive(
+                    model_args["messages"]
+                )
+                model_args["tool_choice"] = "none"
+
             try:
                 result_stream = await client.chat.completions.create(
                     **model_args,
                     stream=True,
                 )
-            except openai.OpenAIError as err:
-                _LOGGER.exception("Error talking to API")
-                msg = "Error talking to API"
-                raise HomeAssistantError(msg) from err
 
-            try:
                 model_args["messages"].extend(
                     [
                         msg
@@ -693,13 +746,34 @@ class LocalAiEntity(Entity):
                         if (msg := await self._convert_content_to_chat_message(content))
                     ],
                 )
+            except openai.OpenAIError as err:
+                _LOGGER.exception("API server returned an error")
+                msg = "API server returned an error. Check the system logs for further details."
+                raise HomeAssistantError(msg) from err
             except Exception as err:
                 _LOGGER.exception("Error handling API response")
-                msg = "Error handling API response"
+                msg = "Error handling API response. Check the system logs for further details."
                 raise HomeAssistantError(msg) from err
 
             if not chat_log.unresponded_tool_results:
                 break
+
+    @staticmethod
+    def _inject_stop_directive(messages: list) -> list:
+        """Append a stop-directive to the last tool result if present."""
+        if not messages:
+            return messages
+        last_msg = messages[-1]
+        if last_msg.get("role") != "tool":
+            return messages
+        directive = (
+            "\n\nYou have reached the maximum number of tool call iterations. "
+            "You must now provide your final response directly to the user "
+            "without calling any more tools."
+        )
+        existing_content = last_msg.get("content", "")
+        last_msg["content"] = existing_content + directive
+        return messages
 
     @staticmethod
     def _trim_history(messages: list, max_messages: int) -> list:

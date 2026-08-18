@@ -1,0 +1,28 @@
+name: "Lint"
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ruff:
+    name: "Ruff"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v7"
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: "Install requirements"
+        run: python3 -m pip install -r requirements_test.txt
+
+      - name: "Lint"
+        run: python3 -m ruff check .
+
+      - name: "Format"
+        run: python3 -m ruff format . --check

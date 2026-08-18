@@ -1,14 +1,21 @@
-from datetime import datetime
+"""Weaviate vector DB with hybrid search."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 from custom_components.local_openai import LOGGER
 
 
 class WeaviateError(Exception):
-    pass
+    """Weaviate exception class."""
 
 
 class WeaviateClient:
@@ -38,7 +45,7 @@ class WeaviateClient:
 
     async def near_text(
         self, class_name: str, query: str, threshold: float, limit: int
-    ):
+    ) -> list[dict[str, Any]]:
         """Query weaviate for vector similarity."""
         class_name = self.prepare_class_name(class_name)
         query_obj = {
@@ -70,13 +77,15 @@ class WeaviateClient:
                 return result.get("data", {}).get("Get", {}).get(class_name, [])
         except aiohttp.ClientError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
-            raise WeaviateError("Unable to query Weaviate") from err
+            msg = "Unable to query Weaviate"
+            raise WeaviateError(msg) from err
 
     async def hybrid_search(
         self, class_name: str, query: str, alpha: float, threshold: float, limit: int
-    ):
+    ) -> list[dict[str, Any]]:
         """Query Weaviate Hybrid search."""
         class_name = self.prepare_class_name(class_name)
+
         query_obj = {
             "query": f"""
             {{
@@ -100,7 +109,7 @@ class WeaviateClient:
             """
         }
         try:
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
             async with self._aiohttp.post(
                 url=f"{self._host}/v1/graphql",
                 json=query_obj,
@@ -108,7 +117,7 @@ class WeaviateClient:
             ) as resp:
                 resp.raise_for_status()
                 result = await resp.json()
-                time_diff = datetime.now() - start_time
+                time_diff = datetime.now(timezone.utc) - start_time
                 millis = time_diff.microseconds / 1000
 
                 LOGGER.debug(f"Weaviate query took {millis} milliseconds")
@@ -121,9 +130,10 @@ class WeaviateClient:
                 ]
         except aiohttp.ClientError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
-            raise WeaviateError("Unable to query Weaviate") from err
+            msg = "Unable to query Weaviate"
+            raise WeaviateError(msg) from err
 
-    async def create_class(self, class_name: str):
+    async def create_class(self, class_name: str) -> None:
         """Create our object class in Weaviate."""
         class_name = self.prepare_class_name(class_name)
 
@@ -163,7 +173,8 @@ class WeaviateClient:
             LOGGER.warning(
                 "Error communicating with Weaviate API: %s, request: %s", err, query_obj
             )
-            raise WeaviateError("Unable to create object class in Weaviate") from err
+            msg = "Unable to create object class in Weaviate"
+            raise WeaviateError(msg) from err
 
     async def does_class_exist(self, class_name: str) -> bool:
         """Check if an object class exists in Weaviate."""
@@ -180,10 +191,12 @@ class WeaviateClient:
                 return True
         except aiohttp.ClientResponseError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
-            raise WeaviateError("Unable to lookup object class in Weaviate") from err
+            msg = "Unable to lookup object class in Weaviate"
+            raise WeaviateError(msg) from err
         except aiohttp.ClientError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
-            raise WeaviateError("Unable to lookup object class in Weaviate") from err
+            msg = "Unable to lookup object class in Weaviate"
+            raise WeaviateError(msg) from err
 
     async def does_object_exist(self, class_name: str, object_uuid: str) -> bool:
         """Check if an object exists in Weaviate."""
@@ -201,10 +214,12 @@ class WeaviateClient:
                 return True
         except aiohttp.ClientResponseError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
-            raise WeaviateError("Unable to lookup object in Weaviate") from err
+            msg = "Unable to lookup object in Weaviate"
+            raise WeaviateError(msg) from err
         except aiohttp.ClientError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
-            raise WeaviateError("Unable to lookup object in Weaviate") from err
+            msg = "Unable to lookup object in Weaviate"
+            raise WeaviateError(msg) from err
 
     async def add_object(
         self, class_name: str, query: str, content: str | None, object_uuid: str | None
@@ -237,7 +252,8 @@ class WeaviateClient:
             LOGGER.warning(
                 "Error communicating with Weaviate API: %s, request: %s", err, query_obj
             )
-            raise WeaviateError("Unable to insert new object into Weaviate") from err
+            msg = "Unable to insert new object into Weaviate"
+            raise WeaviateError(msg) from err
 
     async def replace_object(
         self, class_name: str, query: str, content: str | None, object_uuid: str
@@ -270,9 +286,10 @@ class WeaviateClient:
             LOGGER.warning(
                 "Error communicating with Weaviate API: %s, request: %s", err, query_obj
             )
-            raise WeaviateError("Unable to update object in Weaviate") from err
+            msg = "Unable to update object in Weaviate"
+            raise WeaviateError(msg) from err
 
-    async def seed_sample_data(self, class_name: str):
+    async def seed_sample_data(self, class_name: str) -> None:
         """Seed some sample objects into our database."""
         data = []  # TODO
 

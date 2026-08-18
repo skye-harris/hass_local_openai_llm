@@ -20,6 +20,8 @@ CONF_TEMPERATURE = "temperature"
 CONF_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
 CONF_CHAT_TEMPLATE_OPTS = "chat_template_opts"
 CONF_CHAT_TEMPLATE_KWARGS = "chat_template_kwargs"
+CONF_REQUEST_BODY_OPTS = "request_body_opts"
+CONF_REQUEST_BODY_PARAMETERS = "request_body_parameters"
 CONF_PASS_SESSION_ID = "pass_session_id"  # noqa: S105
 CONF_SERVER_OPTIONS = "server_options"
 CONF_SERVER_TYPE = "server_type"
@@ -43,6 +45,7 @@ SERVER_TYPE_LLAMACPP = "llama_cpp"
 SERVER_TYPE_VLLM = "vllm"
 SERVER_TYPE_DEEPSEEK = "deepseek"
 SERVER_TYPE_LOCALAI = "localai"
+
 
 SERVER_TYPE_OPTIONS = {
     SERVER_TYPE_GENERIC: "Generic OpenAI-Compatible",
