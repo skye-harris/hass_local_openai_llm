@@ -142,7 +142,7 @@ _TEST_CASES = [
             {"Key": "", "Value": "empty key"},
             {"Key": "empty value", "Value": ""},
         ],
-        expected_headers=None,  # bypasses schema validation when called directly
+        expected_headers=[{"Key": "X-Valid", "Value": "abc"}],
     ),
 ]
 
@@ -204,12 +204,7 @@ async def test_config_flow_user_with_headers(
     if case.expect_model_list_call:
         mock_openai_client.models.list.assert_called_once()
 
-    if case.expected_headers is None and case.headers_input is not None:
-        # Bypasses schema validation when called directly — all entries preserved
-        assert len(result["data"][CONF_CUSTOM_HEADERS][CONF_SERVER_HEADERS]) == len(
-            case.headers_input
-        )
-    elif case.expected_headers is not None:
+    if case.expected_headers is not None:
         assert (
             result["data"][CONF_CUSTOM_HEADERS][CONF_SERVER_HEADERS]
             == case.expected_headers

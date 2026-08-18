@@ -406,23 +406,20 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                             vol.Optional(
                                 CONF_SERVER_HEADERS,
                                 default=[],
-                            ): vol.All(
-                                ObjectSelector(
-                                    config={
-                                        "multiple": True,
-                                        "fields": {
-                                            "Key": {
-                                                "selector": {"text": None},
-                                                "required": True,
-                                            },
-                                            "Value": {
-                                                "selector": {"text": None},
-                                                "required": True,
-                                            },
+                            ): ObjectSelector(
+                                config={
+                                    "multiple": True,
+                                    "fields": {
+                                        "Key": {
+                                            "selector": {"text": None},
+                                            "required": True,
+                                        },
+                                        "Value": {
+                                            "selector": {"text": None},
+                                            "required": True,
                                         },
                                     },
-                                ),
-                                _validate_server_headers,
+                                },
                             ),
                         },
                     ),
@@ -445,9 +442,11 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 custom_headers_section = user_input.get(CONF_CUSTOM_HEADERS, {}) or {}
-                custom_headers_list = (
+                custom_headers_list = _validate_server_headers(
                     custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
                 )
+                custom_headers_section[CONF_SERVER_HEADERS] = custom_headers_list
+                user_input[CONF_CUSTOM_HEADERS] = custom_headers_section
                 custom_headers = {
                     item["Key"]: item["Value"] for item in custom_headers_list
                 } or None
@@ -507,9 +506,11 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 custom_headers_section = user_input.get(CONF_CUSTOM_HEADERS, {}) or {}
-                custom_headers_list = (
+                custom_headers_list = _validate_server_headers(
                     custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
                 )
+                custom_headers_section[CONF_SERVER_HEADERS] = custom_headers_list
+                user_input[CONF_CUSTOM_HEADERS] = custom_headers_section
                 custom_headers = {
                     item["Key"]: item["Value"] for item in custom_headers_list
                 } or None
