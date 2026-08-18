@@ -312,9 +312,90 @@ These tools exist as a separate integration for compatibility across the wider H
 
 ## Acknowledgements
 
-- This integration is forked from the [OpenRouter](https://github.com/home-assistant/core/tree/dev/homeassistant/components/open_router) integration for Home Assistant by [@joostlek](https://github.com/joostlek)
-- [@NickM-27](https://github.com/NickM-27) for his contributions both in additions to the integration itself, and providing support and assistance with reported issues
+This integration was forked from the [OpenRouter](https://github.com/home-assistant/core/tree/dev/homeassistant/components/open_router) integration for Home Assistant by [@joostlek](https://github.com/joostlek).
+
+## Contributors
+
+I would like to thank the following people for their contributions.
+
+<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+
+<div style="text-align:center">
+  <a href="https://github.com/NickM-27"><img src="https://avatars.githubusercontent.com/u/14866235?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/NickM-27">NickM-27</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/JulienDeveaux"><img src="https://avatars.githubusercontent.com/u/73243388?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/JulienDeveaux">JulienDeveaux</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/BryanCLieberman"><img src="https://avatars.githubusercontent.com/u/205995085?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/BryanCLieberman">BryanCLieberman</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/PollyBot13"><img src="https://avatars.githubusercontent.com/u/261872620?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/PollyBot13">PollyBot13</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/srwalter"><img src="https://avatars.githubusercontent.com/u/79127?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/srwalter">srwalter</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/alexjurkiewicz"><img src="https://avatars.githubusercontent.com/u/379509?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/alexjurkiewicz">alexjurkiewicz</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/ordex"><img src="https://avatars.githubusercontent.com/u/3433035?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/ordex">ordex</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/gtrev500"><img src="https://avatars.githubusercontent.com/u/203562600?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/gtrev500">gtrev500</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/whinis"><img src="https://avatars.githubusercontent.com/u/7612064?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/whinis">whinis</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/Johnson145"><img src="https://avatars.githubusercontent.com/u/6339078?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/Johnson145">Johnson145</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/ksmarty"><img src="https://avatars.githubusercontent.com/u/2217505?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/ksmarty">ksmarty</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/Mugga6315"><img src="https://avatars.githubusercontent.com/u/14247483?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/Mugga6315">Mugga6315</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/Thibaultjaigu"><img src="https://avatars.githubusercontent.com/u/84420566?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/Thibaultjaigu">Thibaultjaigu</a>
+</div>
+
+<div style="text-align:center">
+  <a href="https://github.com/Thyraz"><img src="https://avatars.githubusercontent.com/u/170099?v=4" width="64" height="64" style="border-radius:50%"></a><br>
+  <a href="https://github.com/Thyraz">Thyraz</a>
+</div>
+
+</div>
 
 ---
+
+## Support Development
+
+If you find this integration useful and would like to support development, please consider buying me a coffee:
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/skyeharris)
