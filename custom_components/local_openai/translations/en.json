@@ -125,7 +125,8 @@
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
-            "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
+            "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
+            "conversation_mode": "Voice assistants will always be prompted to continue the conversation"
           },
           "sections": {
             "chat_template_opts": {
@@ -215,7 +216,8 @@
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
-            "content_injection_method": "The message role to insert dynamic content as. See the readme for details"
+            "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
+            "conversation_mode": "Voice assistants will always be prompted to continue the conversation"
           },
           "sections": {
             "chat_template_opts": {

@@ -95,6 +95,11 @@ After installation, configure the integration through Home Assistant's UI:
 - AI Task entities can be configured for Text and/or Image generation capabilities
     - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and requires support from your chosen image generation server
     - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
+- Conversation mode — When a voice agent finishes speaking, passes the active voice turn back to the user in order to naturally continue the conversation
+    - If the user speaks, the assistant continues the conversation naturally
+    - If the user stays silent, the assistant stops following up after a timeout
+    - If the user says a stop keyword (e.g. "STOP") while the agent is speaking, the follow-up is cancelled immediately
+    - When disabled (default), only assistant responses ending in a question will pass the active voice turn back to the user
 
 ---
 
