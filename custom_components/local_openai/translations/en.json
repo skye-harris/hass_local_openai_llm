@@ -34,6 +34,16 @@
               "weaviate_host": "Including protocol and port",
               "weaviate_api_key": "Your API key, if authentication is required"
             }
+          },
+          "custom_headers": {
+            "name": "Custom HTTP headers",
+            "description": "Add custom HTTP headers to all LLM API requests",
+            "data": {
+              "server_headers": "Key-value pairs for server headers"
+            },
+            "data_description": {
+              "server_headers": "Each key-value pair adds a custom HTTP header to API requests"
+            }
           }
         }
       },
@@ -68,6 +78,16 @@
             "data_description": {
               "weaviate_host": "Including protocol and port",
               "weaviate_api_key": "Your API key, if authentication is required"
+            }
+          },
+          "custom_headers": {
+            "name": "Custom HTTP headers",
+            "description": "Add custom HTTP headers to all LLM API requests",
+            "data": {
+              "server_headers": "Key-value pairs for server headers"
+            },
+            "data_description": {
+              "server_headers": "Each key-value pair adds a custom HTTP header to API requests"
             }
           }
         }

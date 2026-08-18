@@ -15,6 +15,7 @@ ignore = [
     "BLE001",  # Blind exception catching
     "FBT001",  # Boolean-typed positional argument in function definition
     "ARG001",  # Unused argument
+    "ARG002",  # Unused method argument (base class params used by subclasses)
     "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
     "COM812",  # Incompatible with formatter
     "EXE002",  # The file is executable but no shebang is present

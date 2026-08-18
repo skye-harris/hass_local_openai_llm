@@ -33,6 +33,7 @@ from custom_components.local_openai.const import (
     CONF_VLLM_CONFIG,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
+    SERVER_TYPE_GOOGLE_GEMINI,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
@@ -254,7 +255,7 @@ class TestGetConversationConfigSchema:
         [
             pytest.param(server, id=server)
             for server in CONVERSATION_SCHEMA_PROVIDERS
-            if server not in (SERVER_TYPE_LOCALAI,)
+            if server not in (SERVER_TYPE_GOOGLE_GEMINI, SERVER_TYPE_LOCALAI)
         ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
@@ -266,6 +267,11 @@ class TestGetConversationConfigSchema:
     def test_generic_returns_empty(self) -> None:
         """Test generic server type returns an empty dict."""
         result = _get_conversation_config_schema(SERVER_TYPE_GENERIC)
+        assert result == {}
+
+    def test_google_gemini_returns_empty(self) -> None:
+        """Test google_gemini server type returns an empty dict."""
+        result = _get_conversation_config_schema(SERVER_TYPE_GOOGLE_GEMINI)
         assert result == {}
 
     def test_localai_returns_empty(self) -> None:
@@ -282,7 +288,7 @@ class TestGetAiTaskConfigSchema:
         [
             pytest.param(server, id=server)
             for server in AI_TASK_SCHEMA_PROVIDERS
-            if server not in (SERVER_TYPE_LOCALAI,)
+            if server not in (SERVER_TYPE_GOOGLE_GEMINI, SERVER_TYPE_LOCALAI)
         ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
@@ -294,6 +300,11 @@ class TestGetAiTaskConfigSchema:
     def test_generic_returns_empty(self) -> None:
         """Test generic server type returns an empty dict."""
         result = _get_ai_task_config_schema(SERVER_TYPE_GENERIC)
+        assert result == {}
+
+    def test_google_gemini_returns_empty(self) -> None:
+        """Test google_gemini server type returns an empty dict."""
+        result = _get_ai_task_config_schema(SERVER_TYPE_GOOGLE_GEMINI)
         assert result == {}
 
     def test_localai_returns_empty(self) -> None:

@@ -143,6 +143,7 @@ async def test_request_body_parameters_are_merged_after_server_specific_args(
     entity._run_agent_loop = AsyncMock()
 
     chat_log = MagicMock(spec=conversation.ChatLog)
+    chat_log.conversation_id = "test_conversation_id"
     chat_log.content = []
     chat_log.llm_api = None
 
