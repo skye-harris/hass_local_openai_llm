@@ -19,10 +19,12 @@ from custom_components.local_openai.const import (
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
     CONF_LLAMACPP_CONFIG,
+    CONF_LOCALAI_CONFIG,
     CONF_VLLM_CONFIG,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_LLAMACPP,
+    SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
 )
 
@@ -72,6 +74,7 @@ class TestGetServerTypeConfigKey:
             pytest.param(SERVER_TYPE_LLAMACPP, CONF_LLAMACPP_CONFIG, id="llamacpp"),
             pytest.param(SERVER_TYPE_VLLM, CONF_VLLM_CONFIG, id="vllm"),
             pytest.param(SERVER_TYPE_DEEPSEEK, CONF_DEEPSEEK_CONFIG, id="deepseek"),
+            pytest.param(SERVER_TYPE_LOCALAI, CONF_LOCALAI_CONFIG, id="localai"),
             pytest.param(
                 "unknown_type", CONF_GENERIC_CONFIG, id="unknown_defaults_to_generic"
             ),
@@ -88,10 +91,10 @@ class TestGetServerTypeConfigKey:
 
 
 class TestServerTypeCountMatchesEntityFiles:
-    """Ensure SERVER_TYPE_TO_CONFIG_KEY has an entry for each entity file."""
+    """Ensure SERVER_TYPE_TO_CONFIG_KEY has an entry for each entity file plus generic."""
 
     def test_server_type_count_matches_entity_py_files(self) -> None:
-        """Assert the number of server types matches the number of entity py files (excluding __init__.py)."""
+        """Assert the number of server types equals entity py files plus the generic fallback."""
         import os
         from pathlib import Path
 
@@ -108,9 +111,10 @@ class TestServerTypeCountMatchesEntityFiles:
             for file in os.listdir(entities_dir)
             if file.endswith(".py") and file != "__init__.py"
         ]
-        assert len(SERVER_TYPE_TO_CONFIG_KEY) == len(entity_files), (
+        assert len(SERVER_TYPE_TO_CONFIG_KEY) == len(entity_files) + 1, (
             f"SERVER_TYPE_TO_CONFIG_KEY has {len(SERVER_TYPE_TO_CONFIG_KEY)} entries but "
-            f"entities/ has {len(entity_files)} py files (excluding __init__.py)"
+            f"entities/ has {len(entity_files)} py files (excluding __init__.py); "
+            "expected entity count + 1 for the generic fallback"
         )
 
 
@@ -119,7 +123,11 @@ class TestGetConversationConfigSchema:
 
     @pytest.mark.parametrize(
         "server_type",
-        [pytest.param(server, id=server) for server in CONVERSATION_SCHEMA_PROVIDERS],
+        [
+            pytest.param(server, id=server)
+            for server in CONVERSATION_SCHEMA_PROVIDERS
+            if server not in (SERVER_TYPE_LOCALAI,)
+        ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
         """Test each provider server type returns a non-empty schema dict."""
@@ -132,13 +140,22 @@ class TestGetConversationConfigSchema:
         result = _get_conversation_config_schema(SERVER_TYPE_GENERIC)
         assert result == {}
 
+    def test_localai_returns_empty(self) -> None:
+        """Test localai server type returns an empty dict."""
+        result = _get_conversation_config_schema(SERVER_TYPE_LOCALAI)
+        assert result == {}
+
 
 class TestGetAiTaskConfigSchema:
     """Tests for _get_ai_task_config_schema."""
 
     @pytest.mark.parametrize(
         "server_type",
-        [pytest.param(server, id=server) for server in AI_TASK_SCHEMA_PROVIDERS],
+        [
+            pytest.param(server, id=server)
+            for server in AI_TASK_SCHEMA_PROVIDERS
+            if server not in (SERVER_TYPE_LOCALAI,)
+        ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
         """Test each provider server type returns a non-empty schema dict."""
@@ -149,6 +166,11 @@ class TestGetAiTaskConfigSchema:
     def test_generic_returns_empty(self) -> None:
         """Test generic server type returns an empty dict."""
         result = _get_ai_task_config_schema(SERVER_TYPE_GENERIC)
+        assert result == {}
+
+    def test_localai_returns_empty(self) -> None:
+        """Test localai server type returns an empty dict."""
+        result = _get_ai_task_config_schema(SERVER_TYPE_LOCALAI)
         assert result == {}
 
 

@@ -8,6 +8,16 @@ from custom_components.local_openai.ai_task import LocalAITaskEntity
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
 
+def get_conversation_config_schema() -> dict:
+    """Return conversation config schema fields for LocalAI servers."""
+    return {}
+
+
+def get_ai_task_config_schema() -> dict:
+    """Return AI task config schema fields for LocalAI servers."""
+    return {}
+
+
 def _to_metadata_value(value: Any) -> str:
     """
     LocalAI's per-request metadata field is string-only.
