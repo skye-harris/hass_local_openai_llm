@@ -86,6 +86,11 @@ After installation, configure the integration through Home Assistant's UI:
     - Values support Jinja2 templates, in order to provide non-string and more complex data structures
     - Arguments differ per model, and not all models make use of user-provided arguments
     - See your models documentation for what arguments are available to be used
+- Request Body Parameters allow you to provide additional top-level parameters to the chat completion request body
+    - Parameters are supplied as key/value pairs and merged into the request body
+    - Values support Jinja2 templates, in order to provide non-string and more complex data structures
+    - Internally managed parameters, and parameters with dedicated configuration options, cannot be configured here
+    - Provider support differs; see your provider and model documentation for available parameters
 - AI Task entities can be configured for Text and/or Image generation capabilities
     - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and requires support from your chosen image generation server
     - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)

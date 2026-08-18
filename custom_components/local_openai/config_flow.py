@@ -32,6 +32,12 @@ from homeassistant.helpers.selector import (
 from openai import AsyncOpenAI, OpenAIError
 
 from custom_components.local_openai.entities.deepseek import (
+    REQUEST_BODY_CONFIGURABLE_PARAMETERS as DEEPSEEK_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+)
+from custom_components.local_openai.entities.deepseek import (
+    REQUEST_BODY_RESERVED_PARAMETERS as DEEPSEEK_REQUEST_BODY_RESERVED_PARAMETERS,
+)
+from custom_components.local_openai.entities.deepseek import (
     get_conversation_config_schema as _deepseek_conversation_schema,
 )
 from custom_components.local_openai.entities.google_gemini import (
@@ -39,6 +45,12 @@ from custom_components.local_openai.entities.google_gemini import (
 )
 from custom_components.local_openai.entities.google_gemini import (
     get_conversation_config_schema as _google_gemini_conversation_schema,
+)
+from custom_components.local_openai.entities.llama_cpp import (
+    REQUEST_BODY_CONFIGURABLE_PARAMETERS as LLAMACPP_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+)
+from custom_components.local_openai.entities.llama_cpp import (
+    REQUEST_BODY_RESERVED_PARAMETERS as LLAMACPP_REQUEST_BODY_RESERVED_PARAMETERS,
 )
 from custom_components.local_openai.entities.llama_cpp import (
     get_ai_task_config_schema as _llama_cpp_ai_task_schema,
@@ -54,6 +66,12 @@ from custom_components.local_openai.entities.localai import (
 )
 from custom_components.local_openai.entities.localai import (
     get_conversation_config_schema as _localai_conversation_schema,
+)
+from custom_components.local_openai.entities.vllm import (
+    REQUEST_BODY_CONFIGURABLE_PARAMETERS as VLLM_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+)
+from custom_components.local_openai.entities.vllm import (
+    REQUEST_BODY_RESERVED_PARAMETERS as VLLM_REQUEST_BODY_RESERVED_PARAMETERS,
 )
 from custom_components.local_openai.entities.vllm import (
     get_ai_task_config_schema as _vllm_ai_task_schema,
@@ -78,6 +96,8 @@ from .const import (
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_PASS_SESSION_ID,
+    CONF_REQUEST_BODY_OPTS,
+    CONF_REQUEST_BODY_PARAMETERS,
     CONF_SERVER_NAME,
     CONF_SERVER_OPTIONS,
     CONF_SERVER_TYPE,
@@ -109,6 +129,47 @@ from .const import (
     SERVER_TYPE_VLLM,
 )
 from .weaviate import WeaviateClient, WeaviateError
+
+REQUEST_BODY_PARAMETER_RESERVED = "reserved_request_body_parameter"
+REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE = (
+    "request_body_parameter_already_configurable"
+)
+
+REQUEST_BODY_RESERVED_PARAMETERS = frozenset(
+    {
+        "messages",
+        "tools",
+        "tool_choice",
+        "stream",
+        "stream_options",
+        "response_format",
+        "metadata",
+        "extra_body",
+        "extra_headers",
+        "extra_query",
+    },
+)
+
+REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset(
+    {
+        CONF_CHAT_TEMPLATE_KWARGS,
+        CONF_MODEL,
+        CONF_PARALLEL_TOOL_CALLS,
+        CONF_TEMPERATURE,
+    },
+)
+
+REQUEST_BODY_SERVER_TYPE_RESERVED_PARAMETERS = {
+    SERVER_TYPE_DEEPSEEK: DEEPSEEK_REQUEST_BODY_RESERVED_PARAMETERS,
+    SERVER_TYPE_LLAMACPP: LLAMACPP_REQUEST_BODY_RESERVED_PARAMETERS,
+    SERVER_TYPE_VLLM: VLLM_REQUEST_BODY_RESERVED_PARAMETERS,
+}
+
+REQUEST_BODY_SERVER_TYPE_CONFIGURABLE_PARAMETERS = {
+    SERVER_TYPE_DEEPSEEK: DEEPSEEK_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+    SERVER_TYPE_LLAMACPP: LLAMACPP_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+    SERVER_TYPE_VLLM: VLLM_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
+}
 
 
 async def prepare_weaviate_class(
@@ -143,6 +204,67 @@ async def prepare_weaviate_class(
 def options_to_selections_dict(opts: dict) -> list[SelectOptionDict]:
     """Convert a dict to a list of select options."""
     return [SelectOptionDict(value=key, label=opts[key]) for key in opts]
+
+
+def _key_value_template_selector() -> ObjectSelector:
+    """Return a key/value selector with templated values."""
+    return ObjectSelector(
+        config={
+            "multiple": True,
+            "fields": {
+                "Key": {
+                    "selector": {"text": None},
+                    "required": True,
+                },
+                "Value": {
+                    "selector": {"template": None},
+                    "required": True,
+                },
+            },
+        },
+    )
+
+
+def _key_value_template_section(field: str) -> vol.Schema:
+    """Return a section schema for key/value template pairs."""
+    return vol.Schema(
+        schema={
+            vol.Required(
+                field,
+                default=[],
+            ): _key_value_template_selector(),
+        },
+    )
+
+
+def _get_request_body_parameter_error(
+    user_input: dict[str, Any],
+    server_type: str,
+) -> tuple[str, str] | None:
+    """Return the first invalid request body parameter error, if any."""
+    request_body_opts = user_input.get(CONF_REQUEST_BODY_OPTS, {})
+    request_body_parameters = request_body_opts.get(CONF_REQUEST_BODY_PARAMETERS, [])
+
+    reserved_parameters = (
+        REQUEST_BODY_RESERVED_PARAMETERS
+        | REQUEST_BODY_SERVER_TYPE_RESERVED_PARAMETERS.get(server_type, frozenset())
+    )
+    configurable_parameters = (
+        REQUEST_BODY_CONFIGURABLE_PARAMETERS
+        | REQUEST_BODY_SERVER_TYPE_CONFIGURABLE_PARAMETERS.get(
+            server_type,
+            frozenset(),
+        )
+    )
+
+    for parameter in request_body_parameters:
+        key = parameter.get("Key", "").strip()
+        if key in reserved_parameters:
+            return REQUEST_BODY_PARAMETER_RESERVED, key
+        if key in configurable_parameters:
+            return REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE, key
+
+    return None
 
 
 CONVERSATION_SCHEMA_PROVIDERS = {
@@ -476,28 +598,11 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             ),
             vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
                 options=SectionConfig(collapsed=True),
-                schema=vol.Schema(
-                    schema={
-                        vol.Required(
-                            CONF_CHAT_TEMPLATE_KWARGS,
-                            default=[],
-                        ): ObjectSelector(
-                            config={
-                                "multiple": True,
-                                "fields": {
-                                    "Key": {
-                                        "selector": {"text": None},
-                                        "required": True,
-                                    },
-                                    "Value": {
-                                        "selector": {"template": None},
-                                        "required": True,
-                                    },
-                                },
-                            },
-                        ),
-                    },
-                ),
+                schema=_key_value_template_section(CONF_CHAT_TEMPLATE_KWARGS),
+            ),
+            vol.Required(CONF_REQUEST_BODY_OPTS): section(
+                options=SectionConfig(collapsed=True),
+                schema=_key_value_template_section(CONF_REQUEST_BODY_PARAMETERS),
             ),
         }
 
@@ -568,35 +673,46 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         errors = {}
+        description_placeholders = {}
+        server_type = self._get_entry().data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
 
         if user_input is not None:
-            if not user_input.get(CONF_LLM_HASS_API):
-                user_input.pop(CONF_LLM_HASS_API, None)
-            model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
-
-            try:
-                weaviate_opts = {
-                    **self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}),
-                    **user_input.get(CONF_WEAVIATE_OPTIONS, {}),
-                }
-                await prepare_weaviate_class(
-                    hass=self.hass,
-                    weaviate_opts=weaviate_opts,
-                )
-            except WeaviateError as err:
-                LOGGER.exception(f"Unexpected exception: {err}")
-                errors["base"] = "cannot_connect_weaviate"
+            if parameter_error := _get_request_body_parameter_error(
+                user_input,
+                server_type,
+            ):
+                errors["base"], description_placeholders["key"] = parameter_error
             else:
-                server_name = self._get_entry().title
-                return self.async_create_entry(
-                    title=f"{server_name}: {model_name} AI Agent",
-                    data=user_input,
+                if not user_input.get(CONF_LLM_HASS_API):
+                    user_input.pop(CONF_LLM_HASS_API, None)
+                model_name = self.strip_model_pathing(
+                    user_input.get(CONF_MODEL, "Local"),
                 )
+
+                try:
+                    weaviate_opts = {
+                        **self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}),
+                        **user_input.get(CONF_WEAVIATE_OPTIONS, {}),
+                    }
+                    await prepare_weaviate_class(
+                        hass=self.hass,
+                        weaviate_opts=weaviate_opts,
+                    )
+                except WeaviateError as err:
+                    LOGGER.exception(f"Unexpected exception: {err}")
+                    errors["base"] = "cannot_connect_weaviate"
+                else:
+                    server_name = self._get_entry().title
+                    return self.async_create_entry(
+                        title=f"{server_name}: {model_name} AI Agent",
+                        data=user_input,
+                    )
 
         return self.async_show_form(
             step_id="user",
             data_schema=await self.get_schema(),
             errors=errors,
+            description_placeholders=description_placeholders,
         )
 
     async def async_step_reconfigure(
@@ -605,29 +721,37 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         errors = {}
+        description_placeholders = {}
+        server_type = self._get_entry().data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
 
         if user_input is not None:
-            if not user_input.get(CONF_LLM_HASS_API):
-                user_input.pop(CONF_LLM_HASS_API, None)
-
-            try:
-                weaviate_opts = {
-                    **self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}),
-                    **user_input.get(CONF_WEAVIATE_OPTIONS, {}),
-                }
-                await prepare_weaviate_class(
-                    hass=self.hass,
-                    weaviate_opts=weaviate_opts,
-                )
-            except WeaviateError as err:
-                LOGGER.exception(f"Unexpected exception: {err}")
-                errors["base"] = "cannot_connect_weaviate"
+            if parameter_error := _get_request_body_parameter_error(
+                user_input,
+                server_type,
+            ):
+                errors["base"], description_placeholders["key"] = parameter_error
             else:
-                return self.async_update_and_abort(
-                    self._get_entry(),
-                    self._get_reconfigure_subentry(),
-                    data=user_input,
-                )
+                if not user_input.get(CONF_LLM_HASS_API):
+                    user_input.pop(CONF_LLM_HASS_API, None)
+
+                try:
+                    weaviate_opts = {
+                        **self._get_entry().data.get(CONF_WEAVIATE_OPTIONS, {}),
+                        **user_input.get(CONF_WEAVIATE_OPTIONS, {}),
+                    }
+                    await prepare_weaviate_class(
+                        hass=self.hass,
+                        weaviate_opts=weaviate_opts,
+                    )
+                except WeaviateError as err:
+                    LOGGER.exception(f"Unexpected exception: {err}")
+                    errors["base"] = "cannot_connect_weaviate"
+                else:
+                    return self.async_update_and_abort(
+                        self._get_entry(),
+                        self._get_reconfigure_subentry(),
+                        data=user_input,
+                    )
 
         options = self._get_reconfigure_subentry().data.copy()
 
@@ -644,6 +768,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             step_id="reconfigure",
             data_schema=schema,
             errors=errors,
+            description_placeholders=description_placeholders,
         )
 
 
@@ -711,28 +836,11 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
             ),
             vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(
                 options=SectionConfig(collapsed=True),
-                schema=vol.Schema(
-                    schema={
-                        vol.Required(
-                            CONF_CHAT_TEMPLATE_KWARGS,
-                            default=[],
-                        ): ObjectSelector(
-                            config={
-                                "multiple": True,
-                                "fields": {
-                                    "Key": {
-                                        "selector": {"text": None},
-                                        "required": True,
-                                    },
-                                    "Value": {
-                                        "selector": {"template": None},
-                                        "required": True,
-                                    },
-                                },
-                            },
-                        ),
-                    },
-                ),
+                schema=_key_value_template_section(CONF_CHAT_TEMPLATE_KWARGS),
+            ),
+            vol.Required(CONF_REQUEST_BODY_OPTS): section(
+                options=SectionConfig(collapsed=True),
+                schema=_key_value_template_section(CONF_REQUEST_BODY_PARAMETERS),
             ),
         }
 
@@ -753,16 +861,33 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
         user_input: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
+        errors = {}
+        description_placeholders = {}
+        server_type = self._get_entry().data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
+
         if user_input is not None:
-            model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
-            server_name = self._get_entry().title
-            return self.async_create_entry(
-                title=f"{server_name}: {model_name} AI Task",
-                data=user_input,
-            )
+            if parameter_error := _get_request_body_parameter_error(
+                user_input,
+                server_type,
+            ):
+                errors["base"], description_placeholders["key"] = parameter_error
+            else:
+                model_name = self.strip_model_pathing(
+                    user_input.get(CONF_MODEL, "Local"),
+                )
+                server_name = self._get_entry().title
+                return self.async_create_entry(
+                    title=f"{server_name}: {model_name} AI Task",
+                    data=user_input,
+                )
 
         schema = await self.get_schema()
-        return self.async_show_form(step_id="user", data_schema=schema)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=description_placeholders,
+        )
 
     async def async_step_reconfigure(
         self,
@@ -770,12 +895,21 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
     ) -> SubentryFlowResult:
         """User flow to create a sensor subentry."""
         errors = {}
+        description_placeholders = {}
+        server_type = self._get_entry().data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
+
         if user_input is not None:
-            return self.async_update_and_abort(
-                entry=self._get_entry(),
-                subentry=self._get_reconfigure_subentry(),
-                data=user_input,
-            )
+            if parameter_error := _get_request_body_parameter_error(
+                user_input,
+                server_type,
+            ):
+                errors["base"], description_placeholders["key"] = parameter_error
+            else:
+                return self.async_update_and_abort(
+                    entry=self._get_entry(),
+                    subentry=self._get_reconfigure_subentry(),
+                    data=user_input,
+                )
 
         options = self._get_reconfigure_subentry().data.copy()
         schema = self.add_suggested_values_to_schema(await self.get_schema(), options)
@@ -784,4 +918,5 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
             step_id="reconfigure",
             data_schema=schema,
             errors=errors,
+            description_placeholders=description_placeholders,
         )

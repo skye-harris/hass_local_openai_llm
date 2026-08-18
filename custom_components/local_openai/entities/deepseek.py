@@ -28,6 +28,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+REQUEST_BODY_RESERVED_PARAMETERS = frozenset({"thinking"})
+REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset({"reasoning_effort"})
+
 
 def _get_deepseek_schema() -> dict:
     """DeepSeek server configuration schema."""
