@@ -161,6 +161,30 @@ as this is where LocalAI reads chat template variables from. Values are coerced 
 strings, per LocalAI's metadata convention.
 
 See [LocalAI model configuration](https://localai.io/advanced/model-configuration/index.html#custom-chat_template_kwargs).
+---
+
+### vLLM Configuration
+
+When the server type is set to *vLLM*, both conversation and AI task agents show a **vLLM Configuration** section with the following options.
+
+#### Thinking token budget
+
+Caps how many tokens the model may spend on reasoning, via the `thinking_token_budget` request parameter. Once the budget is reached, vLLM forces the reasoning block to be closed and the model proceeds to its answer.
+
+- **Empty** (default) — no budget is sent, and the server default applies.
+- **0** — the reasoning block is closed immediately, so the model answers without thinking.
+- **Any higher value** — limits reasoning to that number of tokens.
+
+_Note: This only limits the length of thinking, it does not enable or disable it. Whether the model thinks at all is controlled by the model's chat template, typically via an `enable_thinking` Chat Template Argument._
+
+Requires a reasoning model and a vLLM version that supports the parameter. Refer to the [vLLM reasoning outputs documentation](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) for further information.
+
+When the budget is reached the reasoning block is closed with the parser's end string, which can leave the model cut off mid-thought. A wrap-up message can be added there to transition into the answer more gracefully, though this is configured on the vLLM server rather than per request:
+
+```
+--reasoning-parser qwen3
+--reasoning-config '{"reasoning_start_str": "<think>", "reasoning_end_str": "\n\nTime to wrap up my reasoning and answer.</think>"}'
+```
 
 ---
 

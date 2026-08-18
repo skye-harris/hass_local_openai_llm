@@ -30,6 +30,7 @@ from .const import (
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
+    SERVER_TYPE_VLLM,
 )
 from .entity import LocalAiEntity
 
@@ -48,11 +49,13 @@ def _get_ai_task_entity(
         from .entities.deepseek import DeepSeekAITaskEntity  # noqa: PLC0415
         from .entities.llama_cpp import LlamaCppAITaskEntity  # noqa: PLC0415
         from .entities.localai import LocalAIServerAITaskEntity  # noqa: PLC0415
+        from .entities.vllm import VllmAITaskEntity  # noqa: PLC0415
 
         _get_ai_task_entity.entity_map = {
             SERVER_TYPE_DEEPSEEK: DeepSeekAITaskEntity,
             SERVER_TYPE_LLAMACPP: LlamaCppAITaskEntity,
             SERVER_TYPE_LOCALAI: LocalAIServerAITaskEntity,
+            SERVER_TYPE_VLLM: VllmAITaskEntity,
         }
 
     return _get_ai_task_entity.entity_map.get(server_type, LocalAITaskEntity)

@@ -43,6 +43,12 @@ from custom_components.local_openai.entities.llama_cpp import (
 from custom_components.local_openai.entities.llama_cpp import (
     get_model_alias as _llama_cpp_model_alias,
 )
+from custom_components.local_openai.entities.vllm import (
+    get_ai_task_config_schema as _vllm_ai_task_schema,
+)
+from custom_components.local_openai.entities.vllm import (
+    get_conversation_config_schema as _vllm_conversation_schema,
+)
 
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
@@ -78,6 +84,7 @@ from .const import (
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
     LOGGER,
+    PLACEHOLDER_API_KEY,
     RECOMMENDED_CONVERSATION_OPTIONS,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
@@ -122,32 +129,43 @@ def options_to_selections_dict(opts: dict) -> list[SelectOptionDict]:
     return [SelectOptionDict(value=key, label=opts[key]) for key in opts]
 
 
+CONVERSATION_SCHEMA_PROVIDERS = {
+    SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+    SERVER_TYPE_LLAMACPP: _llama_cpp_conversation_schema,
+    SERVER_TYPE_VLLM: _vllm_conversation_schema,
+}
+
+
 def _get_conversation_config_schema(server_type: str) -> dict:
     """Get the server-specific config fields for Conversation Agent entities."""
-    provider = {
-        SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
-        SERVER_TYPE_LLAMACPP: _llama_cpp_conversation_schema,
-    }.get(server_type)
+    provider = CONVERSATION_SCHEMA_PROVIDERS.get(server_type)
     return provider() if provider else {}
+
+
+AI_TASK_SCHEMA_PROVIDERS = {
+    SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+    SERVER_TYPE_LLAMACPP: _llama_cpp_ai_task_schema,
+    SERVER_TYPE_VLLM: _vllm_ai_task_schema,
+}
 
 
 def _get_ai_task_config_schema(server_type: str) -> dict:
     """Get the server-specific config fields for AI Task entities."""
-    provider = {
-        SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
-        SERVER_TYPE_LLAMACPP: _llama_cpp_ai_task_schema,
-    }.get(server_type)
+    provider = AI_TASK_SCHEMA_PROVIDERS.get(server_type)
     return provider() if provider else {}
+
+
+SERVER_TYPE_TO_CONFIG_KEY = {
+    SERVER_TYPE_GENERIC: CONF_GENERIC_CONFIG,
+    SERVER_TYPE_LLAMACPP: CONF_LLAMACPP_CONFIG,
+    SERVER_TYPE_VLLM: CONF_VLLM_CONFIG,
+    SERVER_TYPE_DEEPSEEK: CONF_DEEPSEEK_CONFIG,
+}
 
 
 def _get_server_type_config_key(server_type: str) -> str:
     """Return the config key for the given server type."""
-    return {
-        SERVER_TYPE_GENERIC: CONF_GENERIC_CONFIG,
-        SERVER_TYPE_LLAMACPP: CONF_LLAMACPP_CONFIG,
-        SERVER_TYPE_VLLM: CONF_VLLM_CONFIG,
-        SERVER_TYPE_DEEPSEEK: CONF_DEEPSEEK_CONFIG,
-    }.get(server_type, CONF_GENERIC_CONFIG)
+    return SERVER_TYPE_TO_CONFIG_KEY.get(server_type, CONF_GENERIC_CONFIG)
 
 
 def _resolve_model_name(server_type: str, model: object) -> str:
@@ -245,7 +263,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 client = AsyncOpenAI(
                     base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY, ""),
+                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
                     http_client=get_async_client(self.hass),
                 )
 
@@ -295,7 +313,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 client = AsyncOpenAI(
                     base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY, ""),
+                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
                     http_client=get_async_client(self.hass),
                 )
 

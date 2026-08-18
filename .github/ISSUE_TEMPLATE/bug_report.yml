@@ -9,6 +9,8 @@ body:
       options:
         - label: I have updated to the latest available Local OpenAI LLM version, [see the latest version here](https://github.com/skye-harris/hass_local_openai_llm/releases/latest).
           required: true
+        - label: I have written this issue myself, and have not used AI to generate it for me.
+          required: true
   - type: markdown
     attributes:
       value: |
@@ -31,11 +33,6 @@ body:
       placeholder: core-
       description: >
         Can be found in: [Settings -> About](https://my.home-assistant.io/redirect/info/).
-  - type: input
-    validations:
-      required: true
-    attributes:
-      label: What version of Local OpenAI LLM has the issue?
   - type: input
     validations:
       required: true

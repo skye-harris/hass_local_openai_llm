@@ -23,3 +23,9 @@ warn_unreachable = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+addopts = [
+    "--strict-markers",
+    "--cov=custom_components/local_openai",
+    "--cov-report=term-missing",
+    "-p", "no:pytest_socket",
+]
