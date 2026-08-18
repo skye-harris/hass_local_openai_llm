@@ -34,6 +34,18 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+REQUEST_BODY_RESERVED_PARAMETERS = frozenset()
+REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset(
+    {
+        "id_slot",
+        "top_p",
+        "top_k",
+        "min_p",
+        "repeat_penalty",
+        "presence_penalty",
+    },
+)
+
 
 def get_model_alias(model: dict | object) -> str | None:
     """
