@@ -2,15 +2,16 @@
 
 **Allows use of generic OpenAI-compatible LLM services, such as (but not limited to):**
 
+- DeepSeek
+- Google (Gemini)
 - llama.cpp
-- vLLM
 - LM Studio
+- LocalAI
 - Ollama
 - OpenRouter
 - Requesty
 - Scaleway
-- DeepSeek
-- LocalAI
+- vLLM
 
 **This integration has been forked from Home Assistants OpenRouter integration, with the following changes:**
 
