@@ -9,6 +9,8 @@ from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT, MATCH_ALL
 from homeassistant.helpers import llm
 
 from .const import (
+    CONF_CONVERSATION_MODE,
+    CONF_CONVERSATION_MODE_DEFAULT,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_SERVER_TYPE,
     DOMAIN,
@@ -17,11 +19,8 @@ from .const import (
     SERVER_TYPE_GOOGLE_GEMINI,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
-    CONF_CONVERSATION_MODE,
-    CONF_CONVERSATION_MODE_DEFAULT,
     SERVER_TYPE_VLLM,
 )
-
 from .entity import LocalAiEntity
 
 if TYPE_CHECKING:
@@ -104,7 +103,9 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
-        conversation_mode = options.get(CONF_CONVERSATION_MODE, CONF_CONVERSATION_MODE_DEFAULT)
+        conversation_mode = options.get(
+            CONF_CONVERSATION_MODE, CONF_CONVERSATION_MODE_DEFAULT
+        )
 
         hass_apis = [api.id for api in llm.async_get_apis(self.hass)]
 
@@ -129,7 +130,9 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         )
 
         # Set continue_conversation flag based on conversation_mode setting
-        chat_log_result = conversation.async_get_result_from_chat_log(user_input, chat_log)
+        chat_log_result = conversation.async_get_result_from_chat_log(
+            user_input, chat_log
+        )
         if conversation_mode:
             chat_log_result.continue_conversation = True
 
