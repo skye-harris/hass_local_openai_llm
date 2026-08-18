@@ -46,6 +46,7 @@ SERVER_TYPE_DEEPSEEK = "deepseek"
 SERVER_TYPE_LOCALAI = "localai"
 SERVER_TYPE_GOOGLE_GEMINI = "google_gemini"
 
+
 SERVER_TYPE_OPTIONS = {
     SERVER_TYPE_GENERIC: "Generic OpenAI-Compatible",
     SERVER_TYPE_LLAMACPP: "llama.cpp",
