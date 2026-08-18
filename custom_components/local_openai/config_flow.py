@@ -55,6 +55,12 @@ from custom_components.local_openai.entities.llama_cpp import (
 from custom_components.local_openai.entities.llama_cpp import (
     get_model_alias as _llama_cpp_model_alias,
 )
+from custom_components.local_openai.entities.localai import (
+    get_ai_task_config_schema as _localai_ai_task_schema,
+)
+from custom_components.local_openai.entities.localai import (
+    get_conversation_config_schema as _localai_conversation_schema,
+)
 from custom_components.local_openai.entities.vllm import (
     REQUEST_BODY_CONFIGURABLE_PARAMETERS as VLLM_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
 )
@@ -81,6 +87,7 @@ from .const import (
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
     CONF_LLAMACPP_CONFIG,
+    CONF_LOCALAI_CONFIG,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_PASS_SESSION_ID,
@@ -111,6 +118,7 @@ from .const import (
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_LLAMACPP,
+    SERVER_TYPE_LOCALAI,
     SERVER_TYPE_OPTIONS,
     SERVER_TYPE_VLLM,
 )
@@ -256,6 +264,7 @@ def _get_request_body_parameter_error(
 CONVERSATION_SCHEMA_PROVIDERS = {
     SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
     SERVER_TYPE_LLAMACPP: _llama_cpp_conversation_schema,
+    SERVER_TYPE_LOCALAI: _localai_conversation_schema,
     SERVER_TYPE_VLLM: _vllm_conversation_schema,
 }
 
@@ -269,6 +278,7 @@ def _get_conversation_config_schema(server_type: str) -> dict:
 AI_TASK_SCHEMA_PROVIDERS = {
     SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
     SERVER_TYPE_LLAMACPP: _llama_cpp_ai_task_schema,
+    SERVER_TYPE_LOCALAI: _localai_ai_task_schema,
     SERVER_TYPE_VLLM: _vllm_ai_task_schema,
 }
 
@@ -282,6 +292,7 @@ def _get_ai_task_config_schema(server_type: str) -> dict:
 SERVER_TYPE_TO_CONFIG_KEY = {
     SERVER_TYPE_GENERIC: CONF_GENERIC_CONFIG,
     SERVER_TYPE_LLAMACPP: CONF_LLAMACPP_CONFIG,
+    SERVER_TYPE_LOCALAI: CONF_LOCALAI_CONFIG,
     SERVER_TYPE_VLLM: CONF_VLLM_CONFIG,
     SERVER_TYPE_DEEPSEEK: CONF_DEEPSEEK_CONFIG,
 }

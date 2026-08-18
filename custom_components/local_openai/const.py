@@ -39,6 +39,7 @@ CONF_VLLM_CONFIG = "vllm_config"
 CONF_VLLM_THINKING_TOKEN_BUDGET = "vllm_thinking_token_budget"  # noqa: S105
 CONF_DEEPSEEK_CONFIG = "deepseek_config"
 CONF_DEEPSEEK_REASONING_EFFORT = "deepseek_reasoning_effort"
+CONF_LOCALAI_CONFIG = "localai_config"
 
 SERVER_TYPE_GENERIC = "generic"
 SERVER_TYPE_LLAMACPP = "llama_cpp"
