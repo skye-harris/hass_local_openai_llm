@@ -14,6 +14,7 @@ from .const import (
     DOMAIN,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
+    SERVER_TYPE_GOOGLE_GEMINI,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
@@ -33,12 +34,16 @@ def _get_conversation_entity(
 ) -> type[LocalAiConversationEntity]:
     if getattr(_get_conversation_entity, "entity_map", None) is None:
         from .entities.deepseek import DeepSeekConversationEntity  # noqa: PLC0415
+        from .entities.google_gemini import (  # noqa: PLC0415
+            GoogleGeminiConversationEntity,
+        )
         from .entities.llama_cpp import LlamaCppConversationEntity  # noqa: PLC0415
         from .entities.localai import LocalAIServerConversationEntity  # noqa: PLC0415
         from .entities.vllm import VllmConversationEntity  # noqa: PLC0415
 
         _get_conversation_entity.entity_map = {
             SERVER_TYPE_DEEPSEEK: DeepSeekConversationEntity,
+            SERVER_TYPE_GOOGLE_GEMINI: GoogleGeminiConversationEntity,
             SERVER_TYPE_LLAMACPP: LlamaCppConversationEntity,
             SERVER_TYPE_LOCALAI: LocalAIServerConversationEntity,
             SERVER_TYPE_VLLM: VllmConversationEntity,

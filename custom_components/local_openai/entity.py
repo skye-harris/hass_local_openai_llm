@@ -67,7 +67,11 @@ if TYPE_CHECKING:
     import voluptuous as vol
     from homeassistant.config_entries import ConfigSubentry
     from openai._streaming import AsyncStream
-    from openai.types.chat import ChatCompletionChunk, ChatCompletionMessageParam
+    from openai.types.chat import (
+        ChatCompletionChunk,
+        ChatCompletionMessageParam,
+        ChatCompletionMessageToolCall,
+    )
     from openai.types.shared_params.response_format_json_schema import JSONSchema
 
     from . import LocalAiConfigEntry
@@ -248,6 +252,7 @@ class LocalAiEntity(Entity):
     async def _convert_content_to_chat_message(
         self,
         content: conversation.Content,
+        conversation_id: str | None = None,
     ) -> ChatCompletionMessageParam | None:
         if isinstance(content, conversation.ToolResultContent):
 
@@ -446,10 +451,60 @@ class LocalAiEntity(Entity):
                     ]
         return messages, tools
 
+    def _accumulate_tool_call(
+        self,
+        pending_tool_calls: dict,
+        tool_call_id: str | None,
+        tool_call_name: str | None,
+        tool_call: ChatCompletionMessageToolCall,
+        conversation_id: str | None = None,
+    ) -> tuple[str | None, str | None]:
+        """
+        Accumulate a tool call delta into pending_tool_calls.
+
+        Returns the (possibly updated) tool_call_id and tool_call_name.
+        """
+        tool_call_id = tool_call.id or tool_call_id
+
+        tool_call_name = (
+            tool_call.function.name
+            if tool_call.function.name and tool_call.function.name != tool_call_name
+            else tool_call_name
+        )
+        tool_key = tool_call_id + tool_call_name
+
+        if tool_key not in pending_tool_calls:
+            pending_tool_calls[tool_key] = {
+                "id": tool_call_id,
+                "name": tool_call.function.name,
+                "args": tool_call.function.arguments or "",
+            }
+        else:
+            pending_tool_calls[tool_key]["args"] += tool_call.function.arguments or ""
+
+        self._on_tool_call_delta(
+            tool_call_id, tool_call_name, tool_call, conversation_id
+        )
+        return tool_call_id, tool_call_name
+
+    def _on_tool_call_delta(
+        self,
+        tool_call_id: str | None,
+        tool_call_name: str | None,
+        tool_call: ChatCompletionMessageToolCall,
+        conversation_id: str | None = None,
+    ) -> None:
+        """
+        Process tool call delta during streaming.
+
+        Subclasses can override to capture additional data from the raw chunk.
+        """
+
     async def _transform_stream(  # noqa: C901 todo: will break this up
         self,
         stream: AsyncStream[ChatCompletionChunk],
         strip_emojis: bool,
+        conversation_id: str | None = None,
     ) -> AsyncGenerator[conversation.AssistantContentDeltaDict, None]:
         """Transform a streaming OpenAI response to ChatLog format."""
         new_msg = True
@@ -469,7 +524,6 @@ class LocalAiEntity(Entity):
 
             choice = event.choices[0]
             delta = choice.delta
-            _LOGGER.debug(event)
 
             if new_msg:
                 # openvinotoolkit/model_server fails to provide a message role in its responses, so lets default to assistant if none is received
@@ -479,29 +533,13 @@ class LocalAiEntity(Entity):
             if (tool_calls := delta.tool_calls) is not None and tool_calls:
                 # I've never seen this contain more than a single tool call, but let's iterate over it just in case
                 for tool_call in tool_calls:
-                    # llama.cpp - only the initial tool call chunk has an ID, subsequent argument chunks do not
-                    # Ollama - parallel tool calls all share the same .index value (0)
-                    tool_call_id = tool_call.id or tool_call_id
-
-                    # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
-                    tool_call_name = (
-                        tool_call.function.name
-                        if tool_call.function.name
-                        and tool_call.function.name != tool_call_name
-                        else tool_call_name
+                    tool_call_id, tool_call_name = self._accumulate_tool_call(
+                        pending_tool_calls,
+                        tool_call_id,
+                        tool_call_name,
+                        tool_call,
+                        conversation_id,
                     )
-                    tool_key = tool_call_id + tool_call_name
-
-                    if tool_key not in pending_tool_calls:
-                        pending_tool_calls[tool_key] = {
-                            "id": tool_call_id,
-                            "name": tool_call.function.name,
-                            "args": tool_call.function.arguments or "",
-                        }
-                    else:
-                        pending_tool_calls[tool_key]["args"] += (
-                            tool_call.function.arguments or ""
-                        )
 
             # Handle reasoning_content field (used by reasoning models via OpenAI-compatible APIs)
             # Naming for this field varies. See https://github.com/vllm-project/vllm/issues/27755
@@ -661,7 +699,11 @@ class LocalAiEntity(Entity):
             [
                 m
                 for content in chat_log.content
-                if (m := await self._convert_content_to_chat_message(content))
+                if (
+                    m := await self._convert_content_to_chat_message(
+                        content, chat_log.conversation_id
+                    )
+                )
             ],
             max_message_history,
         )
@@ -679,14 +721,9 @@ class LocalAiEntity(Entity):
             model_args["tools"] = tools
         extra_body_args = self._get_extra_body_args(options)
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
-        if (
-            pass_session_id
-            and user_input
-            and hasattr(user_input, "conversation_id")
-            and user_input.conversation_id
-        ):
+        if pass_session_id:
             extra_body_args.setdefault("metadata", {})["session_id"] = (
-                user_input.conversation_id
+                chat_log.conversation_id
             )
 
         # Insert our extra_body args if we have any
@@ -708,7 +745,9 @@ class LocalAiEntity(Entity):
 
         client = self.entry.runtime_data
 
-        await self._run_agent_loop(client, model_args, chat_log, strip_emojis)
+        await self._run_agent_loop(
+            client, model_args, chat_log, strip_emojis, chat_log.conversation_id
+        )
 
     async def _run_agent_loop(
         self,
@@ -716,6 +755,7 @@ class LocalAiEntity(Entity):
         model_args: dict[str, Any],
         chat_log: conversation.ChatLog,
         strip_emojis: bool,
+        conversation_id: str | None = None,
     ) -> None:
         """Run the LLM agent loop with tool call iteration."""
         for iteration in range(MAX_TOOL_ITERATIONS):
@@ -740,9 +780,14 @@ class LocalAiEntity(Entity):
                             self._transform_stream(
                                 stream=result_stream,
                                 strip_emojis=strip_emojis,
+                                conversation_id=conversation_id,
                             ),
                         )
-                        if (msg := await self._convert_content_to_chat_message(content))
+                        if (
+                            msg := await self._convert_content_to_chat_message(
+                                content, conversation_id
+                            )
+                        )
                     ],
                 )
             except openai.OpenAIError as err:

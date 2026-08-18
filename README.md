@@ -2,15 +2,16 @@
 
 **Allows use of generic OpenAI-compatible LLM services, such as (but not limited to):**
 
+- DeepSeek
+- Google (Gemini)
 - llama.cpp
-- vLLM
 - LM Studio
+- LocalAI
 - Ollama
 - OpenRouter
 - Requesty
 - Scaleway
-- DeepSeek
-- LocalAI
+- vLLM
 
 **This integration has been forked from Home Assistants OpenRouter integration, with the following changes:**
 
@@ -96,6 +97,12 @@ After installation, configure the integration through Home Assistant's UI:
     - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
 
 ---
+
+### All Server Types
+
+**Custom HTTP Headers**
+
+Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or provider-specific headers.
 
 ### DeepSeek Cloud Configuration
 

@@ -40,6 +40,12 @@ from custom_components.local_openai.entities.deepseek import (
 from custom_components.local_openai.entities.deepseek import (
     get_conversation_config_schema as _deepseek_conversation_schema,
 )
+from custom_components.local_openai.entities.google_gemini import (
+    get_ai_task_config_schema as _google_gemini_ai_task_schema,
+)
+from custom_components.local_openai.entities.google_gemini import (
+    get_conversation_config_schema as _google_gemini_conversation_schema,
+)
 from custom_components.local_openai.entities.llama_cpp import (
     REQUEST_BODY_CONFIGURABLE_PARAMETERS as LLAMACPP_REQUEST_BODY_CONFIGURABLE_PARAMETERS,
 )
@@ -82,8 +88,10 @@ from .const import (
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHODS,
+    CONF_CUSTOM_HEADERS,
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
+    CONF_GOOGLE_GEMINI_CONFIG,
     CONF_LLAMACPP_CONFIG,
     CONF_LOCALAI_CONFIG,
     CONF_MAX_MESSAGE_HISTORY,
@@ -91,6 +99,7 @@ from .const import (
     CONF_PASS_SESSION_ID,
     CONF_REQUEST_BODY_OPTS,
     CONF_REQUEST_BODY_PARAMETERS,
+    CONF_SERVER_HEADERS,
     CONF_SERVER_NAME,
     CONF_SERVER_OPTIONS,
     CONF_SERVER_TYPE,
@@ -115,6 +124,7 @@ from .const import (
     RECOMMENDED_CONVERSATION_OPTIONS,
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
+    SERVER_TYPE_GOOGLE_GEMINI,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_OPTIONS,
@@ -259,8 +269,18 @@ def _get_request_body_parameter_error(
     return None
 
 
+def _validate_server_headers(headers: list[dict]) -> list[dict]:
+    """Filter out header entries with empty keys or values."""
+    return [
+        item
+        for item in headers
+        if item.get("Key", "").strip() and item.get("Value", "").strip()
+    ]
+
+
 CONVERSATION_SCHEMA_PROVIDERS = {
     SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+    SERVER_TYPE_GOOGLE_GEMINI: _google_gemini_conversation_schema,
     SERVER_TYPE_LLAMACPP: _llama_cpp_conversation_schema,
     SERVER_TYPE_LOCALAI: _localai_conversation_schema,
     SERVER_TYPE_VLLM: _vllm_conversation_schema,
@@ -275,6 +295,7 @@ def _get_conversation_config_schema(server_type: str) -> dict:
 
 AI_TASK_SCHEMA_PROVIDERS = {
     SERVER_TYPE_DEEPSEEK: _deepseek_conversation_schema,
+    SERVER_TYPE_GOOGLE_GEMINI: _google_gemini_ai_task_schema,
     SERVER_TYPE_LLAMACPP: _llama_cpp_ai_task_schema,
     SERVER_TYPE_LOCALAI: _localai_ai_task_schema,
     SERVER_TYPE_VLLM: _vllm_ai_task_schema,
@@ -289,6 +310,7 @@ def _get_ai_task_config_schema(server_type: str) -> dict:
 
 SERVER_TYPE_TO_CONFIG_KEY = {
     SERVER_TYPE_GENERIC: CONF_GENERIC_CONFIG,
+    SERVER_TYPE_GOOGLE_GEMINI: CONF_GOOGLE_GEMINI_CONFIG,
     SERVER_TYPE_LLAMACPP: CONF_LLAMACPP_CONFIG,
     SERVER_TYPE_LOCALAI: CONF_LOCALAI_CONFIG,
     SERVER_TYPE_VLLM: CONF_VLLM_CONFIG,
@@ -378,6 +400,34 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                     ),
                     options={"collapsed": True},
                 ),
+                vol.Optional(CONF_CUSTOM_HEADERS): section(
+                    schema=vol.Schema(
+                        schema={
+                            vol.Optional(
+                                CONF_SERVER_HEADERS,
+                                default=[],
+                            ): vol.All(
+                                ObjectSelector(
+                                    config={
+                                        "multiple": True,
+                                        "fields": {
+                                            "Key": {
+                                                "selector": {"text": None},
+                                                "required": True,
+                                            },
+                                            "Value": {
+                                                "selector": {"text": None},
+                                                "required": True,
+                                            },
+                                        },
+                                    },
+                                ),
+                                _validate_server_headers,
+                            ),
+                        },
+                    ),
+                    options={"collapsed": True},
+                ),
             },
         )
 
@@ -394,11 +444,23 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
             try:
-                client = AsyncOpenAI(
-                    base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
-                    http_client=get_async_client(self.hass),
+                custom_headers_section = user_input.get(CONF_CUSTOM_HEADERS, {}) or {}
+                custom_headers_list = (
+                    custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
                 )
+                custom_headers = {
+                    item["Key"]: item["Value"] for item in custom_headers_list
+                } or None
+
+                client_kwargs = {
+                    "base_url": user_input.get(CONF_BASE_URL),
+                    "api_key": user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
+                    "http_client": get_async_client(self.hass),
+                }
+                if custom_headers:
+                    client_kwargs["default_headers"] = custom_headers
+
+                client = AsyncOpenAI(**client_kwargs)
 
                 LOGGER.debug("Retrieving model list to ensure server is accessible")
                 await client.models.list()
@@ -444,11 +506,23 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
             try:
-                client = AsyncOpenAI(
-                    base_url=user_input.get(CONF_BASE_URL),
-                    api_key=user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
-                    http_client=get_async_client(self.hass),
+                custom_headers_section = user_input.get(CONF_CUSTOM_HEADERS, {}) or {}
+                custom_headers_list = (
+                    custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
                 )
+                custom_headers = {
+                    item["Key"]: item["Value"] for item in custom_headers_list
+                } or None
+
+                client_kwargs = {
+                    "base_url": user_input.get(CONF_BASE_URL),
+                    "api_key": user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
+                    "http_client": get_async_client(self.hass),
+                }
+                if custom_headers:
+                    client_kwargs["default_headers"] = custom_headers
+
+                client = AsyncOpenAI(**client_kwargs)
 
                 LOGGER.debug("Retrieving model list to ensure server is accessible")
                 await client.models.list()

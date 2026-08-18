@@ -40,12 +40,14 @@ CONF_VLLM_THINKING_TOKEN_BUDGET = "vllm_thinking_token_budget"  # noqa: S105
 CONF_DEEPSEEK_CONFIG = "deepseek_config"
 CONF_DEEPSEEK_REASONING_EFFORT = "deepseek_reasoning_effort"
 CONF_LOCALAI_CONFIG = "localai_config"
+CONF_GOOGLE_GEMINI_CONFIG = "google_gemini_config"
 
 SERVER_TYPE_GENERIC = "generic"
 SERVER_TYPE_LLAMACPP = "llama_cpp"
 SERVER_TYPE_VLLM = "vllm"
 SERVER_TYPE_DEEPSEEK = "deepseek"
 SERVER_TYPE_LOCALAI = "localai"
+SERVER_TYPE_GOOGLE_GEMINI = "google_gemini"
 
 
 SERVER_TYPE_OPTIONS = {
@@ -54,6 +56,7 @@ SERVER_TYPE_OPTIONS = {
     SERVER_TYPE_VLLM: "vLLM",
     SERVER_TYPE_DEEPSEEK: "DeepSeek Cloud",
     SERVER_TYPE_LOCALAI: "LocalAI",
+    SERVER_TYPE_GOOGLE_GEMINI: "Google (Gemini)",
 }
 
 CONF_AI_TASK_SUPPORTED_ATTRIBUTES = "supported_attributes"
@@ -78,6 +81,8 @@ CONF_CONTENT_INJECTION_METHODS = [
     CONF_CONTENT_INJECTION_METHOD_USER,
 ]
 
+CONF_CUSTOM_HEADERS = "custom_headers"
+CONF_SERVER_HEADERS = "server_headers"
 CONF_WEAVIATE_OPTIONS = "weaviate_options"
 CONF_WEAVIATE_HOST = "weaviate_host"
 CONF_WEAVIATE_API_KEY = "weaviate_api_key"
