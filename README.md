@@ -338,6 +338,7 @@ I would like to thank the following people for their contributions.
 <tr>
   <td align="center"><a href="https://github.com/Thibaultjaigu"><img src="https://avatars.githubusercontent.com/u/84420566?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Thibaultjaigu">Thibaultjaigu</a></b></sub></td>
   <td align="center"><a href="https://github.com/Thyraz"><img src="https://avatars.githubusercontent.com/u/170099?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Thyraz">Thyraz</a></b></sub></td>
+  <td align="center"><a href="https://github.com/jgancedo"><img src="https://avatars.githubusercontent.com/u/17992965?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/jgancedo">jgancedo</a></b></sub></td>
 </tr>
 </table>
 

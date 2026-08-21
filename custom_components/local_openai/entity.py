@@ -691,9 +691,13 @@ class LocalAiEntity(Entity):
 
         tools: list[ChatCompletionFunctionToolParam] | None = None
         if chat_log.llm_api:
+            # Sorted by name because intent.async_get() yields tools in registration
+            # order, which differs from one restart to the next. Tool schemas render
+            # at the start of the prompt, so a reorder invalidates the whole prefix
+            # of a server-side prompt cache.
             tools = [
                 _format_tool(tool, chat_log.llm_api.custom_serializer)
-                for tool in chat_log.llm_api.tools
+                for tool in sorted(chat_log.llm_api.tools, key=lambda tool: tool.name)
             ]
 
         messages = self._trim_history(
