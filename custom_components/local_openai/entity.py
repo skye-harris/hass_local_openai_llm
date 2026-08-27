@@ -465,8 +465,12 @@ class LocalAiEntity(Entity):
 
         Returns the (possibly updated) tool_call_id and tool_call_name.
         """
+
+        # llama.cpp - only the initial tool call chunk has an ID, subsequent argument chunks do not
+        # Ollama - parallel tool calls all share the same .index value (0)
         tool_call_id = tool_call.id or tool_call_id
 
+        # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
         tool_call_name = (
             tool_call.function.name
             if tool_call.function.name and tool_call.function.name != tool_call_name
