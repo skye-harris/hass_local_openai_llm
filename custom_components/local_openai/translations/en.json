@@ -124,7 +124,7 @@
             "model": "The model to use for the conversation agent",
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
-            "temperature": "Lower for more predictable responses, higher for more randomness",
+            "temperature": "Lower for more predictable responses, higher for more randomness. Leave empty to use the provider's default (required for reasoning models).",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
             "always_continue_conversation": "Voice assistants will always be prompted to continue the conversation"
           },
@@ -215,7 +215,7 @@
             "model": "The model to use for the conversation agent",
             "prompt": "Instruct how the LLM should respond. This can be a template",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
-            "temperature": "Lower for more predictable responses, higher for more randomness",
+            "temperature": "Lower for more predictable responses, higher for more randomness. Leave empty to use the provider's default (required for reasoning models).",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
             "always_continue_conversation": "Voice assistants will always be prompted to continue the conversation"
           },
@@ -309,7 +309,11 @@
         "user": {
           "data": {
             "model": "The model to use for the AI Task agent",
-            "supported_attributes": "Supported Attributes"
+            "supported_attributes": "Supported Attributes",
+            "temperature": "Temperature"
+          },
+          "data_description": {
+            "temperature": "Lower for more predictable responses, higher for more randomness. Leave empty to use the provider's default (required for reasoning models)."
           },
           "sections": {
             "tooling": {
@@ -382,7 +386,11 @@
           "title": "Reconfigure the AI Task",
           "data": {
             "model": "The model to use for the AI Task agent",
-            "supported_attributes": "Supported Attributes"
+            "supported_attributes": "Supported Attributes",
+            "temperature": "Temperature"
+          },
+          "data_description": {
+            "temperature": "Lower for more predictable responses, higher for more randomness. Leave empty to use the provider's default (required for reasoning models)."
           },
           "sections": {
             "tooling": {

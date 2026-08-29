@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncGenerator
 from copy import deepcopy
 from types import MappingProxyType
@@ -647,14 +648,42 @@ class TestTemperatureOptIn:
 
         assert captured["temperature"] == 0.6
 
+    async def test_temperature_zero_is_still_sent(
+        self,
+        mock_conversation_entity: conversation.ConversationAgent,
+        mock_config_entry,
+    ):
+        """An explicit temperature of 0 is falsy but must still be sent."""
+        from homeassistant.config_entries import ConfigSubentry
+
+        entity = mock_conversation_entity
+        # Create a new subentry with CONF_TEMPERATURE explicitly set to 0
+        new_subentry = ConfigSubentry(
+            subentry_id="test_conversation_subentry_id",
+            subentry_type="conversation",
+            title="Conversation Agent",
+            data=MappingProxyType({"model": "test-model", CONF_TEMPERATURE: 0}),
+            unique_id=None,
+        )
+        mock_config_entry._subentries = {"test_conversation_subentry_id": new_subentry}
+        entity.subentry = new_subentry
+
+        captured: dict = {}
+
+        async def fake_loop(client, model_args, *args, **kwargs):
+            captured.update(model_args)
+
+        with patch.object(entity, "_run_agent_loop", side_effect=fake_loop):
+            await entity._async_handle_chat_log(self._make_chat_log())
+
+        assert captured["temperature"] == 0
+
 
 class TestFormatStructuredOutputName:
     """The json_schema name must be API-safe."""
 
     def test_spaces_are_slugified(self):
-        result = _format_structured_output(
-            "my_test task", vol.Schema({}), None
-        )
+        result = _format_structured_output("my_test task", vol.Schema({}), None)
         assert result["name"] == "my_test_task"
 
     def test_name_capped_at_64_chars(self):
@@ -665,11 +694,11 @@ class TestFormatStructuredOutputName:
     def test_empty_name_falls_back_to_default(self):
         """Empty names must produce a non-empty slug matching ^[a-zA-Z0-9_-]+$."""
         result = _format_structured_output("", vol.Schema({}), None)
-        assert result["name"] != ""
-        assert result["name"].isalnum() or all(c in "-_" for c in result["name"])
+        assert result["name"] == "task"
+        assert re.fullmatch(r"[a-zA-Z0-9_-]+", result["name"])
 
-    def test_whitespace_only_name_falls_back_to_default(self):
-        """Whitespace-only names must produce a non-empty slug."""
+    def test_whitespace_only_name_is_api_safe(self):
+        """Whitespace-only names must produce a non-empty, API-safe slug."""
         result = _format_structured_output("   ", vol.Schema({}), None)
         assert result["name"] != ""
-        assert result["name"].isalnum() or all(c in "-_" for c in result["name"])
+        assert re.fullmatch(r"[a-zA-Z0-9_-]+", result["name"])

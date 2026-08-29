@@ -12,6 +12,7 @@ from custom_components.local_openai.config_flow import (
     AI_TASK_SCHEMA_PROVIDERS,
     AITaskDataFlowHandler,
     CONVERSATION_SCHEMA_PROVIDERS,
+    ConversationFlowHandler,
     REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
     REQUEST_BODY_PARAMETER_RESERVED,
     _get_ai_task_config_schema,
@@ -409,6 +410,29 @@ class TestAITaskSchemaTemperature:
 
         marker = _marker_for(schema, CONF_TEMPERATURE)
         assert marker is not None, "AI Task schema must expose a temperature field"
+        assert isinstance(marker, vol.Optional)
+        # Optional with no forced default → unset stays unset.
+        assert marker.default is vol.UNDEFINED
+
+
+class TestConversationSchemaTemperature:
+    """Tests for Conversation schema temperature field."""
+
+    async def test_conversation_schema_has_optional_temperature(self, hass) -> None:
+        """Test that the Conversation schema's temperature field is Optional."""
+        handler = ConversationFlowHandler()
+        handler.hass = hass
+
+        entry = MagicMock()
+        entry.data = {}
+        entry.runtime_data = MagicMock()
+        entry.runtime_data.models.list = AsyncMock(return_value=MagicMock(data=[]))
+        handler._get_entry = MagicMock(return_value=entry)
+
+        schema = await handler.get_schema()
+
+        marker = _marker_for(schema, CONF_TEMPERATURE)
+        assert marker is not None, "Conversation schema must expose a temperature field"
         assert isinstance(marker, vol.Optional)
         # Optional with no forced default → unset stays unset.
         assert marker.default is vol.UNDEFINED

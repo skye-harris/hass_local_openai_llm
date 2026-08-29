@@ -130,7 +130,8 @@ def _format_structured_output(
         # The API requires json_schema.name to match ^[a-zA-Z0-9_-]+$ and be
         # <= 64 chars; task names may contain spaces/punctuation. Mirror HA
         # core's openai_conversation which slugifies this value. Use a fallback
-        # in case the name is empty or slugifies to empty (e.g. all-punctuation).
+        # in case the name is empty or None (HA's slugify() returns '' for
+        # both, but 'unknown' for other unsluggable input).
         "name": slugify(name)[:64] or "task",
         "strict": True,
     }
