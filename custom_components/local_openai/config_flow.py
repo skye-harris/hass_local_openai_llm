@@ -636,9 +636,8 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 CONF_ALWAYS_CONTINUE_CONVERSATION,
                 default=CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
             ): bool,
-            vol.Required(
+            vol.Optional(
                 CONF_TEMPERATURE,
-                default=0.6,
             ): NumberSelector(
                 NumberSelectorConfig(
                     min=0,
@@ -885,6 +884,16 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                     ],
                     multiple=True,
                     mode=SelectSelectorMode.LIST,
+                ),
+            ),
+            vol.Optional(
+                CONF_TEMPERATURE,
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max=1,
+                    step=0.01,
+                    mode=NumberSelectorMode.BOX,
                 ),
             ),
             vol.Required(CONF_AI_TASK_TOOLS_SECTION): section(

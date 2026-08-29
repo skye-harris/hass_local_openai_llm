@@ -5,10 +5,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import voluptuous as vol
 from homeassistant.const import CONF_MODEL
 
 from custom_components.local_openai.config_flow import (
     AI_TASK_SCHEMA_PROVIDERS,
+    AITaskDataFlowHandler,
     CONVERSATION_SCHEMA_PROVIDERS,
     REQUEST_BODY_PARAMETER_ALREADY_CONFIGURABLE,
     REQUEST_BODY_PARAMETER_RESERVED,
@@ -379,3 +381,34 @@ class TestResolveModelName:
             result = _resolve_model_name(SERVER_TYPE_LLAMACPP, model)
             mock_resolver.assert_called_once_with(model)
             assert result == "Base Model"
+
+
+def _marker_for(schema: vol.Schema, key: str):
+    """Return the voluptuous Marker whose schema string equals key."""
+    for marker in schema.schema:
+        if str(marker) == key:
+            return marker
+    return None
+
+
+class TestAITaskSchemaTemperature:
+    """Tests for AI Task schema temperature field."""
+
+    async def test_ai_task_schema_has_optional_temperature(self, hass) -> None:
+        """Test that AI Task schema has an optional temperature field."""
+        handler = AITaskDataFlowHandler()
+        handler.hass = hass
+
+        entry = MagicMock()
+        entry.data = {}
+        entry.runtime_data = MagicMock()
+        entry.runtime_data.models.list = AsyncMock(return_value=MagicMock(data=[]))
+        handler._get_entry = MagicMock(return_value=entry)
+
+        schema = await handler.get_schema()
+
+        marker = _marker_for(schema, CONF_TEMPERATURE)
+        assert marker is not None, "AI Task schema must expose a temperature field"
+        assert isinstance(marker, vol.Optional)
+        # Optional with no forced default → unset stays unset.
+        assert marker.default is vol.UNDEFINED
