@@ -21,8 +21,13 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCallFunction,
 )
 
+import voluptuous as vol
+
 from custom_components.local_openai.const import CONF_TEMPERATURE
-from custom_components.local_openai.entity import MAX_TOOL_ITERATIONS
+from custom_components.local_openai.entity import (
+    MAX_TOOL_ITERATIONS,
+    _format_structured_output,
+)
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
 
@@ -641,3 +646,18 @@ class TestTemperatureOptIn:
             await entity._async_handle_chat_log(self._make_chat_log())
 
         assert captured["temperature"] == 0.6
+
+
+class TestFormatStructuredOutputName:
+    """The json_schema name must be API-safe."""
+
+    def test_spaces_are_slugified(self):
+        result = _format_structured_output(
+            "my_test task", vol.Schema({}), None
+        )
+        assert result["name"] == "my_test_task"
+
+    def test_name_capped_at_64_chars(self):
+        long_name = "a" * 200
+        result = _format_structured_output(long_name, vol.Schema({}), None)
+        assert len(result["name"]) <= 64

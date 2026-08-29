@@ -18,6 +18,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import llm, template
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartImageParam,
@@ -126,7 +127,10 @@ def _format_structured_output(
 ) -> JSONSchema:
     """Format the schema to be compatible with OpenAI API."""
     result: JSONSchema = {
-        "name": name,
+        # The API requires json_schema.name to match ^[a-zA-Z0-9_-]+$ and be
+        # <= 64 chars; task names may contain spaces/punctuation. Mirror HA
+        # core's openai_conversation which slugifies this value.
+        "name": slugify(name)[:64],
         "strict": True,
     }
     result_schema = convert(
