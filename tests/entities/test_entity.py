@@ -661,3 +661,15 @@ class TestFormatStructuredOutputName:
         long_name = "a" * 200
         result = _format_structured_output(long_name, vol.Schema({}), None)
         assert len(result["name"]) <= 64
+
+    def test_empty_name_falls_back_to_default(self):
+        """Empty names must produce a non-empty slug matching ^[a-zA-Z0-9_-]+$."""
+        result = _format_structured_output("", vol.Schema({}), None)
+        assert result["name"] != ""
+        assert result["name"].isalnum() or all(c in "-_" for c in result["name"])
+
+    def test_whitespace_only_name_falls_back_to_default(self):
+        """Whitespace-only names must produce a non-empty slug."""
+        result = _format_structured_output("   ", vol.Schema({}), None)
+        assert result["name"] != ""
+        assert result["name"].isalnum() or all(c in "-_" for c in result["name"])
