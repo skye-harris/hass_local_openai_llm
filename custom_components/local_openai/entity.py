@@ -680,17 +680,22 @@ class LocalAiEntity(Entity):
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         pass_session_id = server_options.get(CONF_PASS_SESSION_ID, False)
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
-        temperature = options.get(CONF_TEMPERATURE, 0.6)
-
         model_args = {
             "model": self.model,
-            "temperature": temperature,
             "parallel_tool_calls": parallel_tool_calls,
             "extra_headers": {
                 "HTTP-Referer": "https://github.com/skye-harris/hass_local_openai_llm",
                 "X-Title": "Home Assistant",
             },
         }
+
+        # Only send temperature when explicitly configured. Reasoning models
+        # (Claude-5 in thinking mode, triggered by response_format) reject a
+        # non-default temperature, so an unset value must be omitted entirely
+        # rather than defaulted — letting the provider apply its own default.
+        temperature = options.get(CONF_TEMPERATURE)
+        if temperature is not None:
+            model_args["temperature"] = temperature
 
         tools: list[ChatCompletionFunctionToolParam] | None = None
         if chat_log.llm_api:

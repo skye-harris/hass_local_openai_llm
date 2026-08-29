@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from copy import deepcopy
-from unittest.mock import AsyncMock, MagicMock
+from types import MappingProxyType
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import openai
 import pytest
@@ -20,6 +21,7 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCallFunction,
 )
 
+from custom_components.local_openai.const import CONF_TEMPERATURE
 from custom_components.local_openai.entity import MAX_TOOL_ITERATIONS
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
@@ -569,3 +571,73 @@ class TestInjectStopDirective:
             "without calling any more tools."
         )
         assert result[0]["content"] == "Previous result" + directive
+
+
+class TestTemperatureOptIn:
+    """Temperature is only sent when explicitly configured."""
+
+    @staticmethod
+    def _make_chat_log() -> MagicMock:
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.content = []
+        chat_log.llm_api = None
+        chat_log.conversation_id = "conv-1"
+        return chat_log
+
+    async def test_temperature_omitted_when_unset(
+        self,
+        mock_conversation_entity: conversation.ConversationAgent,
+        mock_config_entry,
+    ):
+        from homeassistant.config_entries import ConfigSubentry
+
+        entity = mock_conversation_entity
+        # Create a new subentry without CONF_TEMPERATURE
+        new_subentry = ConfigSubentry(
+            subentry_id="test_conversation_subentry_id",
+            subentry_type="conversation",
+            title="Conversation Agent",
+            data=MappingProxyType({"model": "test-model"}),
+            unique_id=None,
+        )
+        mock_config_entry._subentries = {"test_conversation_subentry_id": new_subentry}
+        entity.subentry = new_subentry
+
+        captured: dict = {}
+
+        async def fake_loop(client, model_args, *args, **kwargs):
+            captured.update(model_args)
+
+        with patch.object(entity, "_run_agent_loop", side_effect=fake_loop):
+            await entity._async_handle_chat_log(self._make_chat_log())
+
+        assert "temperature" not in captured
+
+    async def test_temperature_sent_when_set(
+        self,
+        mock_conversation_entity: conversation.ConversationAgent,
+        mock_config_entry,
+    ):
+        from homeassistant.config_entries import ConfigSubentry
+
+        entity = mock_conversation_entity
+        # Create a new subentry with CONF_TEMPERATURE set
+        new_subentry = ConfigSubentry(
+            subentry_id="test_conversation_subentry_id",
+            subentry_type="conversation",
+            title="Conversation Agent",
+            data=MappingProxyType({"model": "test-model", CONF_TEMPERATURE: 0.6}),
+            unique_id=None,
+        )
+        mock_config_entry._subentries = {"test_conversation_subentry_id": new_subentry}
+        entity.subentry = new_subentry
+
+        captured: dict = {}
+
+        async def fake_loop(client, model_args, *args, **kwargs):
+            captured.update(model_args)
+
+        with patch.object(entity, "_run_agent_loop", side_effect=fake_loop):
+            await entity._async_handle_chat_log(self._make_chat_log())
+
+        assert captured["temperature"] == 0.6
