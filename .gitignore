@@ -1,3 +1,9 @@
 custom_components/local_openai/__pycache__/
+__pycache__/
+.venv/
 .idea/
 .coverage
+snapshot.jpg
+todebug.md
+bugreport.md
+.superpowers/
