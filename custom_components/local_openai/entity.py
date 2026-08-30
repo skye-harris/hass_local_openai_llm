@@ -695,10 +695,7 @@ class LocalAiEntity(Entity):
             },
         }
 
-        # Only send temperature when explicitly configured. Reasoning models
-        # (Claude-5 in thinking mode, triggered by response_format) reject a
-        # non-default temperature, so an unset value must be omitted entirely
-        # rather than defaulted — letting the provider apply its own default.
+        # Omit when unset, some providers (e.g. Anthropic) reject a non-default temperature.
         temperature = options.get(CONF_TEMPERATURE)
         if temperature is not None:
             model_args["temperature"] = temperature

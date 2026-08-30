@@ -23,8 +23,7 @@
 - Added support for image inputs for AI Task entities
 - Added support for reconfiguring Conversation Agents
 - Added option to trim conversation history to help stay within your context window
-- Added temperature control
-- Fixed structured `ai_task.generate_data` calls (and reasoning-class models generally) failing with a 400 by making `temperature` fully optional — leave it blank to let the provider apply its own default, which reasoning models require. Existing AI Task agents (which had no temperature field before) will now omit temperature entirely instead of implicitly sending 0.6; existing Conversation agents are unaffected unless you clear the field yourself.
+- Added temperature control (conversation agent + ai task)
 - Added option to strip emojis from responses
 - Added support for parallel tool calling
 - Added experimental Retrieval Augmented Generation capability
