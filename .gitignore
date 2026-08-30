@@ -7,3 +7,7 @@ snapshot.jpg
 todebug.md
 bugreport.md
 .superpowers/
+docs/superpowers/
+.pytest_cache
+.ruff_cache
+.DS_Store
