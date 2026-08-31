@@ -23,7 +23,7 @@
 - Added support for image inputs for AI Task entities
 - Added support for reconfiguring Conversation Agents
 - Added option to trim conversation history to help stay within your context window
-- Added temperature control
+- Added temperature control (conversation agent + ai task)
 - Added option to strip emojis from responses
 - Added support for parallel tool calling
 - Added experimental Retrieval Augmented Generation capability

@@ -18,6 +18,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import llm, template
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartImageParam,
@@ -126,7 +127,12 @@ def _format_structured_output(
 ) -> JSONSchema:
     """Format the schema to be compatible with OpenAI API."""
     result: JSONSchema = {
-        "name": name,
+        # The API requires json_schema.name to match ^[a-zA-Z0-9_-]+$ and be
+        # <= 64 chars; task names may contain spaces/punctuation. Mirror HA
+        # core's openai_conversation which slugifies this value. Use a fallback
+        # in case the name is empty or None (HA's slugify() returns '' for
+        # both, but 'unknown' for other unsluggable input).
+        "name": slugify(name)[:64] or "task",
         "strict": True,
     }
     result_schema = convert(
@@ -680,17 +686,19 @@ class LocalAiEntity(Entity):
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         pass_session_id = server_options.get(CONF_PASS_SESSION_ID, False)
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
-        temperature = options.get(CONF_TEMPERATURE, 0.6)
-
         model_args = {
             "model": self.model,
-            "temperature": temperature,
             "parallel_tool_calls": parallel_tool_calls,
             "extra_headers": {
                 "HTTP-Referer": "https://github.com/skye-harris/hass_local_openai_llm",
                 "X-Title": "Home Assistant",
             },
         }
+
+        # Omit when unset, some providers (e.g. Anthropic) reject a non-default temperature.
+        temperature = options.get(CONF_TEMPERATURE)
+        if temperature is not None:
+            model_args["temperature"] = temperature
 
         tools: list[ChatCompletionFunctionToolParam] | None = None
         if chat_log.llm_api:

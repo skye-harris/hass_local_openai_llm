@@ -309,7 +309,11 @@
         "user": {
           "data": {
             "model": "The model to use for the AI Task agent",
-            "supported_attributes": "Supported Attributes"
+            "supported_attributes": "Supported Attributes",
+            "temperature": "Temperature"
+          },
+          "data_description": {
+            "temperature": "Lower for more predictable responses, higher for more randomness"
           },
           "sections": {
             "tooling": {
@@ -382,7 +386,11 @@
           "title": "Reconfigure the AI Task",
           "data": {
             "model": "The model to use for the AI Task agent",
-            "supported_attributes": "Supported Attributes"
+            "supported_attributes": "Supported Attributes",
+            "temperature": "Temperature"
+          },
+          "data_description": {
+            "temperature": "Lower for more predictable responses, higher for more randomness"
           },
           "sections": {
             "tooling": {
