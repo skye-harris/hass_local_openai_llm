@@ -299,8 +299,8 @@
       "entry_type": "Conversation agent",
       "error": {
         "cannot_connect_weaviate": "Could not communicate with the Weaviate server",
-        "request_body_parameter_already_configurable": "The request body parameter '{key}' already has a dedicated configuration option.",
-        "reserved_request_body_parameter": "The request body parameter '{key}' is reserved and cannot be configured here."
+        "request_body_parameter_already_configurable": "The request body parameter {key} already has a dedicated configuration option.",
+        "reserved_request_body_parameter": "The request body parameter {key} is reserved and cannot be configured here."
       },
       "abort": {
         "cannot_connect": "Could not communicate with the LLM server",
@@ -473,8 +473,8 @@
       },
       "entry_type": "AI task",
       "error": {
-        "request_body_parameter_already_configurable": "The request body parameter '{key}' already has a dedicated configuration option.",
-        "reserved_request_body_parameter": "The request body parameter '{key}' is reserved and cannot be configured here."
+        "request_body_parameter_already_configurable": "The request body parameter {key} already has a dedicated configuration option.",
+        "reserved_request_body_parameter": "The request body parameter {key} is reserved and cannot be configured here."
       },
       "abort": {
         "cannot_connect": "Could not communicate with the server",
