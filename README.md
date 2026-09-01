@@ -373,9 +373,11 @@ This integration was forked from
 the [OpenRouter](https://github.com/home-assistant/core/tree/dev/homeassistant/components/open_router) integration for
 Home Assistant by [@joostlek](https://github.com/joostlek).
 
+---
+
 ## Contributors
 
-I would like to thank the following people for their contributions.
+I would like to thank the following people for their contributions to this project:
 
 <table>
 <tr>
