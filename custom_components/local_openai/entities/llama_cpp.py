@@ -179,6 +179,10 @@ class LlamaCppMixin:
             if not loaded_models:
                 return self.model
 
+            for model in loaded_models:
+                if model.id == self.model:
+                    return model.id
+
             if chat_log is not None:
                 modalities = [
                     "image"
@@ -206,10 +210,6 @@ class LlamaCppMixin:
 
                     if not loaded_models:
                         return self.model
-
-            for model in loaded_models:
-                if model.id == self.model:
-                    return model.id
 
             return loaded_models[0].id
         except Exception:
