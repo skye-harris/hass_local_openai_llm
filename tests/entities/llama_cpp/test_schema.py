@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import voluptuous as vol
 import pytest
-
+import voluptuous as vol
 from custom_components.local_openai.const import (
     CONF_LLAMACPP_ENABLE_THINKING,
     CONF_LLAMACPP_ID_SLOT,
@@ -14,6 +13,7 @@ from custom_components.local_openai.const import (
     CONF_LLAMACPP_REPEAT_PENALTY,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
+    CONF_LLAMACPP_USE_LOADED_MODEL,
 )
 from custom_components.local_openai.entities.llama_cpp import (
     _get_llama_cpp_schema,
@@ -55,7 +55,8 @@ class TestValidation:
             CONF_LLAMACPP_REPEAT_PENALTY: 1.0,
             CONF_LLAMACPP_PRESENCE_PENALTY: 0.0,
         }
-        assert validator(data) == data
+        expected = {**data, CONF_LLAMACPP_USE_LOADED_MODEL: False}
+        assert validator(data) == expected
 
     def test_default_enable_thinking(self):
         validator = _validator()
@@ -73,7 +74,7 @@ class TestValidation:
         )
         assert result[CONF_LLAMACPP_ENABLE_THINKING] is True
         assert result[CONF_LLAMACPP_INCLUDE_PRIOR_THINKING] is False
-        assert len(result) == 2
+        assert len(result) == 3
 
     def test_rejects_non_bool_enable_thinking(self):
         validator = _validator()

@@ -35,6 +35,7 @@ CONF_LLAMACPP_TOP_K = "llamacpp_top_k"
 CONF_LLAMACPP_MIN_P = "llamacpp_min_p"
 CONF_LLAMACPP_REPEAT_PENALTY = "llamacpp_repeat_penalty"
 CONF_LLAMACPP_PRESENCE_PENALTY = "llamacpp_presence_penalty"
+CONF_LLAMACPP_USE_LOADED_MODEL = "llamacpp_use_loaded_model"
 CONF_VLLM_CONFIG = "vllm_config"
 CONF_VLLM_THINKING_TOKEN_BUDGET = "vllm_thinking_token_budget"  # noqa: S105
 CONF_DEEPSEEK_CONFIG = "deepseek_config"

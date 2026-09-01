@@ -160,7 +160,8 @@
                 "llamacpp_top_k": "Top-k",
                 "llamacpp_min_p": "Min-p",
                 "llamacpp_repeat_penalty": "Repeat penalty",
-                "llamacpp_presence_penalty": "Presence penalty"
+                "llamacpp_presence_penalty": "Presence penalty",
+                "llamacpp_use_loaded_model": "Use currently loaded model"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
@@ -170,7 +171,8 @@
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
                 "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
                 "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
-                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)",
+                "llamacpp_use_loaded_model": "Fetch the active model from the server at request time. Requires the model to be pre-loaded on the llama.cpp server."
               }
             },
             "vllm_config": {
@@ -251,7 +253,8 @@
                 "llamacpp_top_k": "Top-k",
                 "llamacpp_min_p": "Min-p",
                 "llamacpp_repeat_penalty": "Repeat penalty",
-                "llamacpp_presence_penalty": "Presence penalty"
+                "llamacpp_presence_penalty": "Presence penalty",
+                "llamacpp_use_loaded_model": "Use currently loaded model"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
@@ -261,7 +264,8 @@
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
                 "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
                 "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
-                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)",
+                "llamacpp_use_loaded_model": "Fetch the active model from the server at request time. Requires the model to be pre-loaded on the llama.cpp server."
               }
             },
             "vllm_config": {
@@ -295,8 +299,8 @@
       "entry_type": "Conversation agent",
       "error": {
         "cannot_connect_weaviate": "Could not communicate with the Weaviate server",
-        "request_body_parameter_already_configurable": "The request body parameter \"{key}\" already has a dedicated configuration option.",
-        "reserved_request_body_parameter": "The request body parameter \"{key}\" is reserved and cannot be configured here."
+        "request_body_parameter_already_configurable": "The request body parameter {key} already has a dedicated configuration option.",
+        "reserved_request_body_parameter": "The request body parameter {key} is reserved and cannot be configured here."
       },
       "abort": {
         "cannot_connect": "Could not communicate with the LLM server",
@@ -358,7 +362,8 @@
                 "llamacpp_top_k": "Top-k",
                 "llamacpp_min_p": "Min-p",
                 "llamacpp_repeat_penalty": "Repeat penalty",
-                "llamacpp_presence_penalty": "Presence penalty"
+                "llamacpp_presence_penalty": "Presence penalty",
+                "llamacpp_use_loaded_model": "Use currently loaded model"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
@@ -368,7 +373,8 @@
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
                 "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
                 "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
-                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)",
+                "llamacpp_use_loaded_model": "Fetch the active model from the server at request time. Requires the model to be pre-loaded on the llama.cpp server."
               }
             },
             "vllm_config": {
@@ -435,7 +441,8 @@
                 "llamacpp_top_k": "Top-k",
                 "llamacpp_min_p": "Min-p",
                 "llamacpp_repeat_penalty": "Repeat penalty",
-                "llamacpp_presence_penalty": "Presence penalty"
+                "llamacpp_presence_penalty": "Presence penalty",
+                "llamacpp_use_loaded_model": "Use currently loaded model"
               },
               "data_description": {
                 "llamacpp_enable_thinking": "Pass enable_thinking=true via chat_template_kwargs to enable reasoning on supported models",
@@ -445,7 +452,8 @@
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
                 "llamacpp_min_p": "Combined with top-p for more controlled sampling. (0-1)",
                 "llamacpp_repeat_penalty": "Positive values discourage repetition. (-2 to 2)",
-                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)"
+                "llamacpp_presence_penalty": "Positive values discourage repetition of new tokens. (-2 to 2)",
+                "llamacpp_use_loaded_model": "Fetch the active model from the server at request time. Requires the model to be pre-loaded on the llama.cpp server."
               }
             },
             "vllm_config": {
@@ -465,8 +473,8 @@
       },
       "entry_type": "AI task",
       "error": {
-        "request_body_parameter_already_configurable": "The request body parameter \"{key}\" already has a dedicated configuration option.",
-        "reserved_request_body_parameter": "The request body parameter \"{key}\" is reserved and cannot be configured here."
+        "request_body_parameter_already_configurable": "The request body parameter {key} already has a dedicated configuration option.",
+        "reserved_request_body_parameter": "The request body parameter {key} is reserved and cannot be configured here."
       },
       "abort": {
         "cannot_connect": "Could not communicate with the server",
