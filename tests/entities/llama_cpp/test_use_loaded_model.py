@@ -344,8 +344,8 @@ class TestLlamaCppUseLoadedModel:
         chat_log = _make_chat_log([["image/png"]])
         assert await entity._async_get_model(chat_log) == "my-configured-model"
 
-    async def test_modalities_mismatch_uses_first_matching_loaded(self) -> None:
-        """When config model doesn't match image modality, first matching loaded model is used."""
+    async def test_modalities_mismatch_uses_configured_model(self) -> None:
+        """Configured model takes priority even if its modalities don't match the chat content."""
         mock_config_model = MagicMock()
         mock_config_model.id = "text-only-model"
         mock_config_model.status.get.return_value = "loaded"
@@ -376,7 +376,7 @@ class TestLlamaCppUseLoadedModel:
 
         entity = TestEntity(entry, subentry)
         chat_log = _make_chat_log([["image/png"]])
-        assert await entity._async_get_model(chat_log) == "multimodal-model"
+        assert await entity._async_get_model(chat_log) == "text-only-model"
 
     async def test_modalities_no_match_falls_back_to_configured(self) -> None:
         """When no loaded model matches image modality, fall back to configured model."""
