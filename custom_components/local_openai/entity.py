@@ -31,7 +31,11 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
-from probatio import to_openapi as convert
+
+try:
+    from probatio import to_openapi as convert
+except ImportError:
+    from voluptuous_openapi import convert
 
 from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
@@ -193,6 +197,12 @@ class LocalAiEntity(Entity):
             name=subentry.title,
             entry_type=dr.DeviceEntryType.SERVICE,
         )
+
+    async def _async_get_model(
+        self, chat_log: conversation.ChatLog | None = None
+    ) -> str:
+        """Return the model to use."""
+        return self.model
 
     @property
     def options(self) -> dict:
@@ -686,8 +696,9 @@ class LocalAiEntity(Entity):
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         pass_session_id = server_options.get(CONF_PASS_SESSION_ID, False)
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
+
         model_args = {
-            "model": self.model,
+            "model": await self._async_get_model(chat_log),
             "parallel_tool_calls": parallel_tool_calls,
             "extra_headers": {
                 "HTTP-Referer": "https://github.com/skye-harris/hass_local_openai_llm",

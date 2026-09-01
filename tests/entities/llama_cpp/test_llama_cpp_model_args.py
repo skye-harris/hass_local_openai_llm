@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from custom_components.local_openai.const import (
     CONF_LLAMACPP_CONFIG,
     CONF_LLAMACPP_ENABLE_THINKING,
@@ -37,7 +36,8 @@ class _StubBase:
 
 
 class _StubLlamaCppEntity(LlamaCppMixin, _StubBase):
-    pass
+    def __init__(self, entry=None, subentry=None) -> None:
+        pass
 
 
 class TestLlamaCppExtraBodyArgs:

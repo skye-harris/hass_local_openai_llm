@@ -24,13 +24,17 @@ from custom_components.local_openai.const import (
     CONF_LLAMACPP_REPEAT_PENALTY,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
+    CONF_LLAMACPP_USE_LOADED_MODEL,
 )
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
 if TYPE_CHECKING:
     from types import MappingProxyType
 
+    from homeassistant.config_entries import ConfigSubentry
     from openai.types.chat import ChatCompletionMessageParam
+
+    from . import LocalAiConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +67,7 @@ def _get_llama_cpp_schema() -> dict:
     return {
         vol.Required(CONF_LLAMACPP_ENABLE_THINKING, default=False): bool,
         vol.Required(CONF_LLAMACPP_INCLUDE_PRIOR_THINKING, default=True): bool,
+        vol.Required(CONF_LLAMACPP_USE_LOADED_MODEL, default=False): bool,
         vol.Optional(CONF_LLAMACPP_ID_SLOT): NumberSelector(
             NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX),
         ),
@@ -131,6 +136,85 @@ def get_ai_task_config_schema() -> dict:
 
 class LlamaCppMixin:
     """Mixin for llama.cpp entities with shared logic."""
+
+    def __init__(
+        self,
+        entry: LocalAiConfigEntry,
+        subentry: ConfigSubentry,
+    ) -> None:
+        """Initialize the entity."""
+        super().__init__(entry, subentry)
+
+    async def _async_get_model(
+        self,
+        chat_log: conversation.ChatLog | None = None,
+    ) -> str:
+        """
+        Return the model to use.
+
+        When use_loaded_model is enabled, fetches fresh from the server's
+        /v1/models endpoint every time. Prefers the configured model if it
+        is loaded; falls back to the first loaded model; falls back to the
+        configured model on any error.
+
+        Modalities are detected from chat_log.content — if any content item
+        has an image attachment, ["image"] is used to filter loaded models.
+        Only models whose architecture.input_modalities contains all required
+        modalities are considered.
+        """
+        opts = self.subentry.data.get(CONF_LLAMACPP_CONFIG, {})
+        if not opts.get(CONF_LLAMACPP_USE_LOADED_MODEL, False):
+            return self.model
+
+        try:
+            client = self.entry.runtime_data
+            response = await client.models.list()
+
+            loaded_models = [
+                model
+                for model in response.data
+                if model.status.get("value") == "loaded"
+            ]
+
+            if not loaded_models:
+                return self.model
+
+            if chat_log is not None:
+                modalities = [
+                    "image"
+                    for content in chat_log.content
+                    if hasattr(content, "attachments")
+                    and content.attachments
+                    and any(
+                        attachment.mime_type.startswith("image/")
+                        for attachment in content.attachments
+                    )
+                ]
+
+                if modalities:
+                    loaded_models = [
+                        model
+                        for model in loaded_models
+                        if set(modalities).issubset(
+                            set(
+                                getattr(model, "architecture", {}).get(
+                                    "input_modalities", []
+                                )
+                            )
+                        )
+                    ]
+
+                    if not loaded_models:
+                        return self.model
+
+            for model in loaded_models:
+                if model.id == self.model:
+                    return model.id
+
+            return loaded_models[0].id
+        except Exception:
+            _LOGGER.exception("Failed to resolve loaded model, using configured model")
+            return self.model
 
     def _get_extra_body_args(
         self,
