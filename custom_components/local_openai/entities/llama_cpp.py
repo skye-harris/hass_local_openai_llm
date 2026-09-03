@@ -223,6 +223,7 @@ class LlamaCppMixin:
         """Handle extra_body args for llama.cpp."""
         opts = options.get(CONF_LLAMACPP_CONFIG, {})
         extras = super()._get_extra_body_args(options)
+        extras.pop("stream_options", None)
 
         id_slot = opts.get(CONF_LLAMACPP_ID_SLOT)
         if id_slot is not None:

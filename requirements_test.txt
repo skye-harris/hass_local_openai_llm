@@ -11,3 +11,4 @@ home-assistant-intents
 openai>=2.8.0
 demoji>=1.1.0
 pre-commit
+gazetteer-matcher

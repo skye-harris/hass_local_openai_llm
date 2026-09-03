@@ -10,6 +10,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import openai
 import pytest
+import voluptuous as vol
+from custom_components.local_openai.const import CONF_TEMPERATURE
+from custom_components.local_openai.conversation import LocalAiConversationEntity
+from custom_components.local_openai.entity import (
+    MAX_TOOL_ITERATIONS,
+    _format_structured_output,
+)
 from homeassistant.components import conversation
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -21,15 +28,7 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCall,
     ChoiceDeltaToolCallFunction,
 )
-
-import voluptuous as vol
-
-from custom_components.local_openai.const import CONF_TEMPERATURE
-from custom_components.local_openai.entity import (
-    MAX_TOOL_ITERATIONS,
-    _format_structured_output,
-)
-from custom_components.local_openai.conversation import LocalAiConversationEntity
+from openai.types.completion_usage import CompletionUsage
 
 
 class MockContent(conversation.AssistantContent):
@@ -71,7 +70,11 @@ class TestRunAgentLoopSingleIteration:
         )
 
         mock_stream = MagicMock()
-        mock_stream.__aiter__ = MagicMock(return_value=iter([chunk]))
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
         entity.entry.runtime_data.chat.completions.create = AsyncMock(
             return_value=mock_stream
         )
@@ -79,7 +82,8 @@ class TestRunAgentLoopSingleIteration:
         async def stream_content(
             entity_id, stream_gen
         ) -> AsyncGenerator[MockContent, None]:
-            yield MockContent(content="hi")
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
 
         chat_log = MagicMock(spec=conversation.ChatLog)
         chat_log.async_add_delta_content_stream = stream_content
@@ -137,7 +141,11 @@ class TestRunAgentLoopSingleIteration:
             nonlocal call_count
             call_count += 1
             mock_stream = MagicMock()
-            mock_stream.__aiter__ = MagicMock(return_value=iter([chunk]))
+
+            async def async_gen():
+                yield chunk
+
+            mock_stream.__aiter__ = MagicMock(return_value=async_gen())
             return mock_stream
 
         entity.entry.runtime_data.chat.completions.create = AsyncMock(
@@ -147,7 +155,8 @@ class TestRunAgentLoopSingleIteration:
         async def stream_content(
             entity_id, stream_gen
         ) -> AsyncGenerator[MockContent, None]:
-            yield MockContent(content="")
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
 
         chat_log = MagicMock(spec=conversation.ChatLog)
         chat_log.async_add_delta_content_stream = stream_content
@@ -221,7 +230,11 @@ class TestRunAgentLoopErrorHandling:
         )
 
         mock_stream = MagicMock()
-        mock_stream.__aiter__ = MagicMock(return_value=iter([chunk]))
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
         entity.entry.runtime_data.chat.completions.create = AsyncMock(
             return_value=mock_stream
         )
@@ -702,3 +715,685 @@ class TestFormatStructuredOutputName:
         result = _format_structured_output("   ", vol.Schema({}), None)
         assert result["name"] != ""
         assert re.fullmatch(r"[a-zA-Z0-9_-]+", result["name"])
+
+
+class TestGenerationEventEmission:
+    """Test local_openai_llm_generation_complete event emission."""
+
+    async def test_single_iteration_event_payload(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test event fires with correct payload on single iteration."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(content="hi", role="assistant"),
+                    finish_reason="stop",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=100,
+                completion_tokens=50,
+                total_tokens=150,
+            ),
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="hi"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+            conversation_id="conv-123",
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        data = captured_events[0]
+        assert data["type"] == "generation_complete"
+        assert data["model"] == "test-model"
+        assert data["iteration"] == 1
+        assert data["conversation_id"] == "conv-123"
+        assert data["entity_id"] == entity.entity_id
+        assert data["content"] == "hi"
+        assert data["token_metadata"]["prompt_tokens"] == 100
+        assert data["token_metadata"]["completion_tokens"] == 50
+        assert data["token_metadata"]["total_tokens"] == 150
+        assert data["token_metadata"]["time_to_first_token_ms"] is not None
+        assert data["token_metadata"]["time_to_first_token_ms"] >= 0
+        assert data["tool_names"] == []
+
+    async def test_multi_iteration_event_fires_per_iteration(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test event fires once per iteration with correct iteration number."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(
+                        role="assistant",
+                        tool_calls=[
+                            ChoiceDeltaToolCall(
+                                index=0,
+                                id="call_1",
+                                type="function",
+                                function=ChoiceDeltaToolCallFunction(
+                                    name="test_fn",
+                                    arguments='{"arg": "val"}',
+                                ),
+                            )
+                        ],
+                    ),
+                    finish_reason="tool_calls",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=200,
+                completion_tokens=30,
+                total_tokens=230,
+            ),
+        )
+
+        call_count = 0
+
+        def create_side_effect(**kwargs) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            mock_stream = MagicMock()
+
+            async def async_gen():
+                yield chunk
+
+            mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+            return mock_stream
+
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            side_effect=create_side_effect
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.content = []
+
+        def get_unresponded():
+            return chat_log.content and chat_log.content[-1].role == "tool_result"
+
+        chat_log.unresponded_tool_results = property(get_unresponded)
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="hi"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+            conversation_id="conv-456",
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == MAX_TOOL_ITERATIONS
+
+        for i, data in enumerate(captured_events):
+            assert data["type"] == "generation_complete"
+            assert data["iteration"] == i + 1
+            assert data["model"] == "test-model"
+            assert data["conversation_id"] == "conv-456"
+            assert data["token_metadata"]["time_to_first_token_ms"] is not None
+            assert data["token_metadata"]["time_to_first_token_ms"] >= 0
+
+    async def test_tool_names_in_event(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test tool_names array is populated when tool calls are made."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        tool_call_1 = ChoiceDeltaToolCall(
+            index=0,
+            id="call_1",
+            type="function",
+            function=ChoiceDeltaToolCallFunction(
+                name="get_weather",
+                arguments='{"location": "NYC"}',
+            ),
+        )
+        tool_call_2 = ChoiceDeltaToolCall(
+            index=1,
+            id="call_2",
+            type="function",
+            function=ChoiceDeltaToolCallFunction(
+                name="check_calendar",
+                arguments='{"date": "2024-01-01"}',
+            ),
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(
+                        role="assistant",
+                        tool_calls=[tool_call_1, tool_call_2],
+                    ),
+                    finish_reason="tool_calls",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=150,
+                completion_tokens=40,
+                total_tokens=190,
+            ),
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="hi"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        assert captured_events[0]["tool_names"] == ["get_weather", "check_calendar"]
+
+    async def test_missing_usage_provides_none_tokens(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test event still fires with None token fields when usage is missing."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(content="hi", role="assistant"),
+                    finish_reason="stop",
+                )
+            ],
+            usage=None,
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="hi"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        assert captured_events[0]["token_metadata"].get("prompt_tokens") is None
+        assert (
+            captured_events[0]["token_metadata"]["time_to_first_token_ms"] is not None
+        )
+        assert captured_events[0]["token_metadata"]["time_to_first_token_ms"] >= 0
+
+    async def test_llamacpp_timings_fallback(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test llama.cpp timings are used when usage is missing."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        timings = {
+            "prompt_n": 50,
+            "predicted_n": 25,
+            "total_tokens": 75,
+            "prompt_ms": 100,
+            "prompt_per_token_ms": 2.0,
+            "prompt_per_second": 0.5,
+            "predicted_ms": 200,
+            "predicted_per_token_ms": 8.0,
+            "predicted_per_second": 0.125,
+        }
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(content="hi", role="assistant"),
+                    finish_reason="stop",
+                )
+            ],
+            usage=None,
+        )
+        chunk.timings = timings
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="hi"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        assert captured_events[0]["token_metadata"].get("prompt_tokens") is None
+        assert (
+            captured_events[0]["token_metadata"]["time_to_first_token_ms"] is not None
+        )
+        assert captured_events[0]["token_metadata"]["time_to_first_token_ms"] >= 0
+        assert captured_events[0]["token_metadata"]["prompt_ms"] == 100
+        assert captured_events[0]["token_metadata"]["predicted_ms"] == 200
+        assert captured_events[0]["token_metadata"]["prompt_n"] == 50
+        assert captured_events[0]["token_metadata"]["predicted_n"] == 25
+
+    async def test_no_tool_calls_empty_array(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test tool_names is empty array when no tool calls are made."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(content="no tools here", role="assistant"),
+                    finish_reason="stop",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=50,
+                completion_tokens=20,
+                total_tokens=70,
+            ),
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            yield MockContent(content="no tools here")
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="hi"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        assert captured_events[0]["tool_names"] == []
+
+    async def test_content_extracted_from_chat_log(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test text content is read from chat_log.content."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(content="streamed", role="assistant"),
+                    finish_reason="stop",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=10,
+                completion_tokens=5,
+                total_tokens=15,
+            ),
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            yield MockContent(content="extracted content")
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="extracted content"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        assert captured_events[0]["content"] == "extracted content"
+
+    async def test_tool_call_response_null_content(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test content is null when response is tool calls only."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        tool_call = ChoiceDeltaToolCall(
+            index=0,
+            id="call_1",
+            type="function",
+            function=ChoiceDeltaToolCallFunction(
+                name="weather_fn",
+                arguments="{}",
+            ),
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(
+                        role="assistant",
+                        tool_calls=[tool_call],
+                    ),
+                    finish_reason="tool_calls",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=1200,
+                completion_tokens=85,
+                total_tokens=1285,
+            ),
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        assert captured_events[0]["content"] is None
+        assert captured_events[0]["token_metadata"]["prompt_tokens"] == 1200
+        assert captured_events[0]["token_metadata"]["completion_tokens"] == 85
+        assert captured_events[0]["token_metadata"]["total_tokens"] == 1285
+        assert (
+            captured_events[0]["token_metadata"]["time_to_first_token_ms"] is not None
+        )
+        assert captured_events[0]["token_metadata"]["time_to_first_token_ms"] >= 0
+        assert captured_events[0]["tool_names"] == ["weather_fn"]

@@ -89,6 +89,7 @@ def test_request_body_parameters_render_template_values(
     result = entity._get_extra_body_args(subentry.data)
 
     assert result == {
+        "stream_options": {"include_usage": True},
         "reasoning_effort": "medium",
         "max_tokens": 8192,
         "include_reasoning": True,
@@ -118,6 +119,7 @@ def test_request_body_parameters_are_merged_with_chat_template_kwargs(
     result = entity._get_extra_body_args(subentry.data)
 
     assert result == {
+        "stream_options": {"include_usage": True},
         "chat_template_kwargs": {"template_arg": 1},
         "reasoning_effort": "medium",
     }

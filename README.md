@@ -31,6 +31,7 @@
 - Added chat template arguments support
 - Added image generation support for AI Task entities
 - Added tools support for Generate Data actions for AI Task entities
+- Emits a `local_openai_llm_generation_complete` event for all LLM completion requests, with usage/timings data if available
 
 ---
 
