@@ -16,14 +16,15 @@
 **This integration has been forked from Home Assistants OpenRouter integration, with the following changes:**
 
 - Added server URL to the initial server configuration
-- Made the API Key optional during initial server configuration: can be left blank if your local server does not require one
+- Made the API Key optional during initial server configuration: can be left blank if your local server does not require
+  one
 - Uses streamed LLM responses
 - Conversation Agents support TTS streaming
 - Automatically strips `<think>` tags from responses
 - Added support for image inputs for AI Task entities
 - Added support for reconfiguring Conversation Agents
 - Added option to trim conversation history to help stay within your context window
-- Added temperature control
+- Added temperature control (conversation agent + ai task)
 - Added option to strip emojis from responses
 - Added support for parallel tool calling
 - Added experimental Retrieval Augmented Generation capability
@@ -45,15 +46,18 @@ Adding Tools for Assist to HACS can be using this button:
 <br>
 
 > [!NOTE]
-> If the button above doesn't work, add `https://github.com/skye-harris/hass_local_openai_llm` as a custom repository of type Integration in HACS.
+> If the button above doesn't work, add `https://github.com/skye-harris/hass_local_openai_llm` as a custom repository of
+type Integration in HACS.
 
 * Click install on the `Local OpenAI LLM` integration.
 * Restart Home Assistant.
 
 <details><summary>Manual Install</summary>
 
-* Copy the `local_openai`  folder from [latest release](https://github.com/skye-harris/hass_local_openai_llm/releases/latest) to the [
-  `custom_components` folder](https://developers.home-assistant.io/docs/creating_integration_file_structure/#where-home-assistant-looks-for-integrations) in your config directory.
+* Copy the `local_openai`  folder
+  from [latest release](https://github.com/skye-harris/hass_local_openai_llm/releases/latest) to the [
+  `custom_components` folder](https://developers.home-assistant.io/docs/creating_integration_file_structure/#where-home-assistant-looks-for-integrations)
+  in your config directory.
 * Restart the Home Assistant.
 
 </details>
@@ -73,15 +77,19 @@ After installation, configure the integration through Home Assistant's UI:
 
 - The Server URL must be a fully qualified URL pointing to an OpenAI-compatible API.
     - This typically ends with `/v1` but may differ depending on your server configuration.
-- A Server Type configuration can be set to expose some additional options for different inference servers and providers, where they have been implemented.
+- A Server Type configuration can be set to expose some additional options for different inference servers and
+  providers, where they have been implemented.
 - Assist requires a fairly lengthy context for tooling and entity definitions.
-    - It is strongly recommended to use _at least_ 10k context size and to limit history length and exposed entities to avoid context overflow issues.
-    - This is not configurable through OpenAI-compatible APIs, and needs to be configured with the inference server directly.
+    - It is strongly recommended to use _at least_ 10k context size and to limit history length and exposed entities to
+      avoid context overflow issues.
+    - This is not configurable through OpenAI-compatible APIs, and needs to be configured with the inference server
+      directly.
 - Tool calling must be enabled in your inference engine, eg:
     - **vLLM**: https://docs.vllm.ai/en/latest/features/tool_calling/
     - **llama.cpp**: https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md
 - Parallel tool calling requires support from both your model and inference server.
-    - In some cases, control of this is handled by the server directly, in which case toggling this will not have any result.
+    - In some cases, control of this is handled by the server directly, in which case toggling this will not have any
+      result.
 - Chat Template Arguments allow you to provide custom arguments to your model
     - Arguments are supplied as key/value pairs and provided to the `chat_template_kwargs` request parameter
     - Values support Jinja2 templates, in order to provide non-string and more complex data structures
@@ -93,8 +101,16 @@ After installation, configure the integration through Home Assistant's UI:
     - Internally managed parameters, and parameters with dedicated configuration options, cannot be configured here
     - Provider support differs; see your provider and model documentation for available parameters
 - AI Task entities can be configured for Text and/or Image generation capabilities
-    - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and requires support from your chosen image generation server
+    - This capability uses the [Images API](https://developers.openai.com/api/reference/resources/images) spec and
+      requires support from your chosen image generation server
     - Support has been developed and tested with [StableDiffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)
+- Always continue conversation — When a voice agent finishes speaking, passes the active voice turn back to the user in
+  order to naturally continue the conversation
+    - If the user speaks, the assistant continues the conversation naturally
+    - If the user stays silent, the assistant stops following up after a timeout
+    - If the user says a stop keyword (e.g. "STOP") while the agent is speaking, the follow-up is cancelled immediately
+    - When disabled (default), only assistant responses ending in a question will pass the active voice turn back to the
+      user
 
 ---
 
@@ -102,26 +118,30 @@ After installation, configure the integration through Home Assistant's UI:
 
 **Custom HTTP Headers**
 
-Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or provider-specific headers.
+Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or
+provider-specific headers.
 
 ### DeepSeek Cloud Configuration
 
 #### Reasoning Effort
 
-When the server type is set to *DeepSeek Cloud*, both conversation and AI task agents show a new **DeepSeek Configuration** section with a **Reasoning Effort** option.
-This option controls whether thinking is enabled, and what level of reasoning to perform on the request.
+When the server type is set to *DeepSeek Cloud*, both conversation and AI task agents show a new **DeepSeek
+Configuration** section with a **Reasoning Effort** option. This option controls whether thinking is enabled, and what
+level of reasoning to perform on the request.
 
 - **Disabled** (default) — no thinking tokens.
 - **High** — enables thinking with standard reasoning effort.
 - **Max** — enables thinking with maximum reasoning effort.
 
-When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on supported Home Assistant versions (2026.4+).
+When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on
+supported Home Assistant versions (2026.4+).
 
 ---
 
 ### llama.cpp Configuration
 
-When the server type is set to *llama.cpp*, both conversation and AI task agents show a **llama.cpp Configuration** section with the following options.
+When the server type is set to *llama.cpp*, both conversation and AI task agents show a **llama.cpp Configuration**
+section with the following options.
 
 #### Enable thinking
 
@@ -136,24 +156,35 @@ _Note: This option completely overrides any existing `enable_thinking` option in
 
 Controls whether thinking/reasoning content from prior conversation turns is sent back in new completion requests.
 
-Some reasoning models require this enabled, and others require it disabled. Check the documentation for your model if unsure. 
+Some reasoning models require this enabled, and others require it disabled. Check the documentation for your model if
+unsure.
 
-- **Enabled** (default) — prior-turn `thinking_content` is passed as `reasoning_content` in the next request, allowing the model to see its own prior reasoning.
-- **Disabled** — prior thinking context is stripped before sending. Use for models that reject prior reasoning context (e.g., Gemma 4).
+- **Enabled** (default) — prior-turn `thinking_content` is passed as `reasoning_content` in the next request, allowing
+  the model to see its own prior reasoning.
+- **Disabled** — prior thinking context is stripped before sending. Use for models that reject prior reasoning context
+  (e.g., Gemma 4).
 
 #### Slot ID
 
 Pins requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty to allow any slot to be used.
 
-#### Model naming
+#### Use loaded model
 
-llama.cpp exposes the value supplied via its `--alias` flag on the model object. When an alias is set it is used as the model's display name; otherwise the raw model `id` (typically the full model file path) is used, with the path and `.gguf`
-extension stripped for a cleaner name.
+When enabled, the integration prioritizes using models already resident in memory to minimize latency.
+
+It follows these rules:
+
+- **Primary:** Uses the configured model if it is currently loaded.
+- **Fallback:** If the configured model is not loaded, it selects the first loaded model that supports the required modality (e.g., image inputs). If no compatible loaded models exist, it defaults back to the configured model.
+
+This is ideal for users with diverse model setups who want to route tasks to whatever is currently available in memory rather than waiting for a specific model to load.
 
 #### Sampling Parameters
 
 These options control how llama.cpp selects tokens during text generation.<br>
-Please refer to the [llama.cpp documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/completion/README.md#generation-flags) for further information and usage.
+Please refer to
+the [llama.cpp documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/completion/README.md#generation-flags)
+for further information and usage.
 
 | Parameter            | Description                                                                                                | Range  |
 |----------------------|------------------------------------------------------------------------------------------------------------|--------|
@@ -163,35 +194,48 @@ Please refer to the [llama.cpp documentation](https://github.com/ggml-org/llama.
 | **Repeat Penalty**   | Penalizes repeat sequences of tokens.                                                                      | -2–2   |
 | **Presence Penalty** | Penalizes tokens already present in the context.                                                           | -2–2   |
 
+#### Model naming
+
+llama.cpp exposes the value supplied via its `--alias` flag on the model object. When an alias is set it is used as the
+model's display name; otherwise the raw model `id` (typically the full model file path) is used, with the path and
+`.gguf`
+extension stripped for a cleaner name.
+
 ---
 
 ### LocalAI Configuration
 
-When the server type is set to *LocalAI*, Chat Template Arguments are sent via the
-OpenAI `metadata` request field rather than a top-level `chat_template_kwargs` field,
-as this is where LocalAI reads chat template variables from. Values are coerced to
-strings, per LocalAI's metadata convention.
+When the server type is set to *LocalAI*, Chat Template Arguments are sent via the OpenAI `metadata` request field
+rather than a top-level `chat_template_kwargs` field, as this is where LocalAI reads chat template variables from.
+Values are coerced to strings, per LocalAI's metadata convention.
 
 See [LocalAI model configuration](https://localai.io/advanced/model-configuration/index.html#custom-chat_template_kwargs).
 ---
 
 ### vLLM Configuration
 
-When the server type is set to *vLLM*, both conversation and AI task agents show a **vLLM Configuration** section with the following options.
+When the server type is set to *vLLM*, both conversation and AI task agents show a **vLLM Configuration** section with
+the following options.
 
 #### Thinking token budget
 
-Caps how many tokens the model may spend on reasoning, via the `thinking_token_budget` request parameter. Once the budget is reached, vLLM forces the reasoning block to be closed and the model proceeds to its answer.
+Caps how many tokens the model may spend on reasoning, via the `thinking_token_budget` request parameter. Once the
+budget is reached, vLLM forces the reasoning block to be closed and the model proceeds to its answer.
 
 - **Empty** (default) — no budget is sent, and the server default applies.
 - **0** — the reasoning block is closed immediately, so the model answers without thinking.
 - **Any higher value** — limits reasoning to that number of tokens.
 
-_Note: This only limits the length of thinking, it does not enable or disable it. Whether the model thinks at all is controlled by the model's chat template, typically via an `enable_thinking` Chat Template Argument._
+_Note: This only limits the length of thinking, it does not enable or disable it. Whether the model thinks at all is
+controlled by the model's chat template, typically via an `enable_thinking` Chat Template Argument._
 
-Requires a reasoning model and a vLLM version that supports the parameter. Refer to the [vLLM reasoning outputs documentation](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) for further information.
+Requires a reasoning model and a vLLM version that supports the parameter. Refer to
+the [vLLM reasoning outputs documentation](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) for further
+information.
 
-When the budget is reached the reasoning block is closed with the parser's end string, which can leave the model cut off mid-thought. A wrap-up message can be added there to transition into the answer more gracefully, though this is configured on the vLLM server rather than per request:
+When the budget is reached the reasoning block is closed with the parser's end string, which can leave the model cut off
+mid-thought. A wrap-up message can be added there to transition into the answer more gracefully, though this is
+configured on the vLLM server rather than per request:
 
 ```
 --reasoning-parser qwen3
@@ -202,12 +246,14 @@ When the budget is reached the reasoning block is closed with the parser's end s
 
 ### Experimental: Date/Time Context Injection Role
 
-This integration supports injecting some dynamic content, presently the date and time, into the active Conversation Agent prompt when making a request.
-This was added as it is beneficial for the model to be grounded with this context in its role as an assistant, and was previously added to the system prompt by Home Assistant itself before later being removed due to negative effects on prompt caching
-and performance.
+This integration supports injecting some dynamic content, presently the date and time, into the active Conversation
+Agent prompt when making a request. This was added as it is beneficial for the model to be grounded with this context in
+its role as an assistant, and was previously added to the system prompt by Home Assistant itself before later being
+removed due to negative effects on prompt caching and performance.
 
-This was previously always-on but has been extracted as an **experimental** configuration option as this is not a once-size-fits-all for all models.
-To this end I have provided a number of options so that users can try them out and select the one that works best, or disable entirely if none work well, for their chosen model.
+This was previously always-on but has been extracted as an **experimental** configuration option as this is not a
+once-size-fits-all for all models. To this end I have provided a number of options so that users can try them out and
+select the one that works best, or disable entirely if none work well, for their chosen model.
 
 The available options are:
 
@@ -215,7 +261,8 @@ The available options are:
 
 The date and time are inserted as a `Tool Call Result` message to the model, before the current user message.
 
-As long as the model does not reject it, this is the recommended method to use and produces the most reliable results during testing.
+As long as the model does not reject it, this is the recommended method to use and produces the most reliable results
+during testing.
 
 #### <u>Assistant</u>:
 
@@ -227,21 +274,25 @@ In cases where the `Tool Call Result` role method does not work for a model, thi
 
 The date and time are inserted as an additional `User` message to the model, before the current user message.
 
-Recommended only where neither the `System` nor `Assistant` injection methods work for the model, but may not produce desirable results.
-Some models have been known to repeat the date/time back to the user without request.
+Recommended only where neither the `System` nor `Assistant` injection methods work for the model, but may not produce
+desirable results. Some models have been known to repeat the date/time back to the user without request.
 
 #### <u>Disabled (no selection)</u>:
 
-If your model simply refuses to work well with any method, simply remove the value from the configuration option to disable this again.
+If your model simply refuses to work well with any method, simply remove the value from the configuration option to
+disable this again.
 
 ## Experimental: Retrieval Augmented Generation (RAG) with Weaviate
 
-Retrieval Augmented Generation is used to pre-feed your LLM messages with related data to provide contextually relevant information to the model based on the user input message.
+Retrieval Augmented Generation is used to pre-feed your LLM messages with related data to provide contextually relevant
+information to the model based on the user input message.
 
-This integration supports connecting your Agent to a Weaviate vector database server.
-Once configured, user messages to the Agent will be queried against the Weaviate database first, and the result data pre-emptively injected into the current conversation as contextual data for the Agent to utilise in their response.
+This integration supports connecting your Agent to a Weaviate vector database server. Once configured, user messages to
+the Agent will be queried against the Weaviate database first, and the result data pre-emptively injected into the
+current conversation as contextual data for the Agent to utilise in their response.
 
-This is not a general-purpose "memory" for the Agent: content is only provided to the Agent if it matches on the current user input message to the model.
+This is not a general-purpose "memory" for the Agent: content is only provided to the Agent if it matches on the current
+user input message to the model.
 
 See the [Weaviate documentation](https://docs.weaviate.io/weaviate) for further information on Weaviate.
 
@@ -251,22 +302,28 @@ See the [Weaviate documentation](https://docs.weaviate.io/weaviate) for further 
 
 1. **Install Weaviate [locally](https://docs.weaviate.io/weaviate/quickstart/local)**
     1. A pre-made `docker-compose.yml` is provided in the `weaviate` directory of this repository.
-    2. _Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive for personal/home use, and so I don't anticipate demand for this._
+    2. _Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive
+       for personal/home use, and so I don't anticipate demand for this._
 2. **Reconfigure your LLM Server entity (**not** the Agent entity) in Home Assistant.**
-    1. Expand the `Weaviate configuration` section and fill in the details server address and API key (`homeassistant` if using the supplied `docker-compose.yml`).
+    1. Expand the `Weaviate configuration` section and fill in the details server address and API key (`homeassistant`
+       if using the supplied `docker-compose.yml`).
 3. **Optional: Reconfigure your AI Agent entities in Home Assistant.**
     1. This is only needed if you wish to change the default Weaviate values on a per-agent basis:
-        1. Object class name: Defaults to `Homeassistant`, can be changed if you want a different data store for the Agent. The integration will handle creating the required object class within Weaviate if it does not already exist.
+        1. Object class name: Defaults to `Homeassistant`, can be changed if you want a different data store for the
+           Agent. The integration will handle creating the required object class within Weaviate if it does not already
+           exist.
         2. Maximum number of results to use: Defaults to `2`.
         3. Result score threshold: Defaults to `0.9`.
-        4. Hybrid search alpha: Defaults to `0.5`. Balances the hybrid result scoring between 0 (fully text-matched) and 1 (fully vectorised) matching.
+        4. Hybrid search alpha: Defaults to `0.5`. Balances the hybrid result scoring between 0 (fully text-matched) and
+           1 (fully vectorised) matching.
 
 ### Managing Data
 
 Self-hosted Weaviate does not come with a front-end to manage data at all at this current point in time.
 
-I have included a simple NodeJS-based WebApp server within the `/weaviate` directory of this repository, that can be used to connect to your local Weaviate instance and view, query, and manage the data in your object class.
-This is also setup into the supplied `docker-compose.yml` and exposed on port 9090 by default.
+I have included a simple NodeJS-based WebApp server within the `/weaviate` directory of this repository, that can be
+used to connect to your local Weaviate instance and view, query, and manage the data in your object class. This is also
+setup into the supplied `docker-compose.yml` and exposed on port 9090 by default.
 
 This tool supports the following basic functionality:
 
@@ -275,16 +332,19 @@ This tool supports the following basic functionality:
 - Add new entry data to a class.
 - Perform vector and hybrid searches against an object class.
 
-_This is not a general-purpose Weaviate management tool, rather it is purpose-built specifically for use with this integration and the object classes that it creates._
+_This is not a general-purpose Weaviate management tool, rather it is purpose-built specifically for use with this
+integration and the object classes that it creates._
 
 ### Notes
 
 - Only the current generations user message is queried in the database, no prior user messages are included.
-- Search results are used for the **current** user/assistant turns only (including multiturn tool usages), and do not carry forward to subsequent user/assistant turns.
+- Search results are used for the **current** user/assistant turns only (including multiturn tool usages), and do not
+  carry forward to subsequent user/assistant turns.
 - Objects are stored as 2 pieces of data: the `query`, and the `content`:
     - The `query` is what is vectorised and the user inputs searched against.
     - The `content` is the main content to be provided to be fed to the LLM, along with its `query` text for context.
-- Useful for providing contextual information to the LLM for different types of requests, without having all of it in your prompt at all times.
+- Useful for providing contextual information to the LLM for different types of requests, without having all of it in
+  your prompt at all times.
 - I have performed basic testing of this with a variety of models across a few inference providers:
     - Qwen 3-VL 8B locally on llama.cpp.
     - Minimax m2.1 on OpenRouter.
@@ -293,13 +353,15 @@ _This is not a general-purpose Weaviate management tool, rather it is purpose-bu
     - Gemma 3 27B on Scaleway.
     - Llama 3.1 8B on Scaleway.
     - GPT-OSS-120B on Scaleway.
-- A service action, `local_openai.add_to_weaviate`, can be used from within Home Assistant to add content to the database.
+- A service action, `local_openai.add_to_weaviate`, can be used from within Home Assistant to add content to the
+  database.
 
 ---
 
 ## Web Search & Additional Tools
 
-Looking to add some more functionality to your Home Assistant conversation agent, such as web and localised business/location search? Check out my [Tools for Assist](https://github.com/skye-harris/llm_intents) integration here!
+Looking to add some more functionality to your Home Assistant conversation agent, such as web and localised
+business/location search? Check out my [Tools for Assist](https://github.com/skye-harris/llm_intents) integration here!
 
 These tools exist as a separate integration for compatibility across the wider Home Assistant Conversation ecosystem.
 
@@ -307,9 +369,46 @@ These tools exist as a separate integration for compatibility across the wider H
 
 ## Acknowledgements
 
-- This integration is forked from the [OpenRouter](https://github.com/home-assistant/core/tree/dev/homeassistant/components/open_router) integration for Home Assistant by [@joostlek](https://github.com/joostlek)
-- [@NickM-27](https://github.com/NickM-27) for his contributions both in additions to the integration itself, and providing support and assistance with reported issues
+This integration was forked from
+the [OpenRouter](https://github.com/home-assistant/core/tree/dev/homeassistant/components/open_router) integration for
+Home Assistant by [@joostlek](https://github.com/joostlek).
 
 ---
+
+## Contributors
+
+I would like to thank the following people for their contributions to this project:
+
+<table>
+<tr>
+  <td align="center"><a href="https://github.com/NickM-27"><img src="https://avatars.githubusercontent.com/u/14866235?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/NickM-27">NickM-27</a></b></sub></td>
+  <td align="center"><a href="https://github.com/JulienDeveaux"><img src="https://avatars.githubusercontent.com/u/73243388?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/JulienDeveaux">JulienDeveaux</a></b></sub></td>
+  <td align="center"><a href="https://github.com/BryanCLieberman"><img src="https://avatars.githubusercontent.com/u/205995085?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/BryanCLieberman">BryanCLieberman</a></b></sub></td>
+  <td align="center"><a href="https://github.com/PollyBot13"><img src="https://avatars.githubusercontent.com/u/261872620?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/PollyBot13">PollyBot13</a></b></sub></td>
+  <td align="center"><a href="https://github.com/srwalter"><img src="https://avatars.githubusercontent.com/u/79127?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/srwalter">srwalter</a></b></sub></td>
+  <td align="center"><a href="https://github.com/alexjurkiewicz"><img src="https://avatars.githubusercontent.com/u/379509?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/alexjurkiewicz">alexjurkiewicz</a></b></sub></td>
+</tr>
+<tr>
+  <td align="center"><a href="https://github.com/ordex"><img src="https://avatars.githubusercontent.com/u/3433035?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/ordex">ordex</a></b></sub></td>
+  <td align="center"><a href="https://github.com/gtrev500"><img src="https://avatars.githubusercontent.com/u/203562600?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/gtrev500">gtrev500</a></b></sub></td>
+  <td align="center"><a href="https://github.com/whinis"><img src="https://avatars.githubusercontent.com/u/7612064?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/whinis">whinis</a></b></sub></td>
+  <td align="center"><a href="https://github.com/Johnson145"><img src="https://avatars.githubusercontent.com/u/6339078?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Johnson145">Johnson145</a></b></sub></td>
+  <td align="center"><a href="https://github.com/ksmarty"><img src="https://avatars.githubusercontent.com/u/2217505?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/ksmarty">ksmarty</a></b></sub></td>
+  <td align="center"><a href="https://github.com/Mugga6315"><img src="https://avatars.githubusercontent.com/u/14247483?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Mugga6315">Mugga6315</a></b></sub></td>
+</tr>
+<tr>
+  <td align="center"><a href="https://github.com/Thibaultjaigu"><img src="https://avatars.githubusercontent.com/u/84420566?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Thibaultjaigu">Thibaultjaigu</a></b></sub></td>
+  <td align="center"><a href="https://github.com/Thyraz"><img src="https://avatars.githubusercontent.com/u/170099?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Thyraz">Thyraz</a></b></sub></td>
+  <td align="center"><a href="https://github.com/jgancedo"><img src="https://avatars.githubusercontent.com/u/17992965?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/jgancedo">jgancedo</a></b></sub></td>
+  <td align="center"><a href="https://github.com/geryduyck"><img src="https://avatars.githubusercontent.com/u/36077321?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/geryduyck">geryduyck</a></b></sub></td>
+</tr>
+</table>
+
+---
+
+## Support Development
+
+If you find this integration useful and would like to support development, please
+consider [buying me a coffee](https://www.buymeacoffee.com/skyeharris).
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/skyeharris)

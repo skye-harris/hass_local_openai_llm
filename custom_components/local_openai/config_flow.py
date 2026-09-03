@@ -83,6 +83,8 @@ from custom_components.local_openai.entities.vllm import (
 from .const import (
     CONF_AI_TASK_SUPPORTED_ATTRIBUTES,
     CONF_AI_TASK_TOOLS_SECTION,
+    CONF_ALWAYS_CONTINUE_CONVERSATION,
+    CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -406,23 +408,20 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                             vol.Optional(
                                 CONF_SERVER_HEADERS,
                                 default=[],
-                            ): vol.All(
-                                ObjectSelector(
-                                    config={
-                                        "multiple": True,
-                                        "fields": {
-                                            "Key": {
-                                                "selector": {"text": None},
-                                                "required": True,
-                                            },
-                                            "Value": {
-                                                "selector": {"text": None},
-                                                "required": True,
-                                            },
+                            ): ObjectSelector(
+                                config={
+                                    "multiple": True,
+                                    "fields": {
+                                        "Key": {
+                                            "selector": {"text": None},
+                                            "required": True,
+                                        },
+                                        "Value": {
+                                            "selector": {"text": None},
+                                            "required": True,
                                         },
                                     },
-                                ),
-                                _validate_server_headers,
+                                },
                             ),
                         },
                     ),
@@ -445,9 +444,11 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 custom_headers_section = user_input.get(CONF_CUSTOM_HEADERS, {}) or {}
-                custom_headers_list = (
+                custom_headers_list = _validate_server_headers(
                     custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
                 )
+                custom_headers_section[CONF_SERVER_HEADERS] = custom_headers_list
+                user_input[CONF_CUSTOM_HEADERS] = custom_headers_section
                 custom_headers = {
                     item["Key"]: item["Value"] for item in custom_headers_list
                 } or None
@@ -507,9 +508,11 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 custom_headers_section = user_input.get(CONF_CUSTOM_HEADERS, {}) or {}
-                custom_headers_list = (
+                custom_headers_list = _validate_server_headers(
                     custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
                 )
+                custom_headers_section[CONF_SERVER_HEADERS] = custom_headers_list
+                user_input[CONF_CUSTOM_HEADERS] = custom_headers_section
                 custom_headers = {
                     item["Key"]: item["Value"] for item in custom_headers_list
                 } or None
@@ -634,8 +637,11 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                 default=False,
             ): bool,
             vol.Required(
+                CONF_ALWAYS_CONTINUE_CONVERSATION,
+                default=CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
+            ): bool,
+            vol.Optional(
                 CONF_TEMPERATURE,
-                default=0.6,
             ): NumberSelector(
                 NumberSelectorConfig(
                     min=0,
@@ -882,6 +888,16 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
                     ],
                     multiple=True,
                     mode=SelectSelectorMode.LIST,
+                ),
+            ),
+            vol.Optional(
+                CONF_TEMPERATURE,
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max=1,
+                    step=0.01,
+                    mode=NumberSelectorMode.BOX,
                 ),
             ),
             vol.Required(CONF_AI_TASK_TOOLS_SECTION): section(

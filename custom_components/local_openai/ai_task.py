@@ -214,7 +214,7 @@ class LocalAITaskEntity(
             mime_type=mime_type,
             width=width,
             height=height,
-            model=self.model,
+            model=await self._async_get_model(),
         )
 
     async def _async_handle_image_response(
@@ -246,13 +246,13 @@ class LocalAITaskEntity(
                 response = await client.images.edit(
                     image=image_arg,
                     prompt=ai_task.instructions,
-                    model=self.model,
+                    model=await self._async_get_model(),
                     response_format="b64_json",
                 )
             else:
                 response = await client.images.generate(
                     prompt=ai_task.instructions,
-                    model=self.model,
+                    model=await self._async_get_model(),
                     response_format="b64_json",
                 )
         except openai.OpenAIError as err:

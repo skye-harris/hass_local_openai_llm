@@ -17,6 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, llm, template
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartImageParam,
@@ -29,7 +30,11 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
-from voluptuous_openapi import convert
+
+try:
+    from probatio import to_openapi as convert
+except ImportError:
+    from voluptuous_openapi import convert
 
 from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
@@ -125,7 +130,12 @@ def _format_structured_output(
 ) -> JSONSchema:
     """Format the schema to be compatible with OpenAI API."""
     result: JSONSchema = {
-        "name": name,
+        # The API requires json_schema.name to match ^[a-zA-Z0-9_-]+$ and be
+        # <= 64 chars; task names may contain spaces/punctuation. Mirror HA
+        # core's openai_conversation which slugifies this value. Use a fallback
+        # in case the name is empty or None (HA's slugify() returns '' for
+        # both, but 'unknown' for other unsluggable input).
+        "name": slugify(name)[:64] or "task",
         "strict": True,
     }
     result_schema = convert(
@@ -186,6 +196,12 @@ class LocalAiEntity(Entity):
             name=subentry.title,
             entry_type=dr.DeviceEntryType.SERVICE,
         )
+
+    async def _async_get_model(
+        self, chat_log: conversation.ChatLog | None = None
+    ) -> str:
+        """Return the model to use."""
+        return self.model
 
     @property
     def options(self) -> dict:
@@ -464,8 +480,11 @@ class LocalAiEntity(Entity):
 
         Returns the (possibly updated) tool_call_id and tool_call_name.
         """
+        # llama.cpp - only the initial tool call chunk has an ID, subsequent argument chunks do not
+        # Ollama - parallel tool calls all share the same .index value (0)
         tool_call_id = tool_call.id or tool_call_id
 
+        # And some mystery engine from OpenRouter uses the same index and ID across parallel tool requests within so lets track the tool name itself for changes as well
         tool_call_name = (
             tool_call.function.name
             if tool_call.function.name and tool_call.function.name != tool_call_name
@@ -676,11 +695,9 @@ class LocalAiEntity(Entity):
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         pass_session_id = server_options.get(CONF_PASS_SESSION_ID, False)
         max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
-        temperature = options.get(CONF_TEMPERATURE, 0.6)
 
         model_args = {
-            "model": self.model,
-            "temperature": temperature,
+            "model": await self._async_get_model(chat_log),
             "parallel_tool_calls": parallel_tool_calls,
             "extra_headers": {
                 "HTTP-Referer": "https://github.com/skye-harris/hass_local_openai_llm",
@@ -688,11 +705,20 @@ class LocalAiEntity(Entity):
             },
         }
 
+        # Omit when unset, some providers (e.g. Anthropic) reject a non-default temperature.
+        temperature = options.get(CONF_TEMPERATURE)
+        if temperature is not None:
+            model_args["temperature"] = temperature
+
         tools: list[ChatCompletionFunctionToolParam] | None = None
         if chat_log.llm_api:
+            # Sorted by name because intent.async_get() yields tools in registration
+            # order, which differs from one restart to the next. Tool schemas render
+            # at the start of the prompt, so a reorder invalidates the whole prefix
+            # of a server-side prompt cache.
             tools = [
                 _format_tool(tool, chat_log.llm_api.custom_serializer)
-                for tool in chat_log.llm_api.tools
+                for tool in sorted(chat_log.llm_api.tools, key=lambda tool: tool.name)
             ]
 
         messages = self._trim_history(
