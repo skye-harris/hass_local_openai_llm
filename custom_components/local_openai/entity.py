@@ -886,8 +886,7 @@ class LocalAiEntity(Entity):
                 [rounds[-1]] if max_messages == 0 else rounds[-(max_messages + 1) :]
             )
 
-        result = [system, *[msg for round in rounds for msg in round]]
-        return result
+        return [system, *[msg for r in rounds for msg in r]]
 
     async def upsert_data_in_weaviate(
         self,
