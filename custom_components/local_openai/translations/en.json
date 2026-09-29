@@ -115,7 +115,7 @@
             "strip_emojis": "Strip emojis from response",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
-            "max_message_history": "Max message history size (0 for no limit)",
+            "max_message_history": "Max previous conversation rounds to include",
             "parallel_tool_calls": "Parallel tool calling",
             "content_injection_method": "Date/Time context injection role",
             "always_continue_conversation": "Always continue conversation"
@@ -123,6 +123,7 @@
           "data_description": {
             "model": "The model to use for the conversation agent",
             "prompt": "Instruct how the LLM should respond. This can be a template",
+            "max_message_history": "Number of previous conversation rounds to keep.",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
@@ -208,7 +209,7 @@
             "strip_emojis": "Strip emojis from response",
             "suggested_value": "Suggested value",
             "temperature": "Temperature",
-            "max_message_history": "Max message history size (0 for no limit)",
+            "max_message_history": "Max previous conversation rounds to include",
             "parallel_tool_calls": "Parallel tool calling",
             "content_injection_method": "Date/Time context injection role",
             "always_continue_conversation": "Always continue conversation"
@@ -216,6 +217,7 @@
           "data_description": {
             "model": "The model to use for the conversation agent",
             "prompt": "Instruct how the LLM should respond. This can be a template",
+            "max_message_history": "Number of previous conversation rounds to keep.",
             "parallel_tool_calls": "Allow the model to use multiple tools in a single turn",
             "temperature": "Lower for more predictable responses, higher for more randomness",
             "content_injection_method": "The message role to insert dynamic content as. See the readme for details",

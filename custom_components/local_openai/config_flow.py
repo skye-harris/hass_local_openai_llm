@@ -342,7 +342,7 @@ def _resolve_model_name(server_type: str, model: object) -> str:
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Local OpenAI LLM."""
 
-    VERSION = 2
+    VERSION = 3
 
     @classmethod
     @callback
@@ -623,7 +623,11 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
             vol.Optional(
                 CONF_LLM_HASS_API,
                 default=RECOMMENDED_CONVERSATION_OPTIONS[CONF_LLM_HASS_API],
-            ): SelectSelector(SelectSelectorConfig(options=llm_apis, multiple=True)),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=llm_apis, multiple=True, mode=SelectSelectorMode.DROPDOWN
+                )
+            ),
             vol.Required(
                 CONF_PARALLEL_TOOL_CALLS,
                 default=True,
@@ -646,13 +650,9 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                     mode=NumberSelectorMode.BOX,
                 ),
             ),
-            vol.Optional(
-                CONF_MAX_MESSAGE_HISTORY,
-                default=0,
-            ): NumberSelector(
+            vol.Optional(CONF_MAX_MESSAGE_HISTORY): NumberSelector(
                 NumberSelectorConfig(
                     min=0,
-                    max=50,
                     step=1,
                     mode=NumberSelectorMode.BOX,
                 ),
