@@ -6,7 +6,7 @@
     "intent"
   ],
   "codeowners": [
-    "@skyeharris"
+    "@skye-harris"
   ],
   "config_flow": true,
   "dependencies": [
