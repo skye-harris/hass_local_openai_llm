@@ -23,6 +23,7 @@ from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CUSTOM_HEADERS,
+    CONF_MAX_MESSAGE_HISTORY,
     CONF_SERVER_HEADERS,
     DOMAIN,
     LOGGER,
@@ -42,7 +43,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.minor_version or 1,
     )
 
-    if entry.version > 2:
+    if entry.version > 3:
         # User has downgraded from a future version
         return False
 
@@ -79,7 +80,25 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Bump config entry version to prevent re-running migration
         hass.config_entries.async_update_entry(entry, version=2)
 
-    LOGGER.debug("Migration to configuration version %s successful", 2)
+    if entry.version == 2:
+        # Migrate max_messaeg_history: 0/-1 → unset (None) so old "keep all" semantics preserved
+        for subentry in entry.subentries.values():
+            if subentry.subentry_type != "conversation":
+                continue
+
+            data = dict(subentry.data)
+            max_message_history = data.get(CONF_MAX_MESSAGE_HISTORY)
+            if max_message_history in (0, -1, "0", "-1"):
+                del data[CONF_MAX_MESSAGE_HISTORY]
+                hass.config_entries.async_update_subentry(
+                    entry,
+                    subentry,
+                    data=data,
+                )
+
+        hass.config_entries.async_update_entry(entry, version=3, minor_version=0)
+
+    LOGGER.debug("Migration to configuration version %s successful", 3)
     return True
 
 

@@ -1,14 +1,16 @@
 """Tests for custom headers in async_setup_entry."""
 
+from types import MappingProxyType
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from custom_components.local_openai import async_setup_entry
+from custom_components.local_openai import async_migrate_entry, async_setup_entry
 from custom_components.local_openai.const import (
     CONF_BASE_URL,
     CONF_CUSTOM_HEADERS,
+    CONF_MAX_MESSAGE_HISTORY,
     CONF_SERVER_HEADERS,
 )
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.httpx_client import get_async_client
@@ -25,23 +27,35 @@ def _make_mock_client() -> MagicMock:
     return mock_client_instance
 
 
-def _make_entry(data: dict) -> ConfigEntry:
+def _make_entry(data: dict, version: int = 1) -> ConfigEntry:
     """Create a minimal ConfigEntry with the given data."""
-    from types import MappingProxyType
-
     entry = ConfigEntry(
         domain="local_openai",
         title="Test",
         data=data,
         source="user",
-        version=1,
-        minor_version=1,
+        version=version,
+        minor_version=0,
         discovery_keys=MappingProxyType({}),
         options=None,
         subentries_data=None,
         unique_id=None,
     )
     return entry
+
+
+def _make_conversation_subentry(
+    data: dict,
+    subentry_id: str = "test_conversation_subentry_id",
+) -> ConfigSubentry:
+    """Create a mock conversation subentry."""
+    return ConfigSubentry(
+        subentry_id=subentry_id,
+        subentry_type="conversation",
+        title="Conversation Agent",
+        data=MappingProxyType(data),
+        unique_id=None,
+    )
 
 
 async def test_setup_entry_without_custom_headers(hass: HomeAssistant) -> None:
@@ -248,3 +262,138 @@ async def test_setup_entry_empty_values(hass: HomeAssistant) -> None:
     assert call_kwargs.kwargs["default_headers"] == {
         "X-NonEmpty": "has-value",
     }
+
+
+def _set_subentries(entry: ConfigEntry, subentries: dict) -> None:
+    """Properly set subentries on a ConfigEntry using object.__setattr__."""
+    object.__setattr__(entry, "subentries", MappingProxyType(subentries))
+
+
+async def test_migrate_v2_to_v3_max_message_history_zero(
+    hass: HomeAssistant,
+) -> None:
+    """Test migration of max_message_history=0 → unset (None)."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=2,
+    )
+    subentry = _make_conversation_subentry(
+        {CONF_MODEL: "test-model", CONF_MAX_MESSAGE_HISTORY: 0},
+    )
+    _set_subentries(entry, {"test_conversation_subentry_id": subentry})
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 3
+    updated_subentry = entry.subentries["test_conversation_subentry_id"]
+    assert CONF_MAX_MESSAGE_HISTORY not in updated_subentry.data
+
+
+async def test_migrate_v2_to_v3_max_message_history_negative(
+    hass: HomeAssistant,
+) -> None:
+    """Test migration of max_message_history=-1 → unset (None)."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=2,
+    )
+    subentry = _make_conversation_subentry(
+        {CONF_MODEL: "test-model", CONF_MAX_MESSAGE_HISTORY: -1},
+    )
+    _set_subentries(entry, {"test_conversation_subentry_id": subentry})
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 3
+    updated_subentry = entry.subentries["test_conversation_subentry_id"]
+    assert CONF_MAX_MESSAGE_HISTORY not in updated_subentry.data
+
+
+async def test_migrate_v2_to_v3_max_message_history_string_zero(
+    hass: HomeAssistant,
+) -> None:
+    """Test migration of max_message_history='0' → unset (None)."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=2,
+    )
+    subentry = _make_conversation_subentry(
+        {CONF_MODEL: "test-model", CONF_MAX_MESSAGE_HISTORY: "0"},
+    )
+    _set_subentries(entry, {"test_conversation_subentry_id": subentry})
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 3
+    updated_subentry = entry.subentries["test_conversation_subentry_id"]
+    assert CONF_MAX_MESSAGE_HISTORY not in updated_subentry.data
+
+
+async def test_migrate_v2_to_v3_max_message_history_not_conversation(
+    hass: HomeAssistant,
+) -> None:
+    """Test that non-conversation subentries are not migrated."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=2,
+    )
+    subentry = ConfigSubentry(
+        subentry_id="test_ai_task_subentry_id",
+        subentry_type="ai_task",
+        title="AI Task",
+        data=MappingProxyType({CONF_MODEL: "test-model"}),
+        unique_id=None,
+    )
+    _set_subentries(entry, {"test_ai_task_subentry_id": subentry})
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 3
+    ai_task_subentry = entry.subentries["test_ai_task_subentry_id"]
+    assert ai_task_subentry.data.get(CONF_MODEL) == "test-model"
+
+
+async def test_migrate_v2_to_v3_no_migration_needed(
+    hass: HomeAssistant,
+) -> None:
+    """Test that entries without max_message_history=0/-1 still bump to v3."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=2,
+    )
+    subentry = _make_conversation_subentry(
+        {CONF_MODEL: "test-model", CONF_MAX_MESSAGE_HISTORY: 5},
+    )
+    _set_subentries(entry, {"test_conversation_subentry_id": subentry})
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 3
+    updated_subentry = entry.subentries["test_conversation_subentry_id"]
+    assert updated_subentry.data.get(CONF_MAX_MESSAGE_HISTORY) == 5
+
+
+async def test_migrate_v2_to_v3_no_subentries(
+    hass: HomeAssistant,
+) -> None:
+    """Test migration with no subentries."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=2,
+    )
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 3

@@ -734,7 +734,9 @@ class LocalAiEntity(Entity):
 
         # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
         pass_session_id = server_options.get(CONF_PASS_SESSION_ID, False)
-        max_message_history = int(options.get(CONF_MAX_MESSAGE_HISTORY, 0))
+        max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY)
+        if max_message_history is not None:
+            max_message_history = int(max_message_history)
 
         model_args = {
             "model": await self._async_get_model(chat_log),
@@ -941,37 +943,44 @@ class LocalAiEntity(Entity):
         return messages
 
     @staticmethod
-    def _trim_history(messages: list, max_messages: int) -> list:
+    def _trim_history(messages: list, max_messages: int | None) -> list:
         """
-        Trims excess messages from a single history.
+        Trim history to a configurable number of previous conversation rounds.
 
-        This sets the max history to allow a configurable size history may take
-        up in the context window.
-
-        Logic borrowed from the Ollama integration with thanks.
+        Groups messages into rounds by user boundaries so tool-call rounds
+        (assistant→tool→tool→user) stay intact.
         """
-        if max_messages < 1:
-            # Keep all messages
+        if max_messages is None or max_messages < 0:
             return messages
 
-        # Ignore the in progress user message
-        num_previous_rounds = sum(m["role"] == "assistant" for m in messages) - 1
-        if num_previous_rounds >= max_messages:
-            # Trim history but keep system prompt (first message).
-            # Every other message should be an assistant message, so keep 2x
-            # message objects. Also keep the last in progress user message
-            num_keep = 2 * max_messages + 1
-            drop_index = len(messages) - num_keep
-            messages = [
-                messages[0],
-                *messages[int(drop_index) :],
-            ]
+        if len(messages) <= 1:
+            return messages
 
-            # Drop the first message as well if its a tool call result, as some models do *NOT* like this existing without the corresponding tool call request
-            if messages[1]["role"] == "tool":
-                del messages[1]
+        system = messages[0]
+        rest = messages[1:]
 
-        return messages
+        rounds: list[list] = []
+        current_round: list = []
+        for msg in rest:
+            if msg["role"] == "user":
+                if current_round:
+                    rounds.append(current_round)
+                current_round = [msg]
+            else:
+                current_round.append(msg)
+        if current_round:
+            rounds.append(current_round)
+
+        if not rounds:
+            return messages
+
+        num_previous = len(rounds) - 1
+        if num_previous >= max_messages:
+            rounds = (
+                [rounds[-1]] if max_messages == 0 else rounds[-(max_messages + 1) :]
+            )
+
+        return [system, *[msg for r in rounds for msg in r]]
 
     async def upsert_data_in_weaviate(
         self,
