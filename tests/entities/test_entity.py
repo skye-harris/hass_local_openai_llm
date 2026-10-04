@@ -8,6 +8,7 @@ from copy import deepcopy
 from types import MappingProxyType
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import asyncio
 import openai
 import pytest
 import voluptuous as vol
@@ -803,7 +804,7 @@ class TestGenerationEventEmission:
         assert data["token_metadata"]["total_tokens"] == 150
         assert data["token_metadata"]["time_to_first_token_ms"] is not None
         assert data["token_metadata"]["time_to_first_token_ms"] >= 0
-        assert data["tool_names"] == []
+        assert data["tools_called"] == []
 
     async def test_multi_iteration_event_fires_per_iteration(
         self,
@@ -874,6 +875,9 @@ class TestGenerationEventEmission:
         async def stream_content(
             entity_id, stream_gen
         ) -> AsyncGenerator[MockContent, None]:
+            # very rarely, test would flake as events came in out of order. Lets not flood the event bus all at once
+            await asyncio.sleep(0.1)
+
             async for delta in stream_gen:
                 yield MockContent(content=delta.get("content", ""))
 
@@ -909,12 +913,12 @@ class TestGenerationEventEmission:
             assert data["token_metadata"]["time_to_first_token_ms"] is not None
             assert data["token_metadata"]["time_to_first_token_ms"] >= 0
 
-    async def test_tool_names_in_event(
+    async def test_tools_called_in_event(
         self,
         hass: HomeAssistant,
         mock_conversation_entity: conversation.ConversationAgent,
     ):
-        """Test tool_names array is populated when tool calls are made."""
+        """Test tools_called array is populated when tool calls are made."""
         entity = mock_conversation_entity
 
         captured_events: list[dict] = []
@@ -1001,7 +1005,7 @@ class TestGenerationEventEmission:
         await hass.async_block_till_done()
 
         assert len(captured_events) == 1
-        assert captured_events[0]["tool_names"] == ["get_weather", "check_calendar"]
+        assert captured_events[0]["tools_called"] == ["get_weather", "check_calendar"]
 
     async def test_missing_usage_provides_none_tokens(
         self,
@@ -1169,7 +1173,7 @@ class TestGenerationEventEmission:
         hass: HomeAssistant,
         mock_conversation_entity: conversation.ConversationAgent,
     ):
-        """Test tool_names is empty array when no tool calls are made."""
+        """Test tools_called is empty array when no tool calls are made."""
         entity = mock_conversation_entity
 
         captured_events: list[dict] = []
@@ -1233,7 +1237,7 @@ class TestGenerationEventEmission:
         await hass.async_block_till_done()
 
         assert len(captured_events) == 1
-        assert captured_events[0]["tool_names"] == []
+        assert captured_events[0]["tools_called"] == []
 
     async def test_content_extracted_from_chat_log(
         self,
@@ -1396,4 +1400,4 @@ class TestGenerationEventEmission:
             captured_events[0]["token_metadata"]["time_to_first_token_ms"] is not None
         )
         assert captured_events[0]["token_metadata"]["time_to_first_token_ms"] >= 0
-        assert captured_events[0]["tool_names"] == ["weather_fn"]
+        assert captured_events[0]["tools_called"] == ["weather_fn"]

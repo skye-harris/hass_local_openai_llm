@@ -905,7 +905,7 @@ class LocalAiEntity(Entity):
                         "iteration": iteration + 1,
                         "conversation_id": conversation_id,
                         "content": content_text,
-                        "tool_names": meta.tool_names or [],
+                        "tools_called": meta.tool_names or [],
                         "token_metadata": {
                             **(usage_dict or timings_dict),
                             "time_to_first_token_ms": meta.time_to_first_token,
