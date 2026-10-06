@@ -16,12 +16,14 @@ from custom_components.local_openai.const import (
 from custom_components.local_openai.entities.llama_cpp import LlamaCppMixin
 
 BASE_EXTRA_BODY_ARGS = {
-    "chat_template_kwargs": {"enable_thinking": False, "hello": "world"}
+    "chat_template_kwargs": {"enable_thinking": False, "hello": "world"},
+    "stream_options": {"include_usage": True},
 }
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
     result = dict(base)
+    result.pop("stream_options", None)
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = {**result[key], **value}
