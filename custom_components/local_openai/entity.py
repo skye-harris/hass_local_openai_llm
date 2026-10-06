@@ -303,7 +303,7 @@ class LocalAiEntity(Entity):
             return ChatCompletionToolMessageParam(
                 role="tool",
                 tool_call_id=content.tool_call_id,
-                content=json.dumps(content.tool_result, default=log_and_str),
+                content=json.dumps(content.result.data, default=log_and_str),
             )
 
         role: Literal["user", "assistant", "system"] = content.role

@@ -346,9 +346,11 @@ class TestRunAgentLoopErrorHandling:
                 agent_id="test_agent",
                 tool_call_id="call_1",
                 tool_name="test_fn",
-                tool_result={
-                    "error": 'Failed to parse tool arguments: {"arg": broken-json\n\nCheck your JSON and try again.',
-                },
+                result=llm.ToolResult(
+                    data={
+                        "error": 'Failed to parse tool arguments: {"arg": broken-json\n\nCheck your JSON and try again.',
+                    }
+                ),
             )
             yield error_content
             chat_log.content.append(error_content)
@@ -400,7 +402,7 @@ class TestRunAgentLoopErrorHandling:
             assert error_content.tool_name == "test_fn"
             assert error_content.tool_call_id == "call_1"
             assert (
-                "Failed to parse tool arguments" in error_content.tool_result["error"]
+                "Failed to parse tool arguments" in error_content.result.data["error"]
             )
 
     async def test_stop_directive_injected_on_final_iteration(
@@ -497,7 +499,7 @@ class TestRunAgentLoopErrorHandling:
                 agent_id="test_agent",
                 tool_call_id="call_1",
                 tool_name="test_fn",
-                tool_result={"error": "tool failed"},
+                result=llm.ToolResult(data={"error": "tool failed"}),
             )
             yield error_content
             chat_log.content.append(error_content)
