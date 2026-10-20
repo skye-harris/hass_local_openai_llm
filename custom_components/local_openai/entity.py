@@ -65,6 +65,7 @@ from .const import (
     CONF_WEAVIATE_OPTIONS,
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
+    TOOL_NAME_STOP_TALKING,
 )
 from .weaviate import WeaviateClient
 
@@ -867,7 +868,7 @@ class LocalAiEntity(Entity):
                             halt_requested = any(
                                 tool
                                 for tool in content.tool_calls
-                                if tool.tool_name == "stop_talking"
+                                if tool.tool_name == TOOL_NAME_STOP_TALKING
                             )
                             break
 
