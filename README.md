@@ -303,6 +303,10 @@ See the [Weaviate documentation](https://docs.weaviate.io/weaviate) for further 
 
 1. **Install Weaviate [locally](https://docs.weaviate.io/weaviate/quickstart/local)**
     1. A pre-made `docker-compose.yml` is provided in the `weaviate` directory of this repository.
+        1. _Upgrading an existing install: Weaviate only supports upgrading one minor version at a time. If your data
+           was created with the previous `1.34.0` image, step through the latest patch of each minor (`1.35`, `1.36`,
+           `1.37`, `1.38`) before starting `1.39.13`. See the
+           [Weaviate migration guide](https://docs.weaviate.io/deploy/migration)._
     2. _Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive
        for personal/home use, and so I don't anticipate demand for this._
 2. **Reconfigure your LLM Server entity (**not** the Agent entity) in Home Assistant.**
