@@ -1,4 +1,4 @@
-homeassistant
+homeassistant>2026.9.4
 ruff==0.13.2
 flake8
 flake8-docstrings
@@ -11,3 +11,4 @@ home-assistant-intents
 openai>=2.8.0
 demoji>=1.1.0
 pre-commit
+gazetteer_matcher>=1.2.0

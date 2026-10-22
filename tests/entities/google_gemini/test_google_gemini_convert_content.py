@@ -215,7 +215,7 @@ class TestConvertContentWithSignatures:
             agent_id="test_agent",
             tool_call_id="call_1",
             tool_name="test_fn",
-            tool_result={"result": "ok"},
+            result=llm.ToolResult(data={"result": "ok"}),
         )
 
         result = await google_entity._convert_content_to_chat_message(content, "conv_1")
