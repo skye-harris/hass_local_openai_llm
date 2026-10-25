@@ -6,6 +6,9 @@ import voluptuous as vol
 import pytest
 
 from custom_components.local_openai.const import (
+    CONF_VLLM_THINKING_MODE,
+    CONF_VLLM_THINKING_MODE_ALWAYS,
+    CONF_VLLM_THINKING_MODE_FIRST_LOOP,
     CONF_VLLM_THINKING_TOKEN_BUDGET,
 )
 from custom_components.local_openai.entities.vllm import _get_vllm_schema
@@ -15,6 +18,7 @@ def test_get_vllm_schema_returns_expected_fields() -> None:
     """Test that schema includes expected vLLM field."""
     schema = _get_vllm_schema()
     assert CONF_VLLM_THINKING_TOKEN_BUDGET in schema
+    assert CONF_VLLM_THINKING_MODE in schema
 
 
 def _validator() -> vol.Schema:
@@ -27,12 +31,23 @@ class TestValidation:
     def test_valid_data_passes(self) -> None:
         validator = _validator()
         data = {CONF_VLLM_THINKING_TOKEN_BUDGET: 2048}
-        assert validator(data) == data
+        result = validator(data)
+        assert result[CONF_VLLM_THINKING_TOKEN_BUDGET] == 2048
+        assert CONF_VLLM_THINKING_MODE not in result
 
-    def test_optional_field_can_be_omitted(self) -> None:
+    def test_thinking_mode_not_set_by_default(self) -> None:
         validator = _validator()
         result = validator({})
-        assert result == {}
+        assert CONF_VLLM_THINKING_MODE not in result
+
+    def test_thinking_mode_accepts_valid_values(self) -> None:
+        validator = _validator()
+        for value in (
+            CONF_VLLM_THINKING_MODE_ALWAYS,
+            CONF_VLLM_THINKING_MODE_FIRST_LOOP,
+        ):
+            result = validator({CONF_VLLM_THINKING_MODE: value})
+            assert result[CONF_VLLM_THINKING_MODE] == value
 
     def test_rejects_non_numeric_string(self) -> None:
         validator = _validator()
@@ -57,6 +72,7 @@ class TestValidation:
         "value",
         [
             0,
+            50,
             32768,
         ],
     )

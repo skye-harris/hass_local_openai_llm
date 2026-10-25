@@ -7,11 +7,25 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.loader import async_get_loaded_integration
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from custom_components.local_openai import LOGGER
+from custom_components.local_openai.const import DOMAIN
+
+INTEGRATION_HEADER = "X-Weaviate-Client-Integration"
+INTEGRATION_NAME = "hass-local-openai-llm"
+
+
+def _integration_header_value(hass: HomeAssistant) -> str:
+    """Return the integration attribution header value, e.g. name/1.13.0."""
+    try:
+        version = async_get_loaded_integration(hass, DOMAIN).version
+    except Exception:  # attribution must never break Weaviate requests
+        version = None
+    return f"{INTEGRATION_NAME}/{version or 'unknown'}"
 
 
 class WeaviateError(Exception):
@@ -26,6 +40,7 @@ class WeaviateClient:
         self._aiohttp = async_get_clientsession(hass=hass)
         self._host = host
         self._api_key = api_key
+        self._integration_header = _integration_header_value(hass)
 
     @staticmethod
     def prepare_class_name(class_name: str) -> str:
@@ -36,6 +51,7 @@ class WeaviateClient:
         """Prepare headers for API calls."""
         headers = {
             "Content-Type": "application/json",
+            INTEGRATION_HEADER: self._integration_header,
         }
 
         if self._api_key:

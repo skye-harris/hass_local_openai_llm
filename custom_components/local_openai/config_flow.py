@@ -342,7 +342,7 @@ def _resolve_model_name(server_type: str, model: object) -> str:
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Local OpenAI LLM."""
 
-    VERSION = 3
+    VERSION = 4
 
     @classmethod
     @callback

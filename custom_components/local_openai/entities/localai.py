@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from custom_components.local_openai.ai_task import LocalAITaskEntity
 from custom_components.local_openai.conversation import LocalAiConversationEntity
+
+if TYPE_CHECKING:
+    from custom_components.local_openai.entity import AgentContext
 
 
 def get_conversation_config_schema() -> dict:
@@ -40,17 +43,16 @@ class LocalAIServerMixin:
     See https://localai.io/advanced/model-configuration/index.html#custom-chat_template_kwargs
     """
 
-    def _get_extra_body_args(self, options: dict) -> dict:
+    def _get_extra_body_args(self, context: AgentContext) -> None:
         """Route chat template kwargs into `metadata` as strings for LocalAI."""
-        extra_body_args = super()._get_extra_body_args(options)
+        super()._get_extra_body_args(context)
+        extra_body_args = context.extra_body
 
         kwargs = extra_body_args.pop("chat_template_kwargs", None)
         if kwargs:
             metadata = extra_body_args.setdefault("metadata", {})
             for key, value in kwargs.items():
                 metadata[key] = _to_metadata_value(value)
-
-        return extra_body_args
 
 
 class LocalAIServerConversationEntity(

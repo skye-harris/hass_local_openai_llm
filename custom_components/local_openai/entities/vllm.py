@@ -2,19 +2,32 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import voluptuous as vol
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from custom_components.local_openai.ai_task import LocalAITaskEntity
 from custom_components.local_openai.const import (
     CONF_VLLM_CONFIG,
+    CONF_VLLM_THINKING_MODE,
+    CONF_VLLM_THINKING_MODE_ALWAYS,
+    CONF_VLLM_THINKING_MODE_FIRST_LOOP,
     CONF_VLLM_THINKING_TOKEN_BUDGET,
+    CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
 )
 from custom_components.local_openai.conversation import LocalAiConversationEntity
+
+if TYPE_CHECKING:
+    from custom_components.local_openai.entity import AgentContext
 
 REQUEST_BODY_RESERVED_PARAMETERS = frozenset()
 REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset({"thinking_token_budget"})
@@ -23,7 +36,25 @@ REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset({"thinking_token_budget"})
 def _get_vllm_schema() -> dict:
     """Return the vLLM server configuration schema."""
     return {
-        vol.Optional(CONF_VLLM_THINKING_TOKEN_BUDGET): NumberSelector(
+        vol.Optional(CONF_VLLM_THINKING_MODE): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(
+                        value=CONF_VLLM_THINKING_MODE_ALWAYS,
+                        label="Always on",
+                    ),
+                    SelectOptionDict(
+                        value=CONF_VLLM_THINKING_MODE_FIRST_LOOP,
+                        label="First loop iteration only",
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+            ),
+        ),
+        vol.Required(
+            CONF_VLLM_THINKING_TOKEN_BUDGET,
+            default=CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
+        ): NumberSelector(
             NumberSelectorConfig(
                 min=0,
                 max=32768,
@@ -47,17 +78,30 @@ def get_ai_task_config_schema() -> dict:
 class VllmMixin:
     """Mixin for vLLM entities with shared logic."""
 
-    def _get_extra_body_args(self, options: dict) -> dict:
-        """Add the vLLM thinking token budget to the base extra_body args."""
-        extra_body_args = super()._get_extra_body_args(options)
+    def _get_extra_body_args(self, context: AgentContext) -> None:
+        """Add the vLLM thinking token budget and enable_thinking to the base extra_body args."""
+        options = self.options
+        super()._get_extra_body_args(context)
+        extra_body_args = context.extra_body
 
-        thinking_token_budget = options.get(CONF_VLLM_CONFIG, {}).get(
-            CONF_VLLM_THINKING_TOKEN_BUDGET,
+        opts = options.get(CONF_VLLM_CONFIG, {})
+        thinking_mode = opts.get(CONF_VLLM_THINKING_MODE)
+        thinking_enabled = bool(thinking_mode) and not (
+            thinking_mode == CONF_VLLM_THINKING_MODE_FIRST_LOOP
+            and context.iteration > 0
         )
-        if thinking_token_budget is not None:
-            extra_body_args["thinking_token_budget"] = int(thinking_token_budget)
 
-        return extra_body_args
+        thinking_token_budget = opts.get(
+            CONF_VLLM_THINKING_TOKEN_BUDGET,
+            CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
+        )
+        if thinking_enabled:
+            extra_body_args["thinking_token_budget"] = int(thinking_token_budget)
+        else:
+            extra_body_args.pop("thinking_token_budget", None)
+
+        chat_template_kwargs = extra_body_args.setdefault("chat_template_kwargs", {})
+        chat_template_kwargs["enable_thinking"] = thinking_enabled
 
 
 class VllmConversationEntity(VllmMixin, LocalAiConversationEntity):

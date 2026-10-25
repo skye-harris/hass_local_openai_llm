@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
-from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.core import HomeAssistant
@@ -16,14 +15,17 @@ from custom_components.local_openai.const import (
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_LLAMACPP_CONFIG,
     CONF_LLAMACPP_TOP_P,
+    CONF_PASS_SESSION_ID,
     CONF_REQUEST_BODY_OPTS,
     CONF_REQUEST_BODY_PARAMETERS,
+    CONF_SERVER_OPTIONS,
     CONF_SERVER_TYPE,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_LLAMACPP,
 )
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 from custom_components.local_openai.entities.llama_cpp import LlamaCppConversationEntity
+from custom_components.local_openai.entity import AgentContext
 
 
 def _request_body_options(*parameters: dict[str, str]) -> dict:
@@ -40,12 +42,18 @@ def _request_body_parameter(key: str, value: str = "value") -> dict[str, str]:
     return {"Key": key, "Value": value}
 
 
-def _make_entry(server_type: str = SERVER_TYPE_GENERIC) -> MockConfigEntry:
+def _make_entry(
+    server_type: str = SERVER_TYPE_GENERIC,
+    server_options: dict | None = None,
+) -> MockConfigEntry:
     """Create a config entry for a server type."""
+    data = {CONF_SERVER_TYPE: server_type}
+    if server_options is not None:
+        data[CONF_SERVER_OPTIONS] = server_options
     entry = MockConfigEntry(
         domain="local_openai",
         title="Test Server",
-        data={CONF_SERVER_TYPE: server_type},
+        data=data,
         source="user",
         state="loaded",
         version=1,
@@ -86,9 +94,10 @@ def test_request_body_parameters_render_template_values(
     entity = LocalAiConversationEntity(_make_entry(), subentry)
     entity.hass = hass
 
-    result = entity._get_extra_body_args(subentry.data)
+    context = AgentContext()
+    entity._get_extra_body_args(context)
 
-    assert result == {
+    assert context.extra_body == {
         "stream_options": {"include_usage": True},
         "reasoning_effort": "medium",
         "max_tokens": 8192,
@@ -116,16 +125,17 @@ def test_request_body_parameters_are_merged_with_chat_template_kwargs(
     entity = LocalAiConversationEntity(_make_entry(), subentry)
     entity.hass = hass
 
-    result = entity._get_extra_body_args(subentry.data)
+    context = AgentContext()
+    entity._get_extra_body_args(context)
 
-    assert result == {
+    assert context.extra_body == {
         "stream_options": {"include_usage": True},
         "chat_template_kwargs": {"template_arg": 1},
         "reasoning_effort": "medium",
     }
 
 
-async def test_request_body_parameters_are_merged_after_server_specific_args(
+def test_request_body_parameters_are_merged_after_server_specific_args(
     hass: HomeAssistant,
 ):
     """Test custom request body parameters apply to server-specific entities."""
@@ -142,18 +152,41 @@ async def test_request_body_parameters_are_merged_after_server_specific_args(
     entry._subentries = {"test_subentry_id": subentry}
     entity = LlamaCppConversationEntity(entry, subentry)
     entity.hass = hass
-    entity._run_agent_loop = AsyncMock()
 
-    chat_log = MagicMock(spec=conversation.ChatLog)
-    chat_log.conversation_id = "test_conversation_id"
-    chat_log.content = []
-    chat_log.llm_api = None
+    context = AgentContext()
+    entity._get_extra_body_args(context)
 
-    await entity._async_handle_chat_log(chat_log)
-
-    model_args = entity._run_agent_loop.call_args.args[1]
-    assert model_args["extra_body"] == {
+    assert context.extra_body == {
         "chat_template_kwargs": {"enable_thinking": False},
         "top_p": 0.8,
         "seed": 123,
     }
+
+
+def test_session_id_added_to_metadata_when_enabled(hass: HomeAssistant):
+    """Test the conversation ID is passed as metadata.session_id when enabled."""
+    entry = _make_entry(server_options={CONF_PASS_SESSION_ID: True})
+    subentry = _make_subentry({CONF_MODEL: "test-model"})
+    entity = LocalAiConversationEntity(entry, subentry)
+    entity.hass = hass
+
+    context = AgentContext(conversation_id="test_conversation_id")
+    entity._get_extra_body_args(context)
+
+    assert context.extra_body["metadata"]["session_id"] == "test_conversation_id"
+
+
+def test_session_id_omitted_when_disabled_or_missing(hass: HomeAssistant):
+    """Test metadata.session_id is absent without the option or conversation ID."""
+    entry = _make_entry(server_options={CONF_PASS_SESSION_ID: False})
+    subentry = _make_subentry({CONF_MODEL: "test-model"})
+    entity = LocalAiConversationEntity(entry, subentry)
+    entity.hass = hass
+
+    disabled = AgentContext(conversation_id="test_conversation_id")
+    entity._get_extra_body_args(disabled)
+    no_conversation = AgentContext()
+    entity._get_extra_body_args(no_conversation)
+
+    assert "metadata" not in disabled.extra_body
+    assert "metadata" not in no_conversation.extra_body

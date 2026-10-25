@@ -23,6 +23,7 @@ from custom_components.local_openai.entities.localai import (
     LocalAIServerConversationEntity,
     _to_metadata_value,
 )
+from custom_components.local_openai.entity import AgentContext
 
 
 class TestToMetadataValue:
@@ -94,40 +95,32 @@ class TestLocalAIServerMixinExtraBodyArgs:
                 },
             },
         )
-        result = entity._get_extra_body_args(
-            MappingProxyType(
-                {
-                    CONF_CHAT_TEMPLATE_OPTS: {
-                        "chat_template_kwargs": [
-                            {"Key": "enable_thinking", "Value": "true"}
-                        ]
-                    }
-                }
-            ),
-        )
-        assert "metadata" in result
-        assert result["metadata"]["enable_thinking"] == "true"
-        assert "chat_template_kwargs" not in result
+        context = AgentContext()
+        entity._get_extra_body_args(context)
+        assert "metadata" in context.extra_body
+        assert context.extra_body["metadata"]["enable_thinking"] == "true"
+        assert "chat_template_kwargs" not in context.extra_body
 
     @pytest.mark.parametrize(
-        "options",
+        "subentry_data",
         [
-            MappingProxyType({CONF_CHAT_TEMPLATE_OPTS: {"chat_template_kwargs": []}}),
-            MappingProxyType({}),
+            {CONF_CHAT_TEMPLATE_OPTS: {"chat_template_kwargs": []}},
+            {},
         ],
     )
     def test_no_kwargs_no_metadata(
         self,
         hass: HomeAssistant,
-        options: MappingProxyType,
+        subentry_data: dict,
     ):
         """Test that absent chat_template_kwargs does not create metadata."""
         entity = self._make_entity(
             hass,
-            {CONF_MODEL: "test-model"},
+            {CONF_MODEL: "test-model", **subentry_data},
         )
-        result = entity._get_extra_body_args(options)
-        assert "metadata" not in result
+        context = AgentContext()
+        entity._get_extra_body_args(context)
+        assert "metadata" not in context.extra_body
 
     def test_boolean_kwargs_lowercase(self, hass: HomeAssistant):
         """Test boolean values are converted to lowercase strings."""
@@ -135,16 +128,22 @@ class TestLocalAIServerMixinExtraBodyArgs:
             hass,
             {CONF_MODEL: "test-model"},
         )
+
+        def fake_parent(context: AgentContext) -> None:
+            context.extra_body["chat_template_kwargs"] = {
+                "enable_thinking": True,
+                "disabled": False,
+            }
+
         with patch.object(
             LocalAiConversationEntity,
             "_get_extra_body_args",
-            return_value={
-                "chat_template_kwargs": {"enable_thinking": True, "disabled": False}
-            },
+            side_effect=fake_parent,
         ):
-            result = entity._get_extra_body_args(MappingProxyType({}))
-        assert result["metadata"]["enable_thinking"] == "true"
-        assert result["metadata"]["disabled"] == "false"
+            context = AgentContext()
+            entity._get_extra_body_args(context)
+        assert context.extra_body["metadata"]["enable_thinking"] == "true"
+        assert context.extra_body["metadata"]["disabled"] == "false"
 
     def test_preserves_parent_extra_body_args(self, hass: HomeAssistant):
         """Test that parent extra_body_args are preserved."""
@@ -152,14 +151,19 @@ class TestLocalAIServerMixinExtraBodyArgs:
             hass,
             {CONF_MODEL: "test-model"},
         )
+
+        def fake_parent(context: AgentContext) -> None:
+            context.extra_body["chat_template_kwargs"] = {"enable_thinking": False}
+
         with patch.object(
             LocalAiConversationEntity,
             "_get_extra_body_args",
-            return_value={"chat_template_kwargs": {"enable_thinking": False}},
+            side_effect=fake_parent,
         ):
-            result = entity._get_extra_body_args(MappingProxyType({}))
-        assert result["metadata"]["enable_thinking"] == "false"
-        assert "chat_template_kwargs" not in result
+            context = AgentContext()
+            entity._get_extra_body_args(context)
+        assert context.extra_body["metadata"]["enable_thinking"] == "false"
+        assert "chat_template_kwargs" not in context.extra_body
 
 
 class TestLocalAIServerConversationEntity:
