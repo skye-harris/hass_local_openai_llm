@@ -29,3 +29,8 @@ keep-runtime-typing = true
 
 [lint.mccabe]
 max-complexity = 25
+
+[lint.per-file-ignores]
+"tests/conftest.py" = [
+    "E402", # Module level import not at top of file (turbojpeg mock)
+]

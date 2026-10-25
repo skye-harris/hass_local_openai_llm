@@ -22,6 +22,8 @@ from .const import (
     SERVER_TYPE_VLLM,
 )
 from .entity import LocalAiEntity
+from .tools.api import InternalToolApi
+from .tools.stop_talking import StopTalkingTool
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigSubentry
@@ -113,6 +115,13 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         llm_apis = options.get(CONF_LLM_HASS_API, [])
         llm_apis = [api for api in llm_apis if api in hass_apis]
 
+        if always_continue_conversation and not llm_apis:
+            # Inject our internal tooling for `stop_talking` as an API if no other tooling providers exist
+            llm_apis = InternalToolApi(
+                hass=self.hass,
+                name="DOMAIN",
+            )
+
         try:
             await chat_log.async_provide_llm_data(
                 user_input.as_llm_context(DOMAIN),
@@ -120,20 +129,29 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
                 system_prompt,
                 user_input.extra_system_prompt,
             )
+
+            if always_continue_conversation and not isinstance(
+                llm_apis, InternalToolApi
+            ):
+                # Append our stop_talking tool to the existing tooling if tooling APIs were configured
+                chat_log.llm_api.tools.append(StopTalkingTool())
         except conversation.ConverseError as err:
             return err.as_conversation_result()
 
-        await self._async_handle_chat_log(
+        halt_conversation = await self._async_handle_chat_log(
             chat_log,
             user_input=user_input,
             parallel_tool_calls=parallel_tool_calls,
         )
 
-        # Set continue_conversation flag based on always_continue_conversation setting
         chat_log_result = conversation.async_get_result_from_chat_log(
             user_input, chat_log
         )
-        if always_continue_conversation:
+
+        if halt_conversation:
+            # If we've received our stop_talking halt signal
+            chat_log_result.continue_conversation = False
+        elif always_continue_conversation:
             chat_log_result.continue_conversation = True
 
         return chat_log_result

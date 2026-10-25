@@ -10,3 +10,6 @@
     "E501", # Line too long
     "EXE002", #shebang
 ]
+"**/conftest.py" = [
+    "E402", # Module level import not at top of file (turbojpeg mock)
+]

@@ -5,11 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from homeassistant.components import conversation
-from homeassistant.core import HomeAssistant
-
 from custom_components.local_openai.const import CONF_ALWAYS_CONTINUE_CONVERSATION
 from custom_components.local_openai.conversation import LocalAiConversationEntity
+from homeassistant.components import conversation
+from homeassistant.core import HomeAssistant
 
 
 @pytest.mark.parametrize(
@@ -45,7 +44,7 @@ async def test_always_continue_conversation_sets_continue_conversation(
     chat_log.continue_conversation = False
     chat_log.llm_input_provided_index = 0
     chat_log.async_provide_llm_data = AsyncMock()
-    entity._async_handle_chat_log = AsyncMock()
+    entity._async_handle_chat_log = AsyncMock(return_value=False)
 
     with patch(
         "custom_components.local_openai.conversation.llm.async_get_apis",

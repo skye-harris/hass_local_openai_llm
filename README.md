@@ -109,7 +109,8 @@ After installation, configure the integration through Home Assistant's UI:
   order to naturally continue the conversation
     - If the user speaks, the assistant continues the conversation naturally
     - If the user stays silent, the assistant stops following up after a timeout
-    - If the user says a stop keyword (e.g. "STOP") while the agent is speaking, the follow-up is cancelled immediately
+    - If the user says a stop keyword (e.g. "STOP") while the agent is actively speaking, the follow-up is canceled immediately (default HomeAssistant behaviour)
+    - The agent is provided a `stop talking` tool to end the conversation via natural language request to the agent itself (while the assist satellite is listening, not speaking)
     - When disabled (default), only assistant responses ending in a question will pass the active voice turn back to the
       user
 

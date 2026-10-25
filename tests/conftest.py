@@ -3,28 +3,17 @@
 from __future__ import annotations
 
 import sys
+from types import MappingProxyType
 from unittest.mock import MagicMock
 
 # Mock turbojpeg BEFORE any HA imports
 sys.modules["turbojpeg"] = MagicMock()
 sys.modules["turbojpeg.TurboJPEG"] = MagicMock()
 
-import pytest  # noqa: E402
-from types import MappingProxyType  # noqa: E402
-
-from homeassistant.config_entries import (  # noqa: E402
-    ConfigEntry,
-    ConfigEntryState,
-    ConfigSubentry,
-)
-from homeassistant.components import conversation  # noqa: E402
-from homeassistant.const import CONF_MODEL  # noqa: E402
-from homeassistant.core import HomeAssistant  # noqa: E402
-
-from custom_components.local_openai.const import (  # noqa: E402
+import pytest
+from custom_components.local_openai.const import (
     CONF_LLAMACPP_CONFIG,
     CONF_LLAMACPP_THINKING_MODE_ALWAYS,
-    SERVER_TYPE_LLAMACPP,
     CONF_LLAMACPP_ID_SLOT,
     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING,
     CONF_LLAMACPP_MIN_P,
@@ -33,7 +22,16 @@ from custom_components.local_openai.const import (  # noqa: E402
     CONF_LLAMACPP_THINKING_MODE,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
+    SERVER_TYPE_LLAMACPP,
 )
+from homeassistant.components import conversation
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigEntryState,
+    ConfigSubentry,
+)
+from homeassistant.const import CONF_MODEL
+from homeassistant.core import HomeAssistant
 
 
 @pytest.fixture

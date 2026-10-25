@@ -64,6 +64,7 @@ from .const import (
     CONF_WEAVIATE_OPTIONS,
     CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
+    TOOL_NAME_STOP_TALKING,
 )
 from .weaviate import WeaviateClient
 
@@ -813,7 +814,7 @@ class LocalAiEntity(Entity):
 
         client = self.entry.runtime_data
 
-        await self._run_agent_loop(
+        return await self._run_agent_loop(
             client, model_args, chat_log, strip_emojis, chat_log.conversation_id
         )
 
@@ -824,8 +825,10 @@ class LocalAiEntity(Entity):
         chat_log: conversation.ChatLog,
         strip_emojis: bool,
         conversation_id: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Run the LLM agent loop with tool call iteration."""
+        halt_requested = False
+
         for iteration in range(MAX_TOOL_ITERATIONS):
             context = AgentContext(
                 iteration=iteration,
@@ -853,18 +856,37 @@ class LocalAiEntity(Entity):
                     stream=True,
                 )
 
+                turn_messages = [
+                    content
+                    async for content in chat_log.async_add_delta_content_stream(
+                        self.entity_id,
+                        self._transform_stream(
+                            stream=result_stream,
+                            strip_emojis=strip_emojis,
+                            conversation_id=conversation_id,
+                            meta=meta,
+                        ),
+                    )
+                ]
+
+                # Check for stop_talking tool call before merging into message chain
+                if not halt_requested:
+                    for content in turn_messages:
+                        if (
+                            isinstance(content, conversation.AssistantContent)
+                            and content.tool_calls
+                        ):
+                            halt_requested = any(
+                                tool
+                                for tool in content.tool_calls
+                                if tool.tool_name == TOOL_NAME_STOP_TALKING
+                            )
+                            break
+
                 model_args["messages"].extend(
                     [
                         msg
-                        async for content in chat_log.async_add_delta_content_stream(
-                            self.entity_id,
-                            self._transform_stream(
-                                stream=result_stream,
-                                strip_emojis=strip_emojis,
-                                conversation_id=conversation_id,
-                                meta=meta,
-                            ),
-                        )
+                        for content in turn_messages
                         if (
                             msg := await self._convert_content_to_chat_message(
                                 content, conversation_id
@@ -935,6 +957,8 @@ class LocalAiEntity(Entity):
 
             if not chat_log.unresponded_tool_results:
                 break
+
+        return halt_requested
 
     @staticmethod
     def _inject_stop_directive(messages: list) -> list:
