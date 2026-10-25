@@ -417,7 +417,7 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                                             "required": True,
                                         },
                                         "Value": {
-                                            "selector": {"text": None},
+                                            "selector": {"template": None},
                                             "required": True,
                                         },
                                     },

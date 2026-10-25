@@ -120,8 +120,10 @@ After installation, configure the integration through Home Assistant's UI:
 
 **Custom HTTP Headers**
 
-Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or
-provider-specific headers.
+Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or provider-specific headers:
+- Values support Jinja2 templates and have access to all default Home Assistant template variables and functions (e.g. entity `states`).
+- The current Conversation ID is available in the `conversation_id` variable.
+- All header values are coerced to strings after rendering.
 
 ### DeepSeek Cloud Configuration
 
