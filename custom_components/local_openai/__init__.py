@@ -23,11 +23,27 @@ from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CUSTOM_HEADERS,
+    CONF_DEEPSEEK_CONFIG,
+    CONF_DEEPSEEK_REASONING_EFFORT,
+    CONF_DEEPSEEK_REASONING_EFFORT_DEFAULT,
+    CONF_DEEPSEEK_THINKING_MODE,
+    CONF_DEEPSEEK_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_CONFIG,
+    CONF_LLAMACPP_ENABLE_THINKING,
+    CONF_LLAMACPP_THINKING_MODE,
+    CONF_LLAMACPP_THINKING_MODE_ALWAYS,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_SERVER_HEADERS,
+    CONF_SERVER_TYPE,
+    CONF_VLLM_CONFIG,
+    CONF_VLLM_THINKING_MODE,
+    CONF_VLLM_THINKING_MODE_ALWAYS,
+    CONF_VLLM_THINKING_TOKEN_BUDGET,
+    CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
     DOMAIN,
     LOGGER,
     PLACEHOLDER_API_KEY,
+    SERVER_TYPE_DEEPSEEK,
 )
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
@@ -43,7 +59,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.minor_version or 1,
     )
 
-    if entry.version > 3:
+    if entry.version > 4:
         # User has downgraded from a future version
         return False
 
@@ -98,7 +114,68 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         hass.config_entries.async_update_entry(entry, version=3, minor_version=0)
 
-    LOGGER.debug("Migration to configuration version %s successful", 3)
+    if entry.version == 3:
+        server_type = entry.data.get(CONF_SERVER_TYPE)
+        for subentry in entry.subentries.values():
+            if subentry.subentry_type not in ("conversation", "ai_task_data"):
+                continue
+
+            data = dict(subentry.data)
+            migrated = False
+
+            # Migrate llamacpp_enable_thinking (bool) to llamacpp_thinking_mode
+            if CONF_LLAMACPP_CONFIG in data:
+                llamacpp_config = data[CONF_LLAMACPP_CONFIG]
+                if CONF_LLAMACPP_ENABLE_THINKING in llamacpp_config:
+                    old_enable_thinking = llamacpp_config.pop(
+                        CONF_LLAMACPP_ENABLE_THINKING
+                    )
+                    if old_enable_thinking is True:
+                        llamacpp_config[CONF_LLAMACPP_THINKING_MODE] = (
+                            CONF_LLAMACPP_THINKING_MODE_ALWAYS
+                        )
+                    migrated = True
+
+            # Migrate vllm thinking_mode: set "always" if budget > 0
+            if CONF_VLLM_CONFIG in data:
+                vllm_config = data[CONF_VLLM_CONFIG]
+                thinking_token_budget = vllm_config.get(
+                    CONF_VLLM_THINKING_TOKEN_BUDGET,
+                    CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
+                )
+                if int(thinking_token_budget) > 0:
+                    vllm_config[CONF_VLLM_THINKING_MODE] = (
+                        CONF_VLLM_THINKING_MODE_ALWAYS
+                    )
+                    migrated = True
+
+            # DeepSeek enabled thinking only when reasoning_effort was set.
+            if server_type == SERVER_TYPE_DEEPSEEK:
+                deepseek_config = data.setdefault(CONF_DEEPSEEK_CONFIG, {})
+                old_reasoning_effort = deepseek_config.get(
+                    CONF_DEEPSEEK_REASONING_EFFORT
+                )
+                if old_reasoning_effort:
+                    deepseek_config[CONF_DEEPSEEK_THINKING_MODE] = (
+                        CONF_DEEPSEEK_THINKING_MODE_ALWAYS
+                    )
+                    migrated = True
+                if not old_reasoning_effort:
+                    deepseek_config[CONF_DEEPSEEK_REASONING_EFFORT] = (
+                        CONF_DEEPSEEK_REASONING_EFFORT_DEFAULT
+                    )
+                    migrated = True
+
+            if migrated:
+                hass.config_entries.async_update_subentry(
+                    entry,
+                    subentry,
+                    data=data,
+                )
+
+        hass.config_entries.async_update_entry(entry, version=4, minor_version=0)
+
+    LOGGER.debug("Migration to configuration version %s successful", 4)
     return True
 
 

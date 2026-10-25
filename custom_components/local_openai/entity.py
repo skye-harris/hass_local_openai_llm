@@ -8,7 +8,7 @@ import json
 import logging
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 import demoji
@@ -95,6 +95,15 @@ class GenerationMetadata:
     timings: dict | None = None
     usage: dict | None = None
     finish_reason: str | None = None
+
+
+@dataclass
+class AgentContext:
+    """Per-iteration context for the agent loop."""
+
+    iteration: int = 0
+    conversation_id: str | None = None
+    extra_body: dict = field(default_factory=dict)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -234,7 +243,7 @@ class LocalAiEntity(Entity):
         """Return Weaviate server options from entry data."""
         return self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})
 
-    def _get_extra_body_args(self, options: dict) -> dict:
+    def _get_extra_body_args(self, context: AgentContext) -> None:
         """
         Build extra_body args for the completion request.
 
@@ -242,10 +251,10 @@ class LocalAiEntity(Entity):
         field, which most inference servers (llama.cpp, vLLM) read. Server-type
         subclasses may override this to deliver them elsewhere.
         """
-        extra_body_args: dict = {
-            "stream_options": {
-                "include_usage": True,
-            }
+        options = self.options
+        extra_body_args = context.extra_body
+        extra_body_args["stream_options"] = {
+            "include_usage": True,
         }
 
         chat_template_opts = options.get(CONF_CHAT_TEMPLATE_OPTS, {})
@@ -283,7 +292,13 @@ class LocalAiEntity(Entity):
                     self.hass,
                 ).async_render()
 
-        return extra_body_args
+        if (
+            self.server_options.get(CONF_PASS_SESSION_ID, False)
+            and context.conversation_id
+        ):
+            extra_body_args.setdefault("metadata", {})["session_id"] = (
+                context.conversation_id
+            )
 
     async def _convert_content_to_chat_message(
         self,
@@ -729,11 +744,8 @@ class LocalAiEntity(Entity):
     ) -> None:
         """Generate an answer for the chat log."""
         options = self.options
-        server_options = self.server_options
         strip_emojis = options.get(CONF_STRIP_EMOJIS)
 
-        # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
-        pass_session_id = server_options.get(CONF_PASS_SESSION_ID, False)
         max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY)
         if max_message_history is not None:
             max_message_history = int(max_message_history)
@@ -787,17 +799,6 @@ class LocalAiEntity(Entity):
 
         if tools:
             model_args["tools"] = tools
-        extra_body_args = self._get_extra_body_args(options)
-        # Pass conversation session ID via metadata for LLM proxy tracing (LiteLLM + Langfuse)
-        if pass_session_id:
-            extra_body_args.setdefault("metadata", {})["session_id"] = (
-                chat_log.conversation_id
-            )
-
-        # Insert our extra_body args if we have any
-        if extra_body_args:
-            _LOGGER.debug("Extra-body args: %s", extra_body_args)
-            model_args["extra_body"] = extra_body_args
 
         if structure:
             if TYPE_CHECKING:
@@ -827,6 +828,17 @@ class LocalAiEntity(Entity):
     ) -> None:
         """Run the LLM agent loop with tool call iteration."""
         for iteration in range(MAX_TOOL_ITERATIONS):
+            context = AgentContext(
+                iteration=iteration,
+                conversation_id=conversation_id,
+            )
+            self._get_extra_body_args(context)
+            if context.extra_body:
+                model_args["extra_body"] = context.extra_body
+            else:
+                model_args.pop("extra_body", None)
+            _LOGGER.debug("Extra-body args: %s", context.extra_body)
+
             if iteration == MAX_TOOL_ITERATIONS - 1:
                 _LOGGER.debug("Max iterations reached, injecting stop message")
                 model_args["messages"] = self._inject_stop_directive(

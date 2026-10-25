@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import voluptuous as vol
 from homeassistant.components import conversation
@@ -18,13 +18,19 @@ from custom_components.local_openai.ai_task import LocalAITaskEntity
 from custom_components.local_openai.const import (
     CONF_DEEPSEEK_CONFIG,
     CONF_DEEPSEEK_REASONING_EFFORT,
+    CONF_DEEPSEEK_REASONING_EFFORT_DEFAULT,
+    CONF_DEEPSEEK_REASONING_EFFORT_HIGH,
+    CONF_DEEPSEEK_REASONING_EFFORT_MAX,
+    CONF_DEEPSEEK_THINKING_MODE,
+    CONF_DEEPSEEK_THINKING_MODE_ALWAYS,
+    CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP,
 )
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
 if TYPE_CHECKING:
-    from types import MappingProxyType
-
     from openai.types.chat import ChatCompletionMessageParam
+
+    from custom_components.local_openai.entity import AgentContext
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,13 +41,33 @@ REQUEST_BODY_CONFIGURABLE_PARAMETERS = frozenset({"reasoning_effort"})
 def _get_deepseek_schema() -> dict:
     """DeepSeek server configuration schema."""
     return {
-        vol.Optional(
+        vol.Optional(CONF_DEEPSEEK_THINKING_MODE): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(
+                        value=CONF_DEEPSEEK_THINKING_MODE_ALWAYS,
+                        label="Always on",
+                    ),
+                    SelectOptionDict(
+                        value=CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP,
+                        label="First loop iteration only",
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+            ),
+        ),
+        vol.Required(
             CONF_DEEPSEEK_REASONING_EFFORT,
+            default=CONF_DEEPSEEK_REASONING_EFFORT_DEFAULT,
         ): SelectSelector(
             SelectSelectorConfig(
                 options=[
-                    SelectOptionDict(value="high", label="High"),
-                    SelectOptionDict(value="max", label="Max"),
+                    SelectOptionDict(
+                        value=CONF_DEEPSEEK_REASONING_EFFORT_HIGH, label="High"
+                    ),
+                    SelectOptionDict(
+                        value=CONF_DEEPSEEK_REASONING_EFFORT_MAX, label="Max"
+                    ),
                 ],
                 mode=SelectSelectorMode.DROPDOWN,
             ),
@@ -62,17 +88,25 @@ def get_ai_task_config_schema() -> dict:
 class DeepSeekMixin:
     """Mixin for DeepSeek entities with shared logic."""
 
-    def _get_extra_body_args(self, options: MappingProxyType[str, Any]) -> dict:
+    def _get_extra_body_args(self, context: AgentContext) -> None:
         """Handle extra_body args for DeepSeek."""
-        extra = super()._get_extra_body_args(options)
-        opts = options.get(CONF_DEEPSEEK_CONFIG, {})
-        reasoning_effort = opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
-        if reasoning_effort:
-            extra["thinking"] = {"type": "enabled"}
-            extra["reasoning_effort"] = reasoning_effort
-        else:
+        super()._get_extra_body_args(context)
+        extra = context.extra_body
+        opts = self.options.get(CONF_DEEPSEEK_CONFIG, {})
+        thinking_mode = opts.get(CONF_DEEPSEEK_THINKING_MODE)
+        if not thinking_mode or (
+            thinking_mode == CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP
+            and context.iteration > 0
+        ):
+            # DeepSeek rejects reasoning_effort when thinking is disabled.
+            extra.pop("reasoning_effort", None)
             extra["thinking"] = {"type": "disabled"}
-        return extra
+        else:
+            extra["thinking"] = {"type": "enabled"}
+            extra["reasoning_effort"] = (
+                opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
+                or CONF_DEEPSEEK_REASONING_EFFORT_DEFAULT
+            )
 
     async def _convert_content_to_chat_message(
         self,
@@ -84,7 +118,7 @@ class DeepSeekMixin:
         opts = self.subentry.data.get(CONF_DEEPSEEK_CONFIG, {})
 
         if (
-            opts.get(CONF_DEEPSEEK_REASONING_EFFORT)
+            opts.get(CONF_DEEPSEEK_THINKING_MODE)
             and isinstance(content, conversation.AssistantContent)
             and hasattr(content, "thinking_content")
             and content.thinking_content

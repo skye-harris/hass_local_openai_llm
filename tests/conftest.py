@@ -23,13 +23,14 @@ from homeassistant.core import HomeAssistant  # noqa: E402
 
 from custom_components.local_openai.const import (  # noqa: E402
     CONF_LLAMACPP_CONFIG,
-    CONF_LLAMACPP_ENABLE_THINKING,
+    CONF_LLAMACPP_THINKING_MODE_ALWAYS,
     SERVER_TYPE_LLAMACPP,
     CONF_LLAMACPP_ID_SLOT,
     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING,
     CONF_LLAMACPP_MIN_P,
     CONF_LLAMACPP_PRESENCE_PENALTY,
     CONF_LLAMACPP_REPEAT_PENALTY,
+    CONF_LLAMACPP_THINKING_MODE,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
 )
@@ -113,7 +114,7 @@ async def mock_subentry_llamacpp(
                     CONF_LLAMACPP_REPEAT_PENALTY: 1.1,
                     CONF_LLAMACPP_PRESENCE_PENALTY: 0.5,
                     CONF_LLAMACPP_ID_SLOT: 1,
-                    CONF_LLAMACPP_ENABLE_THINKING: True,
+                    CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
                     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: True,
                 },
             }
@@ -156,7 +157,6 @@ async def mock_conversation_subentry_llamacpp(
             {
                 CONF_MODEL: "test-model",
                 CONF_LLAMACPP_CONFIG: {
-                    CONF_LLAMACPP_ENABLE_THINKING: False,
                     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: False,
                 },
             }
