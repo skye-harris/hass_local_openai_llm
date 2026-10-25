@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import voluptuous as vol
 from homeassistant.components import conversation
@@ -11,17 +11,23 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from custom_components.local_openai.ai_task import LocalAITaskEntity
 from custom_components.local_openai.const import (
     CONF_LLAMACPP_CONFIG,
-    CONF_LLAMACPP_ENABLE_THINKING,
     CONF_LLAMACPP_ID_SLOT,
     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING,
     CONF_LLAMACPP_MIN_P,
     CONF_LLAMACPP_PRESENCE_PENALTY,
     CONF_LLAMACPP_REPEAT_PENALTY,
+    CONF_LLAMACPP_THINKING_MODE,
+    CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
     CONF_LLAMACPP_USE_LOADED_MODEL,
@@ -29,10 +35,10 @@ from custom_components.local_openai.const import (
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 
 if TYPE_CHECKING:
-    from types import MappingProxyType
-
     from homeassistant.config_entries import ConfigSubentry
     from openai.types.chat import ChatCompletionMessageParam
+
+    from custom_components.local_openai.entity import AgentContext
 
     from . import LocalAiConfigEntry
 
@@ -65,7 +71,21 @@ def get_model_alias(model: dict | object) -> str | None:
 def _get_llama_cpp_schema() -> dict:
     """llama.cpp server configuration schema."""
     return {
-        vol.Required(CONF_LLAMACPP_ENABLE_THINKING, default=False): bool,
+        vol.Optional(CONF_LLAMACPP_THINKING_MODE): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(
+                        value=CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+                        label="Always on",
+                    ),
+                    SelectOptionDict(
+                        value=CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
+                        label="First loop iteration only",
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+            ),
+        ),
         vol.Required(CONF_LLAMACPP_INCLUDE_PRIOR_THINKING, default=True): bool,
         vol.Required(CONF_LLAMACPP_USE_LOADED_MODEL, default=False): bool,
         vol.Optional(CONF_LLAMACPP_ID_SLOT): NumberSelector(
@@ -216,24 +236,16 @@ class LlamaCppMixin:
             _LOGGER.exception("Failed to resolve loaded model, using configured model")
             return self.model
 
-    def _get_extra_body_args(
-        self,
-        options: MappingProxyType[str, Any],
-    ) -> dict:
+    def _get_extra_body_args(self, context: AgentContext) -> None:
         """Handle extra_body args for llama.cpp."""
-        opts = options.get(CONF_LLAMACPP_CONFIG, {})
-        extras = super()._get_extra_body_args(options)
+        opts = self.options.get(CONF_LLAMACPP_CONFIG, {})
+        super()._get_extra_body_args(context)
+        extras = context.extra_body
         extras.pop("stream_options", None)
 
         id_slot = opts.get(CONF_LLAMACPP_ID_SLOT)
         if id_slot is not None:
             extras["id_slot"] = int(id_slot)
-
-        chat_template_kwargs = extras.get("chat_template_kwargs", {})
-        chat_template_kwargs["enable_thinking"] = bool(
-            opts.get(CONF_LLAMACPP_ENABLE_THINKING, False)
-        )
-        extras["chat_template_kwargs"] = chat_template_kwargs
 
         sampling_params = [
             (CONF_LLAMACPP_TOP_P, float, "top_p"),
@@ -248,7 +260,15 @@ class LlamaCppMixin:
             if value is not None:
                 extras[arg_name] = converter(value)
 
-        return extras
+        thinking_mode = opts.get(CONF_LLAMACPP_THINKING_MODE)
+        chat_template_kwargs = extras.setdefault("chat_template_kwargs", {})
+        chat_template_kwargs["enable_thinking"] = (
+            thinking_mode == CONF_LLAMACPP_THINKING_MODE_ALWAYS
+            or (
+                thinking_mode == CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP
+                and context.iteration == 0
+            )
+        )
 
     async def _convert_content_to_chat_message(
         self,

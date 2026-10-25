@@ -127,16 +127,22 @@ provider-specific headers.
 #### Reasoning Effort
 
 When the server type is set to *DeepSeek Cloud*, both conversation and AI task agents show a new **DeepSeek
-Configuration** section with a **Reasoning Effort** option. This option controls whether thinking is enabled, and what
-level of reasoning to perform on the request.
+Configuration** section with a **Reasoning Effort** option. This controls the depth of reasoning when thinking is
+enabled.
 
-- **Disabled** (default) — no thinking tokens.
-- **High** — enables thinking with standard reasoning effort.
-- **Max** — enables thinking with maximum reasoning effort.
+- **High** (default) — standard reasoning effort.
+- **Max** — maximum reasoning effort.
 
 When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on
 supported Home Assistant versions (2026.4+).
 
+#### Thinking Mode
+
+Controls when reasoning is enabled. Leave the option unset to disable thinking.
+
+- **Always on** — thinking remains enabled for every iteration.
+- **First loop iteration only** — thinking is disabled on iterations after the first (e.g., during tool-call rounds).
+  
 ---
 
 ### llama.cpp Configuration
@@ -144,12 +150,12 @@ supported Home Assistant versions (2026.4+).
 When the server type is set to *llama.cpp*, both conversation and AI task agents show a **llama.cpp Configuration**
 section with the following options.
 
-#### Enable thinking
+#### Thinking Mode
 
-Passes `enable_thinking=true` via `chat_template_kwargs` to enable reasoning on supported models.
+Controls when reasoning is enabled. Leave the option unset to disable thinking.
 
-- **Disabled** (default) — no thinking tokens.
-- **Enabled** — requests reasoning from the model.
+- **Always on** — reasoning is enabled for every iteration of the agent loop.
+- **First loop iteration only** — thinking is disabled on iterations after the first (e.g., during tool-call rounds).
 
 _Note: This option completely overrides any existing `enable_thinking` option in your Chat Template Arguments._
 
@@ -227,8 +233,13 @@ budget is reached, vLLM forces the reasoning block to be closed and the model pr
 - **0** — the reasoning block is closed immediately, so the model answers without thinking.
 - **Any higher value** — limits reasoning to that number of tokens.
 
-_Note: This only limits the length of thinking, it does not enable or disable it. Whether the model thinks at all is
-controlled by the model's chat template, typically via an `enable_thinking` Chat Template Argument._
+#### Thinking Mode
+
+Controls when reasoning is enabled. Leave the option unset to disable thinking.
+
+- **Always on** — reasoning is enabled for every iteration and the token budget (if set) applies to all
+  iterations.
+- **First loop iteration only** — thinking is disabled on iterations after the first (e.g., during tool-call rounds).
 
 Requires a reasoning model and a vLLM version that supports the parameter. Refer to
 the [vLLM reasoning outputs documentation](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) for further
@@ -303,6 +314,10 @@ See the [Weaviate documentation](https://docs.weaviate.io/weaviate) for further 
 
 1. **Install Weaviate [locally](https://docs.weaviate.io/weaviate/quickstart/local)**
     1. A pre-made `docker-compose.yml` is provided in the `weaviate` directory of this repository.
+        1. _Upgrading an existing install: Weaviate only supports upgrading one minor version at a time. If your data
+           was created with the previous `1.34.0` image, step through the latest patch of each minor (`1.35`, `1.36`,
+           `1.37`, `1.38`) before starting `1.39.13`. See the
+           [Weaviate migration guide](https://docs.weaviate.io/deploy/migration)._
     2. _Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive
        for personal/home use, and so I don't anticipate demand for this._
 2. **Reconfigure your LLM Server entity (**not** the Agent entity) in Home Assistant.**

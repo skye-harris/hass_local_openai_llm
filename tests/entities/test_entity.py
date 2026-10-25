@@ -16,6 +16,7 @@ from custom_components.local_openai.const import CONF_TEMPERATURE
 from custom_components.local_openai.conversation import LocalAiConversationEntity
 from custom_components.local_openai.entity import (
     MAX_TOOL_ITERATIONS,
+    AgentContext,
     _format_structured_output,
 )
 from homeassistant.components import conversation
@@ -179,6 +180,79 @@ class TestRunAgentLoopSingleIteration:
 
         assert call_count == MAX_TOOL_ITERATIONS
         assert len(model_args["messages"]) == MAX_TOOL_ITERATIONS
+
+
+class TestRunAgentLoopExtraBody:
+    """Test extra_body construction within the agent loop."""
+
+    async def test_extra_body_rebuilt_each_iteration(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test extra_body is rebuilt per iteration and keeps the conversation ID."""
+        entity = mock_conversation_entity
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(index=0, delta=ChoiceDelta(content="hi", role="assistant"))
+            ],
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.content = []
+        chat_log.unresponded_tool_results = property(lambda _self: True)
+
+        contexts: list[AgentContext] = []
+
+        def fake_extra_body(context: AgentContext) -> None:
+            contexts.append(context)
+            context.extra_body["metadata"] = {
+                "session_id": context.conversation_id,
+            }
+            if context.iteration == 0:
+                context.extra_body["first_only"] = True
+
+        entity._get_extra_body_args = fake_extra_body
+
+        model_args = {"model": "test", "messages": []}
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            strip_emojis=False,
+            conversation_id="conv-1",
+        )
+
+        assert [context.iteration for context in contexts] == list(
+            range(MAX_TOOL_ITERATIONS)
+        )
+        assert all(context.conversation_id == "conv-1" for context in contexts)
+        assert model_args["extra_body"] == {
+            "metadata": {"session_id": "conv-1"},
+        }
 
 
 class TestRunAgentLoopErrorHandling:

@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
+import copy
+
 import pytest
 from custom_components.local_openai.const import (
     CONF_LLAMACPP_CONFIG,
-    CONF_LLAMACPP_ENABLE_THINKING,
     CONF_LLAMACPP_ID_SLOT,
     CONF_LLAMACPP_MIN_P,
     CONF_LLAMACPP_PRESENCE_PENALTY,
     CONF_LLAMACPP_REPEAT_PENALTY,
+    CONF_LLAMACPP_THINKING_MODE,
+    CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
 )
 from custom_components.local_openai.entities.llama_cpp import LlamaCppMixin
+from custom_components.local_openai.entity import AgentContext
 
 BASE_EXTRA_BODY_ARGS = {
-    "chat_template_kwargs": {"enable_thinking": False, "hello": "world"},
+    "chat_template_kwargs": {"hello": "world", "enable_thinking": False},
     "stream_options": {"include_usage": True},
 }
 
@@ -33,13 +38,16 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 
 class _StubBase:
-    def _get_extra_body_args(self, options: dict) -> dict:
-        return dict(BASE_EXTRA_BODY_ARGS)
+    def __init__(self, options: dict | None = None) -> None:
+        self.options = options or {}
+
+    def _get_extra_body_args(self, context: AgentContext) -> None:
+        context.extra_body.update(copy.deepcopy(BASE_EXTRA_BODY_ARGS))
 
 
 class _StubLlamaCppEntity(LlamaCppMixin, _StubBase):
-    def __init__(self, entry=None, subentry=None) -> None:
-        pass
+    def __init__(self, options: dict | None = None) -> None:
+        self.options = options or {}
 
 
 class TestLlamaCppExtraBodyArgs:
@@ -47,19 +55,20 @@ class TestLlamaCppExtraBodyArgs:
 
     def test_super_call_retained(self) -> None:
         """Test that data from the super call is retained in the result."""
-        result = _StubLlamaCppEntity()._get_extra_body_args({})
+        context = AgentContext()
+        _StubLlamaCppEntity()._get_extra_body_args(context)
+        result = context.extra_body
         assert result["chat_template_kwargs"]["hello"] == "world"
-        assert result["chat_template_kwargs"]["enable_thinking"] is False
 
     @pytest.mark.parametrize(
         "options,expected",
         [
-            # Both id_slot and enable_thinking set
+            # Both id_slot and thinking_mode set
             (
                 {
                     CONF_LLAMACPP_CONFIG: {
                         CONF_LLAMACPP_ID_SLOT: 2,
-                        CONF_LLAMACPP_ENABLE_THINKING: True,
+                        CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
                     }
                 },
                 {
@@ -67,16 +76,14 @@ class TestLlamaCppExtraBodyArgs:
                     "chat_template_kwargs": {"enable_thinking": True},
                 },
             ),
-            # Only enable_thinking set
+            # Only thinking_mode set
             (
                 {
                     CONF_LLAMACPP_CONFIG: {
-                        CONF_LLAMACPP_ENABLE_THINKING: False,
+                        CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
                     }
                 },
-                {
-                    "chat_template_kwargs": {"enable_thinking": False},
-                },
+                {"chat_template_kwargs": {"enable_thinking": True}},
             ),
             # Only id_slot set
             (
@@ -87,22 +94,21 @@ class TestLlamaCppExtraBodyArgs:
                 },
                 {
                     "id_slot": 1,
-                    "chat_template_kwargs": {"enable_thinking": False},
                 },
             ),
             # No extra options
             (
                 {CONF_LLAMACPP_CONFIG: {}},
-                {},
+                {"chat_template_kwargs": {"enable_thinking": False}},
             ),
             # None config
-            ({}, {}),
+            ({}, {"chat_template_kwargs": {"enable_thinking": False}}),
             # Float id_slot converted to int
             (
                 {
                     CONF_LLAMACPP_CONFIG: {
                         CONF_LLAMACPP_ID_SLOT: 3.0,
-                        CONF_LLAMACPP_ENABLE_THINKING: True,
+                        CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
                     }
                 },
                 {
@@ -110,24 +116,13 @@ class TestLlamaCppExtraBodyArgs:
                     "chat_template_kwargs": {"enable_thinking": True},
                 },
             ),
-            # Int enable_thinking converted to bool
-            (
-                {
-                    CONF_LLAMACPP_CONFIG: {
-                        CONF_LLAMACPP_ID_SLOT: 1,
-                        CONF_LLAMACPP_ENABLE_THINKING: 0,
-                    }
-                },
-                {
-                    "id_slot": 1,
-                    "chat_template_kwargs": {"enable_thinking": False},
-                },
-            ),
         ],
     )
     def test_llama_cpp_extra_body_args(self, options: dict, expected: dict):
         """Test extra body arguments generation with various configurations."""
-        result = _StubLlamaCppEntity()._get_extra_body_args(options)
+        context = AgentContext()
+        _StubLlamaCppEntity(options)._get_extra_body_args(context)
+        result = context.extra_body
         assert result == _deep_merge(BASE_EXTRA_BODY_ARGS, expected)
 
     @pytest.mark.parametrize(
@@ -145,7 +140,10 @@ class TestLlamaCppExtraBodyArgs:
                     }
                 },
                 {
-                    "chat_template_kwargs": {"enable_thinking": False},
+                    "chat_template_kwargs": {
+                        "hello": "world",
+                        "enable_thinking": False,
+                    },
                     "top_p": 0.9,
                     "top_k": 50,
                     "min_p": 0.05,
@@ -162,7 +160,10 @@ class TestLlamaCppExtraBodyArgs:
                     }
                 },
                 {
-                    "chat_template_kwargs": {"enable_thinking": False},
+                    "chat_template_kwargs": {
+                        "hello": "world",
+                        "enable_thinking": False,
+                    },
                     "top_p": 0.85,
                     "top_k": 100,
                 },
@@ -170,10 +171,10 @@ class TestLlamaCppExtraBodyArgs:
             # No sampling params
             (
                 {CONF_LLAMACPP_CONFIG: {}},
-                {"chat_template_kwargs": {"enable_thinking": False}},
+                {"chat_template_kwargs": {"hello": "world"}},
             ),
             # None config
-            ({}, {"chat_template_kwargs": {"enable_thinking": False}}),
+            ({}, {"chat_template_kwargs": {"hello": "world"}}),
         ],
     )
     def test_llama_cpp_extra_body_args_with_sampling_params(
@@ -182,7 +183,9 @@ class TestLlamaCppExtraBodyArgs:
         expected: dict,
     ):
         """Test extra_body with sampling parameters."""
-        result = _StubLlamaCppEntity()._get_extra_body_args(options)
+        context = AgentContext()
+        _StubLlamaCppEntity(options)._get_extra_body_args(context)
+        result = context.extra_body
         assert result == _deep_merge(BASE_EXTRA_BODY_ARGS, expected)
 
     @pytest.mark.parametrize(
@@ -207,9 +210,39 @@ class TestLlamaCppExtraBodyArgs:
         expected_sampling: dict,
     ):
         """Test type conversion of sampling parameters in extra_body."""
-        result = _StubLlamaCppEntity()._get_extra_body_args(options)
+        context = AgentContext()
+        _StubLlamaCppEntity(options)._get_extra_body_args(context)
+        result = context.extra_body
         assert result["chat_template_kwargs"]["hello"] == "world"
-        assert result["chat_template_kwargs"]["enable_thinking"] is False
         for key, value in expected_sampling.items():
             assert result[key] == value
             assert isinstance(result[key], type(value))
+
+    @pytest.mark.parametrize(
+        "thinking_mode,iteration,expected_enable_thinking",
+        [
+            (None, 0, False),
+            (None, 1, False),
+            (CONF_LLAMACPP_THINKING_MODE_ALWAYS, 0, True),
+            (CONF_LLAMACPP_THINKING_MODE_ALWAYS, 3, True),
+            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 0, True),
+            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 1, False),
+            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 2, False),
+        ],
+    )
+    def test_llama_cpp_thinking_mode_iteration(
+        self,
+        thinking_mode: str | None,
+        iteration: int,
+        expected_enable_thinking: bool,
+    ) -> None:
+        """Test thinking is disabled when unset and after the first loop."""
+        options = {CONF_LLAMACPP_CONFIG: {}}
+        if thinking_mode is not None:
+            options[CONF_LLAMACPP_CONFIG][CONF_LLAMACPP_THINKING_MODE] = thinking_mode
+        context = AgentContext(iteration=iteration)
+        _StubLlamaCppEntity(options)._get_extra_body_args(context)
+        assert (
+            context.extra_body["chat_template_kwargs"]["enable_thinking"]
+            is expected_enable_thinking
+        )

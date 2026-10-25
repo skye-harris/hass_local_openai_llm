@@ -5,12 +5,14 @@ from __future__ import annotations
 import pytest
 import voluptuous as vol
 from custom_components.local_openai.const import (
-    CONF_LLAMACPP_ENABLE_THINKING,
     CONF_LLAMACPP_ID_SLOT,
     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING,
     CONF_LLAMACPP_MIN_P,
     CONF_LLAMACPP_PRESENCE_PENALTY,
     CONF_LLAMACPP_REPEAT_PENALTY,
+    CONF_LLAMACPP_THINKING_MODE,
+    CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
     CONF_LLAMACPP_USE_LOADED_MODEL,
@@ -24,7 +26,7 @@ def test_get_llama_cpp_schema_returns_expected_fields():
     """Test that schema includes all expected llama.cpp fields."""
     schema = _get_llama_cpp_schema()
     expected_fields = [
-        CONF_LLAMACPP_ENABLE_THINKING,
+        CONF_LLAMACPP_THINKING_MODE,
         CONF_LLAMACPP_INCLUDE_PRIOR_THINKING,
         CONF_LLAMACPP_ID_SLOT,
         CONF_LLAMACPP_TOP_P,
@@ -46,7 +48,7 @@ class TestValidation:
     def test_valid_data_passes(self):
         validator = _validator()
         data = {
-            CONF_LLAMACPP_ENABLE_THINKING: True,
+            CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
             CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: True,
             CONF_LLAMACPP_ID_SLOT: 2,
             CONF_LLAMACPP_TOP_P: 0.5,
@@ -58,40 +60,32 @@ class TestValidation:
         expected = {**data, CONF_LLAMACPP_USE_LOADED_MODEL: False}
         assert validator(data) == expected
 
-    def test_default_enable_thinking(self):
+    def test_default_thinking_mode_unset(self):
         validator = _validator()
         result = validator({})
-        assert result[CONF_LLAMACPP_ENABLE_THINKING] is False
+        assert CONF_LLAMACPP_THINKING_MODE not in result
         assert result[CONF_LLAMACPP_INCLUDE_PRIOR_THINKING] is True
 
-    def test_optional_fields_can_be_omitted(self):
+    def test_thinking_mode_accepts_valid_values(self):
         validator = _validator()
-        result = validator(
-            {
-                CONF_LLAMACPP_ENABLE_THINKING: True,
-                CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: False,
-            }
-        )
-        assert result[CONF_LLAMACPP_ENABLE_THINKING] is True
-        assert result[CONF_LLAMACPP_INCLUDE_PRIOR_THINKING] is False
-        assert len(result) == 3
+        for value in (
+            CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+            CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
+        ):
+            result = validator({CONF_LLAMACPP_THINKING_MODE: value})
+            assert result[CONF_LLAMACPP_THINKING_MODE] == value
 
-    def test_rejects_non_bool_enable_thinking(self):
+    def test_thinking_mode_rejects_invalid_value(self):
         validator = _validator()
         with pytest.raises(vol.Invalid):
-            validator(
-                {
-                    CONF_LLAMACPP_ENABLE_THINKING: "yes",
-                    CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: True,
-                }
-            )
+            validator({CONF_LLAMACPP_THINKING_MODE: "invalid"})
 
     def test_rejects_non_bool_include_prior_reasoning(self):
         validator = _validator()
         with pytest.raises(vol.Invalid):
             validator(
                 {
-                    CONF_LLAMACPP_ENABLE_THINKING: True,
+                    CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
                     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: "yes",
                 }
             )
@@ -116,7 +110,7 @@ class TestValidation:
         with pytest.raises(vol.Invalid):
             validator(
                 {
-                    CONF_LLAMACPP_ENABLE_THINKING: True,
+                    CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
                     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: True,
                     field: value,
                 }
@@ -140,7 +134,7 @@ class TestValidation:
     def test_accepts_boundary_values(self, field, value):
         validator = _validator()
         data = {
-            CONF_LLAMACPP_ENABLE_THINKING: False,
+            CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
             CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: True,
             field: value,
         }
@@ -161,7 +155,7 @@ class TestValidation:
         with pytest.raises(vol.Invalid):
             validator(
                 {
-                    CONF_LLAMACPP_ENABLE_THINKING: True,
+                    CONF_LLAMACPP_THINKING_MODE: CONF_LLAMACPP_THINKING_MODE_ALWAYS,
                     CONF_LLAMACPP_INCLUDE_PRIOR_THINKING: True,
                     field: "abc",
                 }
