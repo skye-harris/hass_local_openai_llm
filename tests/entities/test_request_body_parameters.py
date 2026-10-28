@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.local_openai.const import (
     CONF_CHAT_TEMPLATE_KWARGS,

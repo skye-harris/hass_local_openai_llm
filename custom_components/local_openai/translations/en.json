@@ -499,6 +499,34 @@
         "unknown": "An unknown error occurred",
         "reconfigure_successful": "AI Task has been reconfigured"
       }
+    },
+    "ai_task_evaluate": {
+      "step": {
+        "user": {
+          "data": {
+            "model": "The decision model to use for the AI Task agent"
+          },
+          "data_description": {
+            "model": "Must be a native decision model served through the /v1/systemone API, such as with llama.cpp or Ollama."
+          }
+        },
+        "reconfigure": {
+          "title": "Reconfigure the decision model",
+          "data": {
+            "model": "The decision model to use for the AI Task agent"
+          },
+          "data_description": {
+            "model": "Must be a native decision model served through the /v1/systemone API, such as with llama.cpp or Ollama."
+          }
+        }
+      },
+      "initiate_flow": {
+        "user": "Add decision model"
+      },
+      "entry_type": "Decision model",
+      "abort": {
+        "reconfigure_successful": "Decision model has been reconfigured"
+      }
     }
   }
 }

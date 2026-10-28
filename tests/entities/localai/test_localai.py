@@ -9,7 +9,7 @@ import pytest
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 from types import MappingProxyType
 
 from custom_components.local_openai.ai_task import LocalAITaskEntity
