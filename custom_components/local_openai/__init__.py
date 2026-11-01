@@ -197,6 +197,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
     # Cache current platform data which gets added to each request (caching done by library)
     _ = await hass.async_add_executor_job(client.platform_headers)
 
+    # Access .chat initially to trigger internal openai module loads within an executor
+    await hass.async_add_executor_job(lambda: client.chat)
+
     try:
         async for _ in client.with_options(timeout=10.0).models.list():
             break
