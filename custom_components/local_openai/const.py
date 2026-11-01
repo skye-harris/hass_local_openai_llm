@@ -72,6 +72,10 @@ SERVER_TYPE_OPTIONS = {
     SERVER_TYPE_LOCALAI: "LocalAI",
     SERVER_TYPE_GOOGLE_GEMINI: "Google (Gemini)",
 }
+
+# Server types that may serve decision models through the TypeSafe-compatible /v1/systemone API
+DECISION_SERVER_TYPES = (SERVER_TYPE_GENERIC, SERVER_TYPE_LLAMACPP)
+
 CONF_ALWAYS_CONTINUE_CONVERSATION = "always_continue_conversation"
 CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT = False
 

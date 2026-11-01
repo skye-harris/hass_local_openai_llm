@@ -6,6 +6,7 @@ import base64
 import io
 import logging
 import re
+from http import HTTPStatus
 from json import JSONDecodeError
 from typing import TYPE_CHECKING
 
@@ -33,7 +34,13 @@ from .const import (
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
 )
-from .entity import LocalAiEntity
+from .entity import AgentContext, LocalAiEntity
+from .evaluation import (
+    SYSTEMONE_PATH,
+    build_systemone_request,
+    parse_systemone_response,
+    read_images,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigSubentry
@@ -76,11 +83,15 @@ async def async_setup_entry(
         config_entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC),
     )
     for subentry in config_entry.subentries.values():
-        if subentry.subentry_type != "ai_task_data":
+        if subentry.subentry_type == "ai_task_data":
+            entity: ai_task.AITaskEntity = entity_cls(config_entry, subentry)
+        elif subentry.subentry_type == "ai_task_evaluate":
+            entity = LocalAIEvaluationEntity(config_entry, subentry)
+        else:
             continue
 
         async_add_entities(
-            [entity_cls(config_entry, subentry)],
+            [entity],
             config_subentry_id=subentry.subentry_id,
         )
 
@@ -266,3 +277,57 @@ class LocalAITaskEntity(
             raise HomeAssistantError(msg)
 
         return response.data[0]
+
+
+class LocalAIEvaluationEntity(
+    ai_task.AITaskEntity,
+    LocalAiEntity,
+):
+    """Local OpenAI LLM AI Task entity for decision models."""
+
+    _attr_name = None
+    _attr_supported_features = (
+        ai_task.AITaskEntityFeature.EVALUATE
+        | ai_task.AITaskEntityFeature.SUPPORT_ATTACHMENTS
+    )
+
+    def __init__(
+        self,
+        config_entry: LocalAiConfigEntry,
+        subentry: ConfigSubentry,
+    ) -> None:
+        """Initialize the AI Task entity."""
+        ai_task.AITaskEntity.__init__(self)
+        LocalAiEntity.__init__(self, config_entry, subentry)
+
+    async def _async_evaluate(
+        self,
+        task: ai_task.EvaluationTask,
+    ) -> ai_task.EvaluationTaskResult:
+        """Handle an evaluate task using the /v1/systemone API."""
+        images = await self.hass.async_add_executor_job(
+            read_images,
+            task.attachments or [],
+        )
+        headers = await self._async_get_custom_headers(AgentContext())
+
+        _LOGGER.debug("Sending evaluation request to API")
+        try:
+            response = await self.entry.runtime_data.post(
+                SYSTEMONE_PATH,
+                body=build_systemone_request(self.model, task, images),
+                cast_to=object,
+                options={"headers": headers},
+            )
+        except openai.OpenAIError as err:
+            _LOGGER.exception("Error requesting evaluation from API")
+            if (
+                isinstance(err, openai.APIStatusError)
+                and err.status_code == HTTPStatus.NOT_IMPLEMENTED
+            ):
+                msg = f"{self.model} is not a decision model, or does not support image attachments"
+            else:
+                msg = f"Error talking to API: {err}"
+            raise HomeAssistantError(msg) from err
+
+        return parse_systemone_response(task, response)

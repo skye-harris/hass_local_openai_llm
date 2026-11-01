@@ -120,6 +120,7 @@ from .const import (
     CONF_WEAVIATE_MAX_RESULTS_MAX,
     CONF_WEAVIATE_OPTIONS,
     CONF_WEAVIATE_THRESHOLD,
+    DECISION_SERVER_TYPES,
     DOMAIN,
     LOGGER,
     PLACEHOLDER_API_KEY,
@@ -339,6 +340,20 @@ def _resolve_model_name(server_type: str, model: object) -> str:
     return alias or LocalAiSubentryFlowHandler.strip_model_pathing(model.id)
 
 
+def _is_decision_model(model: object) -> bool:
+    """
+    Return whether a model picker entry may be a decision model.
+
+    llama.cpp reports native decision models with ``decisions`` in
+    ``architecture.output_modalities``. Servers that omit ``architecture`` give no
+    hint, so all of their models are offered.
+    """
+    architecture = getattr(model, "architecture", None)
+    if not architecture:
+        return True
+    return "decisions" in architecture.get("output_modalities", [])
+
+
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Local OpenAI LLM."""
 
@@ -348,13 +363,17 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_supported_subentry_types(
         cls,
-        _config_entry: ConfigEntry,
+        config_entry: ConfigEntry,
     ) -> dict[str, type[ConfigSubentryFlow]]:
         """Return subentries supported by this handler."""
-        return {
+        subentry_types: dict[str, type[ConfigSubentryFlow]] = {
             "conversation": ConversationFlowHandler,
             "ai_task_data": AITaskDataFlowHandler,
         }
+        server_type = config_entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
+        if server_type in DECISION_SERVER_TYPES:
+            subentry_types["ai_task_evaluate"] = AITaskEvaluateFlowHandler
+        return subentry_types
 
     @staticmethod
     def get_schema() -> vol.Schema:
@@ -998,4 +1017,80 @@ class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
             data_schema=schema,
             errors=errors,
             description_placeholders=description_placeholders,
+        )
+
+
+class AITaskEvaluateFlowHandler(LocalAiSubentryFlowHandler):
+    """Handle subentry flow for decision model AI Task entities."""
+
+    async def get_schema(self) -> vol.Schema:
+        """Get the schema for the decision model subentry form."""
+        entry = self._get_entry()
+        server_type = entry.data.get(CONF_SERVER_TYPE, SERVER_TYPE_GENERIC)
+        try:
+            client = entry.runtime_data
+            response = await client.models.list()
+            decision_models: list[SelectOptionDict] = [
+                SelectOptionDict(
+                    label=name,
+                    value=name,
+                )
+                for model in response.data
+                if _is_decision_model(model)
+                and (name := _resolve_model_name(server_type, model))
+            ]
+        except OpenAIError as err:
+            LOGGER.exception(f"OpenAI Error retrieving models list: {err}")
+            decision_models = []
+        except Exception as err:
+            LOGGER.exception(f"Unexpected exception retrieving models list: {err}")
+            decision_models = []
+
+        return vol.Schema(
+            {
+                vol.Required(
+                    CONF_MODEL,
+                ): SelectSelector(
+                    SelectSelectorConfig(options=decision_models, custom_value=True),
+                ),
+            },
+        )
+
+    async def async_step_user(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> SubentryFlowResult:
+        """User flow to create a decision model subentry."""
+        if user_input is not None:
+            model_name = self.strip_model_pathing(user_input[CONF_MODEL])
+            server_name = self._get_entry().title
+            return self.async_create_entry(
+                title=f"{server_name}: {model_name} Decisions",
+                data=user_input,
+            )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=await self.get_schema(),
+        )
+
+    async def async_step_reconfigure(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> SubentryFlowResult:
+        """User flow to reconfigure a decision model subentry."""
+        if user_input is not None:
+            return self.async_update_and_abort(
+                entry=self._get_entry(),
+                subentry=self._get_reconfigure_subentry(),
+                data=user_input,
+            )
+
+        options = self._get_reconfigure_subentry().data.copy()
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                await self.get_schema(),
+                options,
+            ),
         )

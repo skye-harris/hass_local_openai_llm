@@ -28,4 +28,5 @@ addopts = [
     "--cov=custom_components/local_openai",
     "--cov-report=term-missing",
     "-p", "no:pytest_socket",
+    "-p", "no:respx",
 ]
