@@ -219,15 +219,15 @@ class TestLlamaCppExtraBodyArgs:
             assert isinstance(result[key], type(value))
 
     @pytest.mark.parametrize(
-        "thinking_mode,iteration,expected_enable_thinking",
+        "thinking_mode,iteration,expected_enable_thinking,expected_budget",
         [
-            (None, 0, False),
-            (None, 1, False),
-            (CONF_LLAMACPP_THINKING_MODE_ALWAYS, 0, True),
-            (CONF_LLAMACPP_THINKING_MODE_ALWAYS, 3, True),
-            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 0, True),
-            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 1, False),
-            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 2, False),
+            (None, 0, False, None),
+            (None, 1, False, None),
+            (CONF_LLAMACPP_THINKING_MODE_ALWAYS, 0, True, None),
+            (CONF_LLAMACPP_THINKING_MODE_ALWAYS, 3, True, None),
+            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 0, True, None),
+            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 1, True, 0),
+            (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 2, True, 0),
         ],
     )
     def test_llama_cpp_thinking_mode_iteration(
@@ -235,8 +235,9 @@ class TestLlamaCppExtraBodyArgs:
         thinking_mode: str | None,
         iteration: int,
         expected_enable_thinking: bool,
+        expected_budget: int | None,
     ) -> None:
-        """Test thinking is disabled when unset and after the first loop."""
+        """Test thinking is disabled when unset and budget-limited after the first loop."""
         options = {CONF_LLAMACPP_CONFIG: {}}
         if thinking_mode is not None:
             options[CONF_LLAMACPP_CONFIG][CONF_LLAMACPP_THINKING_MODE] = thinking_mode
@@ -246,3 +247,7 @@ class TestLlamaCppExtraBodyArgs:
             context.extra_body["chat_template_kwargs"]["enable_thinking"]
             is expected_enable_thinking
         )
+        if expected_budget is None:
+            assert "thinking_budget_tokens" not in context.extra_body
+        else:
+            assert context.extra_body["thinking_budget_tokens"] == expected_budget
