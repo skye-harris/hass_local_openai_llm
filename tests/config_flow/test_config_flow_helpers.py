@@ -37,6 +37,7 @@ from custom_components.local_openai.const import (
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_GOOGLE_GEMINI,
+    SERVER_TYPE_LFM,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
@@ -258,7 +259,12 @@ class TestGetConversationConfigSchema:
         [
             pytest.param(server, id=server)
             for server in CONVERSATION_SCHEMA_PROVIDERS
-            if server not in (SERVER_TYPE_GOOGLE_GEMINI, SERVER_TYPE_LOCALAI)
+            if server
+            not in (
+                SERVER_TYPE_GOOGLE_GEMINI,
+                SERVER_TYPE_LFM,
+                SERVER_TYPE_LOCALAI,
+            )
         ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
@@ -291,7 +297,12 @@ class TestGetAiTaskConfigSchema:
         [
             pytest.param(server, id=server)
             for server in AI_TASK_SCHEMA_PROVIDERS
-            if server not in (SERVER_TYPE_GOOGLE_GEMINI, SERVER_TYPE_LOCALAI)
+            if server
+            not in (
+                SERVER_TYPE_GOOGLE_GEMINI,
+                SERVER_TYPE_LFM,
+                SERVER_TYPE_LOCALAI,
+            )
         ],
     )
     def test_provider_types_return_non_empty_schema(self, server_type: str) -> None:
