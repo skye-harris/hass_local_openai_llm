@@ -17,6 +17,7 @@ from .const import (
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_GOOGLE_GEMINI,
+    SERVER_TYPE_LFM,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
@@ -41,6 +42,7 @@ def _get_conversation_entity(
         from .entities.google_gemini import (  # noqa: PLC0415
             GoogleGeminiConversationEntity,
         )
+        from .entities.lfm import LfmConversationEntity  # noqa: PLC0415
         from .entities.llama_cpp import LlamaCppConversationEntity  # noqa: PLC0415
         from .entities.localai import LocalAIServerConversationEntity  # noqa: PLC0415
         from .entities.vllm import VllmConversationEntity  # noqa: PLC0415
@@ -49,6 +51,7 @@ def _get_conversation_entity(
             SERVER_TYPE_DEEPSEEK: DeepSeekConversationEntity,
             SERVER_TYPE_GOOGLE_GEMINI: GoogleGeminiConversationEntity,
             SERVER_TYPE_LLAMACPP: LlamaCppConversationEntity,
+            SERVER_TYPE_LFM: LfmConversationEntity,
             SERVER_TYPE_LOCALAI: LocalAIServerConversationEntity,
             SERVER_TYPE_VLLM: VllmConversationEntity,
         }

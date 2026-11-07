@@ -835,6 +835,8 @@ class LocalAiEntity(Entity):
         if tools:
             model_args["tools"] = tools
 
+        self._customize_model_args(model_args, tools, chat_log)
+
         if structure:
             if TYPE_CHECKING:
                 assert structure_name is not None
@@ -850,6 +852,20 @@ class LocalAiEntity(Entity):
         client = self.entry.runtime_data
 
         return await self._run_agent_loop(client, model_args, chat_log, context)
+
+    def _customize_model_args(
+        self,
+        model_args: dict[str, Any],
+        tools: list[ChatCompletionFunctionToolParam] | None,
+        chat_log: conversation.ChatLog,
+    ) -> None:
+        """
+        Rewrite model_args for server-specific entities.
+
+        Called once per request, after the tool list and messages are final and
+        before the agent loop starts. Server types whose models expect tools
+        somewhere other than the OpenAI ``tools`` field override this.
+        """
 
     async def _run_agent_loop(
         self,

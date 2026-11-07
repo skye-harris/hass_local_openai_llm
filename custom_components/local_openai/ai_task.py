@@ -30,6 +30,7 @@ from .const import (
     SERVER_TYPE_DEEPSEEK,
     SERVER_TYPE_GENERIC,
     SERVER_TYPE_GOOGLE_GEMINI,
+    SERVER_TYPE_LFM,
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
@@ -58,6 +59,7 @@ def _get_ai_task_entity(
         from .entities.google_gemini import (  # noqa: PLC0415
             GoogleGeminiAITaskEntity,
         )
+        from .entities.lfm import LfmAITaskEntity  # noqa: PLC0415
         from .entities.llama_cpp import LlamaCppAITaskEntity  # noqa: PLC0415
         from .entities.localai import LocalAIServerAITaskEntity  # noqa: PLC0415
         from .entities.vllm import VllmAITaskEntity  # noqa: PLC0415
@@ -66,6 +68,7 @@ def _get_ai_task_entity(
             SERVER_TYPE_DEEPSEEK: DeepSeekAITaskEntity,
             SERVER_TYPE_GOOGLE_GEMINI: GoogleGeminiAITaskEntity,
             SERVER_TYPE_LLAMACPP: LlamaCppAITaskEntity,
+            SERVER_TYPE_LFM: LfmAITaskEntity,
             SERVER_TYPE_LOCALAI: LocalAIServerAITaskEntity,
             SERVER_TYPE_VLLM: VllmAITaskEntity,
         }
