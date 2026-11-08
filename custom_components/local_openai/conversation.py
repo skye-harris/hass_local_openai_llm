@@ -130,8 +130,12 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
                 user_input.extra_system_prompt,
             )
 
-            if always_continue_conversation and not isinstance(
-                llm_apis, InternalToolApi
+            if (
+                always_continue_conversation
+                and not isinstance(llm_apis, InternalToolApi)
+                and not any(
+                    isinstance(tool, StopTalkingTool) for tool in chat_log.llm_api.tools
+                )
             ):
                 # Append our stop_talking tool to the existing tooling if tooling APIs were configured
                 chat_log.llm_api.tools.append(StopTalkingTool())
