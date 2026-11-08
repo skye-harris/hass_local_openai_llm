@@ -98,7 +98,7 @@ class TestRunAgentLoopSingleIteration:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         entity.entry.runtime_data.chat.completions.create.assert_called_once()
@@ -175,7 +175,7 @@ class TestRunAgentLoopSingleIteration:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         assert call_count == MAX_TOOL_ITERATIONS
@@ -242,16 +242,18 @@ class TestRunAgentLoopExtraBody:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
-            conversation_id="conv-1",
+            context=AgentContext(conversation_id="conv-1"),
         )
 
-        assert [context.iteration for context in contexts] == list(
-            range(MAX_TOOL_ITERATIONS)
-        )
+        assert len(contexts) == MAX_TOOL_ITERATIONS
         assert all(context.conversation_id == "conv-1" for context in contexts)
+        # Same context object is reused and mutated each iteration
+        assert all(context is contexts[0] for context in contexts)
+        assert contexts[0].iteration == MAX_TOOL_ITERATIONS - 1
+        # first_only persists because the same context is reused
         assert model_args["extra_body"] == {
             "metadata": {"session_id": "conv-1"},
+            "first_only": True,
         }
 
 
@@ -283,7 +285,7 @@ class TestRunAgentLoopErrorHandling:
                 entity.entry.runtime_data,
                 model_args,
                 chat_log,
-                strip_emojis=False,
+                context=AgentContext(),
             )
 
     async def test_stream_error_raises_homeassistant_error(
@@ -334,7 +336,7 @@ class TestRunAgentLoopErrorHandling:
                 entity.entry.runtime_data,
                 model_args,
                 chat_log,
-                strip_emojis=False,
+                context=AgentContext(),
             )
 
     async def test_tool_args_decode_failure_injects_error_result(
@@ -458,7 +460,7 @@ class TestRunAgentLoopErrorHandling:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         # Verify the loop ran all iterations (tool error keeps it going)
@@ -593,7 +595,7 @@ class TestRunAgentLoopErrorHandling:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         assert call_count == MAX_TOOL_ITERATIONS
@@ -861,8 +863,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
-            conversation_id="conv-123",
+            context=AgentContext(conversation_id="conv-123"),
         )
 
         await hass.async_block_till_done()
@@ -973,8 +974,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
-            conversation_id="conv-456",
+            context=AgentContext(conversation_id="conv-456"),
         )
 
         await hass.async_block_till_done()
@@ -1075,7 +1075,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         await hass.async_block_till_done()
@@ -1143,7 +1143,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         await hass.async_block_till_done()
@@ -1228,7 +1228,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         await hass.async_block_till_done()
@@ -1307,7 +1307,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         await hass.async_block_till_done()
@@ -1378,7 +1378,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         await hass.async_block_till_done()
@@ -1462,7 +1462,7 @@ class TestGenerationEventEmission:
             entity.entry.runtime_data,
             model_args,
             chat_log,
-            strip_emojis=False,
+            context=AgentContext(),
         )
 
         await hass.async_block_till_done()

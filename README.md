@@ -31,6 +31,7 @@
 - Added chat template arguments support
 - Added image generation support for AI Task entities
 - Added tools support for Generate Data actions for AI Task entities
+- Added decision model support for AI Task evaluate actions
 - Emits a `local_openai_llm_generation_complete` event for all LLM completion requests, with usage/timings data if available
 
 ---
@@ -120,8 +121,10 @@ After installation, configure the integration through Home Assistant's UI:
 
 **Custom HTTP Headers**
 
-Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or
-provider-specific headers.
+Add custom HTTP headers as key-value pairs to all LLM API requests. Useful for passing custom metadata or provider-specific headers:
+- Values support Jinja2 templates and have access to all default Home Assistant template variables and functions (e.g. entity `states`).
+- The current Conversation ID is available in the `conversation_id` variable.
+- All header values are coerced to strings after rendering.
 
 ### DeepSeek Cloud Configuration
 
@@ -295,6 +298,42 @@ desirable results. Some models have been known to repeat the date/time back to t
 If your model simply refuses to work well with any method, simply remove the value from the configuration option to
 disable this again.
 
+## Decision Models
+
+Home Assistant 2026.11 added the `ai_task.evaluate` action, which asks a decision model yes/no, choice and score
+questions and returns probabilities rather than generated text. This integration supports decision models served
+through the TypeSafe-compatible `/v1/systemone` API, such as
+[llama.cpp](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#post-v1systemone-typesafe-compatible-system-one-api)
+and [Ollama](https://docs.ollama.com/capabilities/decision).
+
+- Add one from your server's integration entry with **Add decision model**. This is available for the *Generic* and
+  *llama.cpp* server types.
+- Decision models get their own AI Task entity, separate from your data and image generation entities. Select it as
+  the default decision entity in the AI Task settings to use it without passing `entity_id`.
+- On llama.cpp, the model list only shows models the server reports as native decision models. A chat model prompted to
+  classify is not a decision model, and the server will reject it.
+- Image attachments are supported when the model and server support image input. On llama.cpp this requires a
+  multimodal projector to be loaded.
+
+```yaml
+action: ai_task.evaluate
+data:
+  task_name: Check delivery
+  state: "{{ states('sensor.last_delivery_message') }}"
+  questions:
+    delivered:
+      type: noul
+      instructions: Has the package been delivered?
+    location:
+      type: choice
+      instructions: Where was the package left?
+      criteria:
+        front_door: At the front door or on the porch
+        mailbox: Inside the mailbox
+        other: Somewhere else, or the message does not say
+response_variable: delivery
+```
+
 ## Experimental: Retrieval Augmented Generation (RAG) with Weaviate
 
 Retrieval Augmented Generation is used to pre-feed your LLM messages with related data to provide contextually relevant
@@ -400,7 +439,7 @@ I would like to thank the following people for their contributions to this proje
 <tr>
   <td align="center"><a href="https://github.com/NickM-27"><img src="https://avatars.githubusercontent.com/u/14866235?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/NickM-27">NickM-27</a></b></sub></td>
   <td align="center"><a href="https://github.com/JulienDeveaux"><img src="https://avatars.githubusercontent.com/u/73243388?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/JulienDeveaux">JulienDeveaux</a></b></sub></td>
-  <td align="center"><a href="https://github.com/BryanCLieberman"><img src="https://avatars.githubusercontent.com/u/205995085?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/BryanCLieberman">BryanCLieberman</a></b></sub></td>
+  <td align="center"><a href="https://github.com/VysseCodes"><img src="https://avatars.githubusercontent.com/u/205995085?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/VysseCodes">VysseCodes</a></b></sub></td>
   <td align="center"><a href="https://github.com/PollyBot13"><img src="https://avatars.githubusercontent.com/u/261872620?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/PollyBot13">PollyBot13</a></b></sub></td>
   <td align="center"><a href="https://github.com/srwalter"><img src="https://avatars.githubusercontent.com/u/79127?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/srwalter">srwalter</a></b></sub></td>
   <td align="center"><a href="https://github.com/alexjurkiewicz"><img src="https://avatars.githubusercontent.com/u/379509?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/alexjurkiewicz">alexjurkiewicz</a></b></sub></td>
@@ -418,6 +457,7 @@ I would like to thank the following people for their contributions to this proje
   <td align="center"><a href="https://github.com/Thyraz"><img src="https://avatars.githubusercontent.com/u/170099?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/Thyraz">Thyraz</a></b></sub></td>
   <td align="center"><a href="https://github.com/jgancedo"><img src="https://avatars.githubusercontent.com/u/17992965?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/jgancedo">jgancedo</a></b></sub></td>
   <td align="center"><a href="https://github.com/geryduyck"><img src="https://avatars.githubusercontent.com/u/36077321?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/geryduyck">geryduyck</a></b></sub></td>
+  <td align="center"><a href="https://github.com/dudanogueira"><img src="https://avatars.githubusercontent.com/u/1761174?v=4" width="64" height="64" style="border-radius:50%"></a><br><sub><b><a href="https://github.com/dudanogueira">dudanogueira</a></b></sub></td>
 </tr>
 </table>
 

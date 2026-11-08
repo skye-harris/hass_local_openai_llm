@@ -46,10 +46,12 @@ from .const import (
     CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
     CONF_CONTENT_INJECTION_METHOD_TOOL,
     CONF_CONTENT_INJECTION_METHOD_USER,
+    CONF_CUSTOM_HEADERS,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PASS_SESSION_ID,
     CONF_REQUEST_BODY_OPTS,
     CONF_REQUEST_BODY_PARAMETERS,
+    CONF_SERVER_HEADERS,
     CONF_SERVER_OPTIONS,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
@@ -300,6 +302,31 @@ class LocalAiEntity(Entity):
             extra_body_args.setdefault("metadata", {})["session_id"] = (
                 context.conversation_id
             )
+
+    async def _async_get_custom_headers(self, context: AgentContext) -> dict[str, str]:
+        """Build custom headers dict with per-request Jinja2 template rendering."""
+        custom_headers_section = self.entry.data.get(CONF_CUSTOM_HEADERS, {}) or {}
+        custom_headers_list = custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
+        custom_headers = {item["Key"]: item["Value"] for item in custom_headers_list}
+        result: dict[str, str] = {}
+        for header_key, header_val in custom_headers.items():
+            if isinstance(header_val, str) and "{" in header_val:
+                try:
+                    rendered_val = template.Template(
+                        header_val, self.hass
+                    ).async_render(
+                        {"conversation_id": context.conversation_id},
+                        parse_result=False,
+                    )
+                    result[header_key] = str(rendered_val)
+                except Exception as err:
+                    _LOGGER.warning(
+                        "Error rendering custom header '%s': %s", header_key, err
+                    )
+                    result[header_key] = ""
+            else:
+                result[header_key] = str(header_val)
+        return result
 
     async def _convert_content_to_chat_message(
         self,
@@ -745,7 +772,6 @@ class LocalAiEntity(Entity):
     ) -> None:
         """Generate an answer for the chat log."""
         options = self.options
-        strip_emojis = options.get(CONF_STRIP_EMOJIS)
 
         max_message_history = options.get(CONF_MAX_MESSAGE_HISTORY)
         if max_message_history is not None:
@@ -759,6 +785,14 @@ class LocalAiEntity(Entity):
                 "X-Title": "Home Assistant",
             },
         }
+
+        context = AgentContext(conversation_id=chat_log.conversation_id)
+
+        # Merge custom HTTP headers (with per-request Jinja2 template rendering)
+        custom_headers = await self._async_get_custom_headers(context)
+        for header_key, header_val in custom_headers.items():
+            if header_key not in model_args["extra_headers"]:
+                model_args["extra_headers"][header_key] = header_val
 
         # Omit when unset, some providers (e.g. Anthropic) reject a non-default temperature.
         temperature = options.get(CONF_TEMPERATURE)
@@ -815,26 +849,21 @@ class LocalAiEntity(Entity):
 
         client = self.entry.runtime_data
 
-        return await self._run_agent_loop(
-            client, model_args, chat_log, strip_emojis, chat_log.conversation_id
-        )
+        return await self._run_agent_loop(client, model_args, chat_log, context)
 
     async def _run_agent_loop(
         self,
         client: openai.AsyncOpenAI,
         model_args: dict[str, Any],
         chat_log: conversation.ChatLog,
-        strip_emojis: bool,
-        conversation_id: str | None = None,
+        context: AgentContext,
     ) -> bool:
         """Run the LLM agent loop with tool call iteration."""
         halt_requested = False
+        strip_emojis = self.options.get(CONF_STRIP_EMOJIS)
 
         for iteration in range(MAX_TOOL_ITERATIONS):
-            context = AgentContext(
-                iteration=iteration,
-                conversation_id=conversation_id,
-            )
+            context.iteration = iteration
             self._get_extra_body_args(context)
             if context.extra_body:
                 model_args["extra_body"] = context.extra_body
@@ -864,7 +893,7 @@ class LocalAiEntity(Entity):
                         self._transform_stream(
                             stream=result_stream,
                             strip_emojis=strip_emojis,
-                            conversation_id=conversation_id,
+                            conversation_id=context.conversation_id,
                             meta=meta,
                         ),
                     )
@@ -890,7 +919,7 @@ class LocalAiEntity(Entity):
                         for content in turn_messages
                         if (
                             msg := await self._convert_content_to_chat_message(
-                                content, conversation_id
+                                content, context.conversation_id
                             )
                         )
                     ],
@@ -937,7 +966,7 @@ class LocalAiEntity(Entity):
                         "type": "generation_complete",
                         "model": model_args["model"],
                         "iteration": iteration + 1,
-                        "conversation_id": conversation_id,
+                        "conversation_id": context.conversation_id,
                         "content": content_text,
                         "tools_called": meta.tool_names or [],
                         "token_metadata": {
