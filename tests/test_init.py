@@ -485,7 +485,7 @@ async def test_migrate_v3_to_v4_vllm_budget_zero_no_mode(
 async def test_migrate_v3_to_v4_vllm_no_budget(
     hass: HomeAssistant,
 ) -> None:
-    """Test migration: vLLM without budget uses default (1024 > 0) so thinking_mode is set."""
+    """Test migration: vLLM without explicit budget does not set thinking_mode."""
     entry = _make_entry(
         {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
         version=3,
@@ -501,9 +501,7 @@ async def test_migrate_v3_to_v4_vllm_no_budget(
     assert result is True
     assert entry.version == 4
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
-    assert updated_subentry.data[CONF_VLLM_CONFIG][CONF_VLLM_THINKING_MODE] == (
-        CONF_VLLM_THINKING_MODE_ALWAYS
-    )
+    assert CONF_VLLM_THINKING_MODE not in updated_subentry.data[CONF_VLLM_CONFIG]
 
 
 async def test_migrate_v3_to_v4_ai_task_subentry(
