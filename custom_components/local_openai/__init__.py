@@ -141,7 +141,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 vllm_config = data[CONF_VLLM_CONFIG]
                 thinking_token_budget = vllm_config.get(
                     CONF_VLLM_THINKING_TOKEN_BUDGET,
-                    CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
+                    0
                 )
                 if int(thinking_token_budget) > 0:
                     vllm_config[CONF_VLLM_THINKING_MODE] = (
