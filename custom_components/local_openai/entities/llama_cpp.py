@@ -261,14 +261,14 @@ class LlamaCppMixin:
                 extras[arg_name] = converter(value)
 
         thinking_mode = opts.get(CONF_LLAMACPP_THINKING_MODE)
+        thinking_enabled = bool(thinking_mode)
         chat_template_kwargs = extras.setdefault("chat_template_kwargs", {})
-        chat_template_kwargs["enable_thinking"] = (
-            thinking_mode == CONF_LLAMACPP_THINKING_MODE_ALWAYS
-            or (
-                thinking_mode == CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP
-                and context.iteration == 0
-            )
-        )
+        chat_template_kwargs["enable_thinking"] = thinking_enabled
+        if (
+            thinking_mode == CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP
+            and context.iteration > 0
+        ):
+            extras["thinking_budget_tokens"] = 0
 
     async def _convert_content_to_chat_message(
         self,

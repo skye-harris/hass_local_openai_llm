@@ -167,7 +167,7 @@
                 "llamacpp_thinking_mode": "Thinking mode"
               },
               "data_description": {
-                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context.",
                 "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
                 "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
@@ -265,7 +265,7 @@
                 "llamacpp_thinking_mode": "Thinking mode"
               },
               "data_description": {
-                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context.",
                 "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
                 "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
@@ -378,7 +378,7 @@
                 "llamacpp_thinking_mode": "Thinking mode"
               },
               "data_description": {
-                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context.",
                 "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
                 "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
@@ -461,7 +461,7 @@
                 "llamacpp_thinking_mode": "Thinking mode"
               },
               "data_description": {
-                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context (e.g., Gemma 4).",
+                "llamacpp_include_prior_thinking": "Include prior-turn reasoning content when sending new completion requests. Disable for models that reject prior reasoning context.",
                 "llamacpp_id_slot": "Pin requests to a specific llama.cpp server slot for prompt-cache reuse. Leave empty for any slot.",
                 "llamacpp_top_p": "Lower values restrict sampling to higher-probability tokens. (0-1)",
                 "llamacpp_top_k": "Number of highest probability tokens to sample from. (1-1000)",
