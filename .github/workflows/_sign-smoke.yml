@@ -34,7 +34,7 @@ jobs:
           zip "${GITHUB_WORKSPACE}/out/local_openai.zip" -r ./
 
       - name: "Sign release package"
-        uses: "sigstore/gh-action-sigstore-python@v3.5.0"
+        uses: "sigstore/gh-action-sigstore-python@v3.0.1"
         with:
           inputs: ${{ github.workspace }}/out/local_openai.zip
 
