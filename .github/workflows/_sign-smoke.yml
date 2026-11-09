@@ -1,0 +1,44 @@
+name: "Sign smoke (temporary)"
+
+# Verification harness for the sigstore pin bump: runs the exact release
+# signing step on a push, so we can prove it works without publishing a release.
+# Delete once the fix is merged.
+
+on:
+  push:
+    branches: ["fix/release-sigstore-py314"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  sign:
+    name: "Sign a dummy artifact"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v5.0.0"
+
+      - name: "Show which python the runner exposes"
+        shell: bash
+        run: |
+          python3 -V
+          command -v python3
+
+      - name: "ZIP the integration directory"
+        shell: "bash"
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/out"
+          cd "${GITHUB_WORKSPACE}/custom_components/local_openai"
+          zip "${GITHUB_WORKSPACE}/out/local_openai.zip" -r ./
+
+      - name: "Sign release package"
+        uses: "sigstore/gh-action-sigstore-python@v3.5.0"
+        with:
+          inputs: ${{ github.workspace }}/out/local_openai.zip
+
+      - name: "Show signing results"
+        shell: "bash"
+        run: |
+          ls -l "${GITHUB_WORKSPACE}/out"
