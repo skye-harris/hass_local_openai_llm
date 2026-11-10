@@ -117,7 +117,7 @@
             "temperature": "Temperature",
             "max_message_history": "Max previous conversation rounds to include",
             "parallel_tool_calls": "Parallel tool calling",
-            "content_injection_method": "Date/Time context injection role",
+            "content_injection_method": "Context injection role",
             "always_continue_conversation": "Always continue conversation"
           },
           "data_description": {
@@ -130,6 +130,18 @@
             "always_continue_conversation": "Voice assistants will always be prompted to continue the conversation"
           },
           "sections": {
+            "context_injection_opts": {
+              "name": "Context Injection",
+              "description": "Configure dynamic context injected before user messages",
+              "data": {
+                "content_injection_method": "Context injection role",
+                "context_injection_template": "Context injection template"
+              },
+              "data_description": {
+                "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
+                "context_injection_template": "Template for context injected before the user message"
+              }
+            },
             "chat_template_opts": {
               "name": "Chat Template Arguments",
               "data": {
@@ -215,7 +227,7 @@
             "temperature": "Temperature",
             "max_message_history": "Max previous conversation rounds to include",
             "parallel_tool_calls": "Parallel tool calling",
-            "content_injection_method": "Date/Time context injection role",
+            "content_injection_method": "Context injection role",
             "always_continue_conversation": "Always continue conversation"
           },
           "data_description": {
@@ -228,6 +240,18 @@
             "always_continue_conversation": "Voice assistants will always be prompted to continue the conversation"
           },
           "sections": {
+            "context_injection_opts": {
+              "name": "Context Injection",
+              "description": "Configure dynamic context injected before user messages",
+              "data": {
+                "content_injection_method": "Context injection role",
+                "context_injection_template": "Context injection template"
+              },
+              "data_description": {
+                "content_injection_method": "The message role to insert dynamic content as. See the readme for details",
+                "context_injection_template": "Template for context injected before the user message"
+              }
+            },
             "chat_template_opts": {
               "name": "Chat Template Arguments",
               "data": {

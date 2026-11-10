@@ -8,12 +8,15 @@ import pytest
 from homeassistant.components import conversation as ha_conversation
 from homeassistant.const import CONF_MODEL
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.local_openai.const import (
+    CONF_CONTEXT_INJECTION_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
     CONF_CONTENT_INJECTION_METHOD_TOOL,
     CONF_CONTENT_INJECTION_METHOD_USER,
+    CONF_CONTEXT_INJECTION_TEMPLATE,
     CONF_WEAVIATE_API_KEY,
     CONF_WEAVIATE_HOST,
     CONF_WEAVIATE_OPTIONS,
@@ -28,9 +31,11 @@ def _make_messages(roles: list[str]) -> list[dict]:
 
 def injection_config(method: str, extra: dict | None = None) -> dict:
     """Build subentry data dict for injection tests."""
-    base = {CONF_MODEL: "test-model", CONF_CONTENT_INJECTION_METHOD: method}
+    base = {CONF_MODEL: "test-model"}
+    context_opts = {CONF_CONTENT_INJECTION_METHOD: method}
     if extra:
-        base.update(extra)
+        context_opts.update(extra)
+    base[CONF_CONTEXT_INJECTION_OPTS] = context_opts
     return base
 
 
@@ -211,10 +216,9 @@ class TestMaybeInjectContext:
         assert len(result_messages) == 3
         injected = result_messages[-2]
         assert injected["role"] == "user"
-        assert (
-            "date" in injected["content"].lower()
-            or "time" in injected["content"].lower()
-        )
+        assert "date" in injected["content"].lower()
+        assert "time" in injected["content"].lower()
+        assert "The current date and time is:" in injected["content"]
 
     async def test_injection_removes_getdatetime_tool(self, mock_entity):
         """Test that GetDateTime tool is removed when injection occurs."""
@@ -404,3 +408,232 @@ class TestMaybeInjectContext:
 
         assert MockWeaviate.call_count == 0
         assert len(result_messages) == 3
+
+    async def test_injection_template_with_custom_content(self, mock_entity):
+        """Test that a custom template renders in the injected content."""
+        custom_template = "Custom context: {{ area.name }} is the area."
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            [],
+            mock_input,
+        )
+
+        assert len(result_messages) == 3
+        injected = result_messages[-2]
+        assert "Custom context:" in injected["content"]
+        assert "{{ area_name }}" not in injected["content"]
+
+    async def test_injection_template_has_device_id(
+        self, mock_entity, hass, mock_config_entry
+    ):
+        """Test that device_id is available in the template render context."""
+        from homeassistant.helpers import device_registry as dr
+
+        custom_template = "Device: {{ device.id }}"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+
+        dev_reg = dr.async_get(hass)
+        device = dev_reg.async_get_or_create(
+            config_entry_id=mock_config_entry.entry_id,
+            connections=set(),
+            identifiers={"test_device"},
+        )
+        mock_input.device_id = device.id
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            [],
+            mock_input,
+        )
+
+        assert len(result_messages) == 3
+        injected = result_messages[-2]
+        assert f"Device: {device.id}" in injected["content"]
+
+    async def test_injection_template_resolves_area(
+        self, mock_entity, hass, mock_config_entry
+    ):
+        """Test that area is resolved from device registry."""
+        from homeassistant.helpers import area_registry as ar, device_registry as dr
+
+        custom_template = "Area: {{ area.name }}"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+
+        dev_reg = dr.async_get(hass)
+        area_reg = ar.async_get(hass)
+
+        area_reg.async_create("Kitchen")
+        device = dev_reg.async_get_or_create(
+            config_entry_id=mock_config_entry.entry_id,
+            connections=set(),
+            identifiers={"test_device"},
+            suggested_area="Kitchen",
+        )
+        mock_input.device_id = device.id
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            [],
+            mock_input,
+        )
+
+        assert len(result_messages) == 3
+        injected = result_messages[-2]
+        assert "Area: Kitchen" in injected["content"]
+
+    async def test_injection_template_resolves_floor(
+        self, mock_entity, hass, mock_config_entry
+    ):
+        """Test that floor is resolved from area registry."""
+        from homeassistant.helpers import (
+            area_registry as ar,
+            device_registry as dr,
+            floor_registry as fr,
+        )
+
+        custom_template = "Floor: {{ floor.name }}"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+
+        floor_reg = fr.async_get(hass)
+        area_reg = ar.async_get(hass)
+        dev_reg = dr.async_get(hass)
+
+        floor = floor_reg.async_create("First Floor")
+        area_reg.async_create("Kitchen", floor_id=floor.floor_id)
+        device = dev_reg.async_get_or_create(
+            config_entry_id=mock_config_entry.entry_id,
+            connections=set(),
+            identifiers={"test_device"},
+            suggested_area="Kitchen",
+        )
+        mock_input.device_id = device.id
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            [],
+            mock_input,
+        )
+
+        assert len(result_messages) == 3
+        injected = result_messages[-2]
+        assert "Floor: First Floor" in injected["content"]
+
+    async def test_injection_template_no_device(self, mock_entity):
+        """Test that template renders with None values when no device is provided."""
+        custom_template = "Device: {{ device.id if device else 'None' }}, Area: {{ area.name if area else 'None' }}"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+        mock_input.device_id = None
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            [],
+            mock_input,
+        )
+
+        assert len(result_messages) == 3
+        injected = result_messages[-2]
+        assert "Device: None" in injected["content"]
+        assert "Area: None" in injected["content"]
+
+    async def test_injection_template_render_failure_raises(self, mock_entity):
+        """Test that invalid template raises RuntimeError."""
+        invalid_template = "{{ this is invalid jinja syntax"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: invalid_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+
+        with pytest.raises(
+            HomeAssistantError, match="Failed to render context injection template"
+        ):
+            await mock_entity._maybe_inject_context(
+                messages,
+                CONF_CONTENT_INJECTION_METHOD_USER,
+                [],
+                mock_input,
+            )
+
+    async def test_injection_weaviate_appended_after_template(self, mock_entity):
+        """Test that Weaviate results are appended after rendered template content."""
+        custom_template = "Custom context content"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={
+                CONF_CONTEXT_INJECTION_TEMPLATE: custom_template,
+                CONF_WEAVIATE_OPTIONS: {
+                    "weaviate_class_name": "TestClass",
+                    "weaviate_max_results": "2",
+                },
+            },
+        )
+        mock_entity.entry.data = weaviate_entry_opts(
+            "http://localhost:8080", "test-key"
+        )
+
+        messages = _make_messages(["system", "user"])
+
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+        mock_input.text = "test query"
+
+        mock_client = MagicMock()
+        mock_client.hybrid_search = AsyncMock(
+            return_value=[
+                {"query": "test query", "content": "weaviate result"},
+            ]
+        )
+
+        with patch(
+            "custom_components.local_openai.entity.WeaviateClient",
+            return_value=mock_client,
+        ):
+            result_messages, _ = await mock_entity._maybe_inject_context(
+                messages,
+                CONF_CONTENT_INJECTION_METHOD_USER,
+                [],
+                mock_input,
+            )
+
+        injected = result_messages[-2]
+        assert "Custom context content" in injected["content"]
+        assert "weaviate result" in injected["content"]
+        assert "Query: test query" in injected["content"]

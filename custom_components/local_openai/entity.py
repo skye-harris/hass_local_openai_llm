@@ -16,10 +16,11 @@ import openai
 from homeassistant.components import conversation
 from homeassistant.const import CONF_MODEL
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import floor_registry as fr
 from homeassistant.helpers import llm, template
 from homeassistant.helpers.entity import Entity
-from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
@@ -46,6 +47,9 @@ from .const import (
     CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
     CONF_CONTENT_INJECTION_METHOD_TOOL,
     CONF_CONTENT_INJECTION_METHOD_USER,
+    CONF_CONTEXT_INJECTION_OPTS,
+    CONF_CONTEXT_INJECTION_TEMPLATE,
+    CONF_CONTEXT_INJECTION_TEMPLATE_DEFAULT,
     CONF_CUSTOM_HEADERS,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PASS_SESSION_ID,
@@ -466,12 +470,47 @@ class LocalAiEntity(Entity):
     ) -> tuple[list, list[ChatCompletionFunctionToolParam] | None]:
         """Decide whether to inject context into the message stream."""
         if method and messages and messages[-1].get("role") == "user":
-            dt = dt_util.now()
-            date_str = dt.strftime("%A %d %B, %Y")
-            time_str = dt.strftime("%-I:%M %p")
-            inject_content: list[str] = [
-                f"The current date and time is: `{date_str}` at `{time_str}`.",
-            ]
+            device_id = user_input.device_id if user_input else None
+            area = None
+            floor = None
+            device = None
+
+            if device_id:
+                dev_reg = dr.async_get(self.hass)
+                device = dev_reg.async_get(device_id)
+                if device:
+                    effective_area_id = dr.async_get_effective_area_id(
+                        self.hass, device
+                    )
+                    if effective_area_id:
+                        area_reg = ar.async_get(self.hass)
+                        area = area_reg.async_get_area(effective_area_id)
+                        if area and area.floor_id:
+                            floor_reg = fr.async_get(self.hass)
+                            floor = floor_reg.async_get_floor(area.floor_id)
+
+            render_vars: dict[str, Any] = {
+                "device": device,
+                "area": area,
+                "floor": floor,
+            }
+
+            context_opts = self.options.get(CONF_CONTEXT_INJECTION_OPTS, {})
+            template_str = context_opts.get(
+                CONF_CONTEXT_INJECTION_TEMPLATE,
+                CONF_CONTEXT_INJECTION_TEMPLATE_DEFAULT,
+            )
+
+            try:
+                rendered = template.Template(template_str, self.hass).async_render(
+                    render_vars, parse_result=False
+                )
+            except Exception as err:
+                _LOGGER.exception("Failed to render context injection template")
+                error_msg = f"Failed to render context injection template: {err}"
+                raise HomeAssistantError(error_msg) from err
+
+            inject_content: list[str] = [rendered]
 
             weaviate_opts = self.options.get(CONF_WEAVIATE_OPTIONS, {})
             weaviate_host = self.weaviate_server_opts.get(CONF_WEAVIATE_HOST)
@@ -823,7 +862,8 @@ class LocalAiEntity(Entity):
             max_message_history,
         )
 
-        method = options.get(CONF_CONTENT_INJECTION_METHOD)
+        context_opts = options.get(CONF_CONTEXT_INJECTION_OPTS, {})
+        method = context_opts.get(CONF_CONTENT_INJECTION_METHOD)
         messages, tools = await self._maybe_inject_context(
             messages,
             method,
