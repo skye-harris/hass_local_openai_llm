@@ -432,9 +432,13 @@ class TestMaybeInjectContext:
         assert "Custom context:" in injected["content"]
         assert "{{ area_name }}" not in injected["content"]
 
-    async def test_injection_template_has_device_id(self, mock_entity):
+    async def test_injection_template_has_device_id(
+        self, mock_entity, hass, mock_config_entry
+    ):
         """Test that device_id is available in the template render context."""
-        custom_template = "Device: {{ device_id }}"
+        from homeassistant.helpers import device_registry as dr
+
+        custom_template = "Device: {{ device.id }}"
         mock_entity.subentry.data = injection_config(
             CONF_CONTENT_INJECTION_METHOD_USER,
             extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
@@ -442,7 +446,14 @@ class TestMaybeInjectContext:
 
         messages = _make_messages(["system", "user"])
         mock_input = MagicMock(spec=ha_conversation.ConversationInput)
-        mock_input.device_id = "test_device_123"
+
+        dev_reg = dr.async_get(hass)
+        device = dev_reg.async_get_or_create(
+            config_entry_id=mock_config_entry.entry_id,
+            connections=set(),
+            identifiers={"test_device"},
+        )
+        mock_input.device_id = device.id
 
         result_messages, _ = await mock_entity._maybe_inject_context(
             messages,
@@ -453,7 +464,7 @@ class TestMaybeInjectContext:
 
         assert len(result_messages) == 3
         injected = result_messages[-2]
-        assert "Device: test_device_123" in injected["content"]
+        assert f"Device: {device.id}" in injected["content"]
 
     async def test_injection_template_resolves_area(
         self, mock_entity, hass, mock_config_entry
@@ -539,7 +550,7 @@ class TestMaybeInjectContext:
 
     async def test_injection_template_no_device(self, mock_entity):
         """Test that template renders with None values when no device is provided."""
-        custom_template = "Device: {{ device_id }}, Area: {{ area.name }}"
+        custom_template = "Device: {{ device.id if device else 'None' }}, Area: {{ area.name if area else 'None' }}"
         mock_entity.subentry.data = injection_config(
             CONF_CONTENT_INJECTION_METHOD_USER,
             extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
@@ -559,6 +570,7 @@ class TestMaybeInjectContext:
         assert len(result_messages) == 3
         injected = result_messages[-2]
         assert "Device: None" in injected["content"]
+        assert "Area: None" in injected["content"]
 
     async def test_injection_template_render_failure_raises(self, mock_entity):
         """Test that invalid template raises RuntimeError."""
