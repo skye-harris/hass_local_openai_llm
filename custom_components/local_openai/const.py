@@ -124,3 +124,12 @@ RECOMMENDED_CONVERSATION_OPTIONS = {
     CONF_LLM_HASS_API: [llm.LLM_API_ASSIST],
     CONF_PROMPT: llm.DEFAULT_INSTRUCTIONS_PROMPT,
 }
+
+CONF_CONTEXT_INJECTION_TEMPLATE = "context_injection_template"
+
+CONF_CONTEXT_INJECTION_TEMPLATE_DEFAULT = (
+    "The current date and time is: `{{ now().strftime('%A %d %B, %Y') }}` "
+    "at `{{ now().strftime('%-I:%M %p') }}`."
+)
+
+CONF_CONTEXT_INJECTION_OPTS = "context_injection_opts"

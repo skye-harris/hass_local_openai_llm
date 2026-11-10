@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from custom_components.local_openai import async_migrate_entry, async_setup_entry
 from custom_components.local_openai.const import (
     CONF_BASE_URL,
+    CONF_CONTEXT_INJECTION_OPTS,
+    CONF_CONTENT_INJECTION_METHOD,
+    CONF_CONTEXT_INJECTION_TEMPLATE,
     CONF_CUSTOM_HEADERS,
     CONF_DEEPSEEK_CONFIG,
     CONF_DEEPSEEK_REASONING_EFFORT,
@@ -315,7 +318,7 @@ async def test_migrate_v2_to_v3_max_message_history_zero(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     assert CONF_MAX_MESSAGE_HISTORY not in updated_subentry.data
 
@@ -337,7 +340,7 @@ async def test_migrate_v2_to_v3_max_message_history_negative(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     assert CONF_MAX_MESSAGE_HISTORY not in updated_subentry.data
 
@@ -359,7 +362,7 @@ async def test_migrate_v2_to_v3_max_message_history_string_zero(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     assert CONF_MAX_MESSAGE_HISTORY not in updated_subentry.data
 
@@ -385,7 +388,7 @@ async def test_migrate_v2_to_v3_max_message_history_not_conversation(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     ai_task_subentry = entry.subentries["test_ai_task_subentry_id"]
     assert ai_task_subentry.data.get(CONF_MODEL) == "test-model"
 
@@ -407,7 +410,7 @@ async def test_migrate_v2_to_v3_no_migration_needed(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     assert updated_subentry.data.get(CONF_MAX_MESSAGE_HISTORY) == 5
 
@@ -425,7 +428,7 @@ async def test_migrate_v2_to_v3_no_subentries(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
 
 
 async def test_migrate_v3_to_v4_vllm_budget_no_mode(
@@ -448,7 +451,7 @@ async def test_migrate_v3_to_v4_vllm_budget_no_mode(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     assert (
         updated_subentry.data[CONF_VLLM_CONFIG][CONF_VLLM_THINKING_TOKEN_BUDGET] == 2048
@@ -476,7 +479,7 @@ async def test_migrate_v3_to_v4_vllm_budget_zero_no_mode(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     assert CONF_VLLM_THINKING_MODE not in updated_subentry.data[CONF_VLLM_CONFIG]
 
@@ -498,7 +501,7 @@ async def test_migrate_v3_to_v4_vllm_no_budget(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     assert CONF_VLLM_THINKING_MODE not in updated_subentry.data[CONF_VLLM_CONFIG]
 
@@ -527,7 +530,7 @@ async def test_migrate_v3_to_v4_ai_task_subentry(
     result = await async_migrate_entry(hass, entry)
 
     assert result is True
-    assert entry.version == 4
+    assert entry.version == 5
     updated_subentry = entry.subentries["test_ai_task_subentry_id"]
     assert (
         updated_subentry.data[CONF_DEEPSEEK_CONFIG][CONF_DEEPSEEK_THINKING_MODE]
@@ -658,3 +661,64 @@ async def test_migrate_v3_to_v4_llamacpp_enable_thinking_false(
     config = updated_subentry.data[CONF_LLAMACPP_CONFIG]
     assert CONF_LLAMACPP_ENABLE_THINKING not in config
     assert CONF_LLAMACPP_THINKING_MODE not in config
+
+
+async def test_migrate_v4_to_v5_context_injection_opts(
+    hass: HomeAssistant,
+) -> None:
+    """Test migration: conversation subentry flat keys → context_injection_opts."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=4,
+    )
+    subentry = _make_conversation_subentry(
+        {
+            CONF_MODEL: "test-model",
+            CONF_CONTENT_INJECTION_METHOD: "Tool Result",
+            CONF_CONTEXT_INJECTION_TEMPLATE: "Custom template",
+        },
+    )
+    _set_subentries(entry, {"test_conversation_subentry_id": subentry})
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 5
+    updated = entry.subentries["test_conversation_subentry_id"]
+    assert (
+        updated.data[CONF_CONTEXT_INJECTION_OPTS][CONF_CONTENT_INJECTION_METHOD]
+        == "Tool Result"
+    )
+    assert (
+        updated.data[CONF_CONTEXT_INJECTION_OPTS][CONF_CONTEXT_INJECTION_TEMPLATE]
+        == "Custom template"
+    )
+    assert CONF_CONTENT_INJECTION_METHOD not in updated.data
+    assert CONF_CONTEXT_INJECTION_TEMPLATE not in updated.data
+
+
+async def test_migrate_v4_to_v5_non_conversation_subentry_not_touched(
+    hass: HomeAssistant,
+) -> None:
+    """Test migration: non-conversation subentries are not migrated."""
+    entry = _make_entry(
+        {CONF_MODEL: "test-model", CONF_BASE_URL: "http://test:8080/v1"},
+        version=4,
+    )
+    subentry = _make_ai_task_subentry(
+        {
+            CONF_MODEL: "test-model",
+            CONF_CONTENT_INJECTION_METHOD: "Tool Result",
+        },
+    )
+    _set_subentries(entry, {"test_ai_task_subentry_id": subentry})
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    result = await async_migrate_entry(hass, entry)
+
+    assert result is True
+    assert entry.version == 5
+    updated = entry.subentries["test_ai_task_subentry_id"]
+    assert updated.data[CONF_CONTENT_INJECTION_METHOD] == "Tool Result"
+    assert CONF_CONTEXT_INJECTION_OPTS not in updated.data
