@@ -491,7 +491,6 @@ class LocalAiEntity(Entity):
 
             render_vars: dict[str, Any] = {
                 "device": device,
-                "device_id": device_id,
                 "area": area,
                 "floor": floor,
             }
