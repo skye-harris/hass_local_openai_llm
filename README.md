@@ -260,35 +260,34 @@ configured on the vLLM server rather than per request:
 
 ---
 
-### Experimental: Date/Time Context Injection Role
+### Context Injection
 
-This integration supports injecting some dynamic content, presently the date and time, into the active Conversation
-Agent prompt when making a request. This was added as it is beneficial for the model to be grounded with this context in
-its role as an assistant, and was previously added to the system prompt by Home Assistant itself before later being
-removed due to negative effects on prompt caching and performance.
+This integration supports injecting dynamic content into the active Conversation Agent prompt when making a request.
+The injected content is rendered from a Jinja2 template and inserted before the current user message.
 
-This was previously always-on but has been extracted as an **experimental** configuration option as this is not a
-once-size-fits-all for all models. To this end I have provided a number of options so that users can try them out and
-select the one that works best, or disable entirely if none work well, for their chosen model.
+### Configuration
 
-The available options are:
+**Context injection template** — A Jinja2 template that is rendered per-request. The default template provides the
+current date and time, but you can customize it to include any dynamic content.
+
+**Context injection role** — Where to insert the rendered content:
 
 #### <u>Tool Result</u>:
 
-The date and time are inserted as a `Tool Call Result` message to the model, before the current user message.
+The content is inserted as a `Tool Call Result` message to the model, before the current user message.
 
 As long as the model does not reject it, this is the recommended method to use and produces the most reliable results
 during testing.
 
 #### <u>Assistant</u>:
 
-The date and time are inserted as an additional `Assistant` message to the model, before the current user message.
+The content is inserted as an additional `Assistant` message to the model, before the current user message.
 
 In cases where the `Tool Call Result` role method does not work for a model, this is the next recommended to test with.
 
 #### <u>User</u>:
 
-The date and time are inserted as an additional `User` message to the model, before the current user message.
+The content is inserted as an additional `User` message to the model, before the current user message.
 
 Recommended only where neither the `System` nor `Assistant` injection methods work for the model, but may not produce
 desirable results. Some models have been known to repeat the date/time back to the user without request.
@@ -297,6 +296,20 @@ desirable results. Some models have been known to repeat the date/time back to t
 
 If your model simply refuses to work well with any method, simply remove the value from the configuration option to
 disable this again.
+
+### Available Template Variables
+
+The template is rendered with access to the standard HomeAssistant template environment, with the following additional variables exposed:
+
+- `device` — The `DeviceEntry` object for the requesting device, or `None`
+- `area` — The `AreaEntry` object for the device's area, or `None`
+- `floor` — The `FloorEntry` object for the area's floor, or `None`
+
+Available attributes on objects:
+
+- **device**: `id`, `name`, `model`, `manufacturer`, `sw_version`, `area_id`, `identifiers`
+- **area**: `id`, `name`, `icon`, `floor_id`, `normalized_name`
+- **floor**: `id`, `name`, `icon`, `level`, `normalized_name`, `floor_id`
 
 ## Decision Models
 
