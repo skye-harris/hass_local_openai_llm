@@ -572,6 +572,52 @@ class TestMaybeInjectContext:
         assert "Device: None" in injected["content"]
         assert "Area: None" in injected["content"]
 
+    async def test_injection_template_with_conversation_id(self, mock_entity):
+        """Test that conversation_id is available in the template."""
+        custom_template = "Conversation: {{ conversation_id }}"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            [],
+            mock_input,
+            "conv-test-123",
+        )
+
+        assert len(result_messages) == 3
+        injected = result_messages[-2]
+        assert "Conversation: conv-test-123" in injected["content"]
+
+    async def test_injection_template_with_none_conversation_id(self, mock_entity):
+        """Test that conversation_id renders as None when not provided."""
+        custom_template = "Conversation: {{ conversation_id }}"
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            extra={CONF_CONTEXT_INJECTION_TEMPLATE: custom_template},
+        )
+
+        messages = _make_messages(["system", "user"])
+        mock_input = MagicMock(spec=ha_conversation.ConversationInput)
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_USER,
+            [],
+            mock_input,
+            None,
+        )
+
+        assert len(result_messages) == 3
+        injected = result_messages[-2]
+        assert "Conversation: None" in injected["content"]
+
     async def test_injection_template_render_failure_raises(self, mock_entity):
         """Test that invalid template raises RuntimeError."""
         invalid_template = "{{ this is invalid jinja syntax"

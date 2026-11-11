@@ -467,6 +467,7 @@ class LocalAiEntity(Entity):
         method: str | None,
         tools: list[ChatCompletionFunctionToolParam] | None,
         user_input: conversation.ConversationInput | None,
+        conversation_id: str | None = None,
     ) -> tuple[list, list[ChatCompletionFunctionToolParam] | None]:
         """Decide whether to inject context into the message stream."""
         if method and messages and messages[-1].get("role") == "user":
@@ -493,6 +494,7 @@ class LocalAiEntity(Entity):
                 "device": device,
                 "area": area,
                 "floor": floor,
+                "conversation_id": conversation_id,
             }
 
             context_opts = self.options.get(CONF_CONTEXT_INJECTION_OPTS, {})
@@ -869,6 +871,7 @@ class LocalAiEntity(Entity):
             method,
             tools,
             user_input,
+            chat_log.conversation_id,
         )
         model_args["messages"] = messages
 

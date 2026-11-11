@@ -304,6 +304,7 @@ The template is rendered with access to the standard HomeAssistant template envi
 - `device` — The `DeviceEntry` object for the requesting device, or `None`
 - `area` — The `AreaEntry` object for the device's area, or `None`
 - `floor` — The `FloorEntry` object for the area's floor, or `None`
+- `conversation_id` — The conversation ID for the current request, or `None`
 
 Available attributes on objects:
 
