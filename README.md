@@ -11,6 +11,7 @@
 - OpenRouter
 - Requesty
 - Scaleway
+- UberLLM
 - vLLM
 
 **This integration has been forked from Home Assistants OpenRouter integration, with the following changes:**
