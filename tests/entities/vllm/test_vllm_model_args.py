@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import copy
+
 import pytest
 from custom_components.local_openai.const import (
     CONF_VLLM_CONFIG,
     CONF_VLLM_THINKING_MODE,
     CONF_VLLM_THINKING_MODE_ALWAYS,
+    CONF_VLLM_THINKING_MODE_DISABLED,
     CONF_VLLM_THINKING_MODE_FIRST_LOOP,
     CONF_VLLM_THINKING_TOKEN_BUDGET,
 )
@@ -22,7 +25,7 @@ class _StubBase:
         self.options = options or {}
 
     def _get_extra_body_args(self, context: AgentContext) -> None:
-        context.extra_body.update(BASE_EXTRA_BODY_ARGS)
+        context.extra_body.update(copy.deepcopy(BASE_EXTRA_BODY_ARGS))
 
 
 class _StubVllmEntity(VllmMixin, _StubBase):
@@ -42,10 +45,10 @@ class TestVllmExtraBodyArgs:
     @pytest.mark.parametrize(
         "options,extra_expected",
         [
-            # No thinking_mode at all -> enable_thinking = False
+            # No thinking_mode at all -> nothing sent, model defaults apply
             (
                 {CONF_VLLM_CONFIG: {}},
-                {"chat_template_kwargs": {"hello": "world", "enable_thinking": False}},
+                {"chat_template_kwargs": {"hello": "world"}},
             ),
             # thinking_mode = always -> enable_thinking = True, budget uses default
             (
@@ -77,10 +80,20 @@ class TestVllmExtraBodyArgs:
                     "thinking_token_budget": 1024,
                 },
             ),
-            # budget only, no thinking_mode -> thinking disabled, budget omitted
+            # budget only, no thinking_mode -> nothing sent, budget omitted
             (
                 {
                     CONF_VLLM_CONFIG: {
+                        CONF_VLLM_THINKING_TOKEN_BUDGET: 2048,
+                    }
+                },
+                {"chat_template_kwargs": {"hello": "world"}},
+            ),
+            # thinking_mode = disabled -> enable_thinking = False, budget omitted
+            (
+                {
+                    CONF_VLLM_CONFIG: {
+                        CONF_VLLM_THINKING_MODE: CONF_VLLM_THINKING_MODE_DISABLED,
                         CONF_VLLM_THINKING_TOKEN_BUDGET: 2048,
                     }
                 },
@@ -135,14 +148,11 @@ class TestVllmExtraBodyArgs:
                 },
             ),
             # None config
-            (
-                {},
-                {"chat_template_kwargs": {"hello": "world", "enable_thinking": False}},
-            ),
+            ({}, {"chat_template_kwargs": {"hello": "world"}}),
             # Budget must be read from the vLLM section, not the top level
             (
                 {CONF_VLLM_THINKING_TOKEN_BUDGET: 2048},
-                {"chat_template_kwargs": {"hello": "world", "enable_thinking": False}},
+                {"chat_template_kwargs": {"hello": "world"}},
             ),
         ],
     )
@@ -177,6 +187,27 @@ class TestVllmExtraBodyArgs:
                 {
                     CONF_VLLM_CONFIG: {
                         CONF_VLLM_THINKING_MODE: CONF_VLLM_THINKING_MODE_FIRST_LOOP,
+                    }
+                },
+                1,
+                {"chat_template_kwargs": {"hello": "world", "enable_thinking": False}},
+            ),
+            # disabled iteration 0 -> explicitly disabled, budget omitted
+            (
+                {
+                    CONF_VLLM_CONFIG: {
+                        CONF_VLLM_THINKING_MODE: CONF_VLLM_THINKING_MODE_DISABLED,
+                    }
+                },
+                0,
+                {"chat_template_kwargs": {"hello": "world", "enable_thinking": False}},
+            ),
+            # disabled iteration 1 -> disabled
+            (
+                {
+                    CONF_VLLM_CONFIG: {
+                        CONF_VLLM_THINKING_MODE: CONF_VLLM_THINKING_MODE_DISABLED,
+                        CONF_VLLM_THINKING_TOKEN_BUDGET: 2048,
                     }
                 },
                 1,
@@ -294,9 +325,24 @@ class _StubVllmEntityWithBudget(VllmMixin, _StubBaseWithBudget):
 
 
 def test_request_body_budget_removed_when_thinking_disabled() -> None:
-    """Test a request-body thinking budget is removed when thinking is disabled."""
+    """Test a request-body thinking budget is removed when thinking is explicitly disabled."""
     context = AgentContext()
-    _StubVllmEntityWithBudget()._get_extra_body_args(context)
+    _StubVllmEntityWithBudget(
+        {
+            CONF_VLLM_CONFIG: {
+                CONF_VLLM_THINKING_MODE: CONF_VLLM_THINKING_MODE_DISABLED,
+            }
+        }
+    )._get_extra_body_args(context)
 
     assert "thinking_token_budget" not in context.extra_body
     assert context.extra_body["chat_template_kwargs"]["enable_thinking"] is False
+
+
+def test_request_body_budget_untouched_when_thinking_unset() -> None:
+    """Test a request-body thinking budget passes through when the thinking mode is unset."""
+    context = AgentContext()
+    _StubVllmEntityWithBudget()._get_extra_body_args(context)
+
+    assert context.extra_body["thinking_token_budget"] == 999
+    assert "enable_thinking" not in context.extra_body["chat_template_kwargs"]

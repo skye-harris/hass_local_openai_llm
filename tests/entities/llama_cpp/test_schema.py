@@ -12,6 +12,7 @@ from custom_components.local_openai.const import (
     CONF_LLAMACPP_REPEAT_PENALTY,
     CONF_LLAMACPP_THINKING_MODE,
     CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_DISABLED,
     CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
@@ -36,6 +37,17 @@ def test_get_llama_cpp_schema_returns_expected_fields():
         CONF_LLAMACPP_PRESENCE_PENALTY,
     ]
     assert all(field in schema for field in expected_fields)
+
+
+def test_include_prior_thinking_visible_condition():
+    """Test include prior reasoning is only shown while thinking is not explicitly disabled."""
+    schema = _get_llama_cpp_schema()
+    marker = next(key for key in schema if key == CONF_LLAMACPP_INCLUDE_PRIOR_THINKING)
+    assert marker.visible == {
+        "field": CONF_LLAMACPP_THINKING_MODE,
+        "operator": "not_in",
+        "value": [CONF_LLAMACPP_THINKING_MODE_DISABLED],
+    }
 
 
 def _validator() -> vol.Schema:
@@ -71,6 +83,7 @@ class TestValidation:
         for value in (
             CONF_LLAMACPP_THINKING_MODE_ALWAYS,
             CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
+            CONF_LLAMACPP_THINKING_MODE_DISABLED,
         ):
             result = validator({CONF_LLAMACPP_THINKING_MODE: value})
             assert result[CONF_LLAMACPP_THINKING_MODE] == value

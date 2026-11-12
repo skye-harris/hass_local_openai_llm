@@ -19,6 +19,7 @@ from custom_components.local_openai.const import (
     CONF_LLAMACPP_ENABLE_THINKING,
     CONF_LLAMACPP_THINKING_MODE,
     CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_DISABLED,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_SERVER_HEADERS,
     CONF_SERVER_TYPE,
@@ -643,7 +644,7 @@ async def test_migrate_v3_to_v4_llamacpp_enable_thinking_true(
 async def test_migrate_v3_to_v4_llamacpp_enable_thinking_false(
     hass: HomeAssistant,
 ) -> None:
-    """Test llama.cpp disabled thinking removes the old key and stays disabled."""
+    """Test llama.cpp disabled thinking migrates to the explicit disabled mode."""
     entry = _make_entry({CONF_MODEL: "test-model"}, version=3)
     subentry = _make_conversation_subentry(
         {
@@ -660,7 +661,9 @@ async def test_migrate_v3_to_v4_llamacpp_enable_thinking_false(
     updated_subentry = entry.subentries["test_conversation_subentry_id"]
     config = updated_subentry.data[CONF_LLAMACPP_CONFIG]
     assert CONF_LLAMACPP_ENABLE_THINKING not in config
-    assert CONF_LLAMACPP_THINKING_MODE not in config
+    # The explicit disable must be preserved — with the option unset the
+    # model's own default behaviour would apply instead.
+    assert config[CONF_LLAMACPP_THINKING_MODE] == CONF_LLAMACPP_THINKING_MODE_DISABLED
 
 
 async def test_migrate_v4_to_v5_context_injection_opts(

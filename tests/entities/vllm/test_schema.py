@@ -8,6 +8,7 @@ import pytest
 from custom_components.local_openai.const import (
     CONF_VLLM_THINKING_MODE,
     CONF_VLLM_THINKING_MODE_ALWAYS,
+    CONF_VLLM_THINKING_MODE_DISABLED,
     CONF_VLLM_THINKING_MODE_FIRST_LOOP,
     CONF_VLLM_THINKING_TOKEN_BUDGET,
 )
@@ -19,6 +20,20 @@ def test_get_vllm_schema_returns_expected_fields() -> None:
     schema = _get_vllm_schema()
     assert CONF_VLLM_THINKING_TOKEN_BUDGET in schema
     assert CONF_VLLM_THINKING_MODE in schema
+
+
+def test_thinking_token_budget_visible_condition() -> None:
+    """Test the token budget is only shown while a thinking mode enabling thinking is set."""
+    schema = _get_vllm_schema()
+    marker = next(key for key in schema if key == CONF_VLLM_THINKING_TOKEN_BUDGET)
+    assert marker.visible == {
+        "field": CONF_VLLM_THINKING_MODE,
+        "operator": "in",
+        "value": [
+            CONF_VLLM_THINKING_MODE_ALWAYS,
+            CONF_VLLM_THINKING_MODE_FIRST_LOOP,
+        ],
+    }
 
 
 def _validator() -> vol.Schema:
@@ -45,6 +60,7 @@ class TestValidation:
         for value in (
             CONF_VLLM_THINKING_MODE_ALWAYS,
             CONF_VLLM_THINKING_MODE_FIRST_LOOP,
+            CONF_VLLM_THINKING_MODE_DISABLED,
         ):
             result = validator({CONF_VLLM_THINKING_MODE: value})
             assert result[CONF_VLLM_THINKING_MODE] == value

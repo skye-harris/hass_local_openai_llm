@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import voluptuous as vol
 from homeassistant.components import conversation
+from homeassistant.data_entry_flow import Required
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -27,6 +28,7 @@ from custom_components.local_openai.const import (
     CONF_LLAMACPP_REPEAT_PENALTY,
     CONF_LLAMACPP_THINKING_MODE,
     CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_DISABLED,
     CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
@@ -82,11 +84,23 @@ def _get_llama_cpp_schema() -> dict:
                         value=CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
                         label="First loop iteration only",
                     ),
+                    SelectOptionDict(
+                        value=CONF_LLAMACPP_THINKING_MODE_DISABLED,
+                        label="Disabled",
+                    ),
                 ],
                 mode=SelectSelectorMode.DROPDOWN,
             ),
         ),
-        vol.Required(CONF_LLAMACPP_INCLUDE_PRIOR_THINKING, default=True): bool,
+        Required(
+            CONF_LLAMACPP_INCLUDE_PRIOR_THINKING,
+            default=True,
+            visible={
+                "field": CONF_LLAMACPP_THINKING_MODE,
+                "operator": "not_in",
+                "value": [CONF_LLAMACPP_THINKING_MODE_DISABLED],
+            },
+        ): bool,
         vol.Required(CONF_LLAMACPP_USE_LOADED_MODEL, default=False): bool,
         vol.Optional(CONF_LLAMACPP_ID_SLOT): NumberSelector(
             NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX),
@@ -261,9 +275,12 @@ class LlamaCppMixin:
                 extras[arg_name] = converter(value)
 
         thinking_mode = opts.get(CONF_LLAMACPP_THINKING_MODE)
-        thinking_enabled = bool(thinking_mode)
-        chat_template_kwargs = extras.setdefault("chat_template_kwargs", {})
-        chat_template_kwargs["enable_thinking"] = thinking_enabled
+        if thinking_mode is not None:
+            chat_template_kwargs = extras.setdefault("chat_template_kwargs", {})
+            chat_template_kwargs["enable_thinking"] = thinking_mode in (
+                CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+                CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
+            )
         if (
             thinking_mode == CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP
             and context.iteration > 0

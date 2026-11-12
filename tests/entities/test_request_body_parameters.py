@@ -156,8 +156,8 @@ def test_request_body_parameters_are_merged_after_server_specific_args(
     context = AgentContext()
     entity._get_extra_body_args(context)
 
+    # No thinking mode set, so no thinking arguments are sent
     assert context.extra_body == {
-        "chat_template_kwargs": {"enable_thinking": False},
         "top_p": 0.8,
         "seed": 123,
     }

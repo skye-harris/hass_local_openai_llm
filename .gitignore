@@ -1,5 +1,6 @@
 custom_components/local_openai/__pycache__/
 __pycache__/
+.mypy_cache/
 .venv/
 .idea/
 .coverage

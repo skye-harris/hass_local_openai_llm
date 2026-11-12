@@ -13,6 +13,7 @@ from custom_components.local_openai.const import (
     CONF_LLAMACPP_REPEAT_PENALTY,
     CONF_LLAMACPP_THINKING_MODE,
     CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_DISABLED,
     CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP,
     CONF_LLAMACPP_TOP_K,
     CONF_LLAMACPP_TOP_P,
@@ -46,6 +47,21 @@ class _StubBase:
 
 
 class _StubLlamaCppEntity(LlamaCppMixin, _StubBase):
+    def __init__(self, options: dict | None = None) -> None:
+        self.options = options or {}
+
+
+class _StubBaseEmpty:
+    """Stub base that adds nothing, so the mixin's own output can be asserted on."""
+
+    def __init__(self, options: dict | None = None) -> None:
+        self.options = options or {}
+
+    def _get_extra_body_args(self, context: AgentContext) -> None:
+        pass
+
+
+class _StubLlamaCppEntityEmpty(LlamaCppMixin, _StubBaseEmpty):
     def __init__(self, options: dict | None = None) -> None:
         self.options = options or {}
 
@@ -96,13 +112,10 @@ class TestLlamaCppExtraBodyArgs:
                     "id_slot": 1,
                 },
             ),
-            # No extra options
-            (
-                {CONF_LLAMACPP_CONFIG: {}},
-                {"chat_template_kwargs": {"enable_thinking": False}},
-            ),
+            # No extra options — user chat template arguments pass through untouched
+            ({CONF_LLAMACPP_CONFIG: {}}, {}),
             # None config
-            ({}, {"chat_template_kwargs": {"enable_thinking": False}}),
+            ({}, {}),
             # Float id_slot converted to int
             (
                 {
@@ -228,6 +241,9 @@ class TestLlamaCppExtraBodyArgs:
             (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 0, True, None),
             (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 1, True, 0),
             (CONF_LLAMACPP_THINKING_MODE_FIRST_LOOP, 2, True, 0),
+            (CONF_LLAMACPP_THINKING_MODE_DISABLED, 0, False, None),
+            (CONF_LLAMACPP_THINKING_MODE_DISABLED, 1, False, None),
+            (CONF_LLAMACPP_THINKING_MODE_DISABLED, 2, False, None),
         ],
     )
     def test_llama_cpp_thinking_mode_iteration(
@@ -237,7 +253,12 @@ class TestLlamaCppExtraBodyArgs:
         expected_enable_thinking: bool,
         expected_budget: int | None,
     ) -> None:
-        """Test thinking is disabled when unset and budget-limited after the first loop."""
+        """Test enable_thinking is set per mode/iteration, and budget-limited after the first loop.
+
+        When the option is unset, the stub base's pre-existing enable_thinking
+        value passes through untouched (see
+        test_thinking_mode_unset_omits_enable_thinking for the clean-slate case).
+        """
         options = {CONF_LLAMACPP_CONFIG: {}}
         if thinking_mode is not None:
             options[CONF_LLAMACPP_CONFIG][CONF_LLAMACPP_THINKING_MODE] = thinking_mode
@@ -251,3 +272,12 @@ class TestLlamaCppExtraBodyArgs:
             assert "thinking_budget_tokens" not in context.extra_body
         else:
             assert context.extra_body["thinking_budget_tokens"] == expected_budget
+
+    def test_thinking_mode_unset_omits_enable_thinking(self) -> None:
+        """Test no enable_thinking argument is sent when the option is unset."""
+        context = AgentContext()
+        _StubLlamaCppEntityEmpty({CONF_LLAMACPP_CONFIG: {}})._get_extra_body_args(
+            context
+        )
+        assert "chat_template_kwargs" not in context.extra_body
+        assert "thinking_budget_tokens" not in context.extra_body

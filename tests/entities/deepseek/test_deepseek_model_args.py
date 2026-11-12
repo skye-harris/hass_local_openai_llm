@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+
 import pytest
 from custom_components.local_openai.const import (
     CONF_DEEPSEEK_CONFIG,
@@ -9,6 +11,7 @@ from custom_components.local_openai.const import (
     CONF_DEEPSEEK_REASONING_EFFORT_DEFAULT,
     CONF_DEEPSEEK_THINKING_MODE,
     CONF_DEEPSEEK_THINKING_MODE_ALWAYS,
+    CONF_DEEPSEEK_THINKING_MODE_DISABLED,
     CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP,
 )
 from custom_components.local_openai.entities.deepseek import DeepSeekMixin
@@ -23,7 +26,7 @@ class _StubBase:
         self.options = options or {}
 
     def _get_extra_body_args(self, context: AgentContext) -> None:
-        context.extra_body.update(BASE_EXTRA_BODY_ARGS)
+        context.extra_body.update(copy.deepcopy(BASE_EXTRA_BODY_ARGS))
 
 
 class _StubDeepSeekEntity(DeepSeekMixin, _StubBase):
@@ -43,10 +46,10 @@ class TestDeepSeekExtraBodyArgs:
     @pytest.mark.parametrize(
         "options,extra_expected",
         [
-            # thinking_mode absent -> thinking disabled
+            # thinking_mode absent -> no thinking arguments sent, model defaults apply
             (
                 {CONF_DEEPSEEK_CONFIG: {CONF_DEEPSEEK_REASONING_EFFORT: "high"}},
-                {"thinking": {"type": "disabled"}},
+                {},
             ),
             # thinking_mode = always -> thinking enabled, reasoning_effort included
             (
@@ -78,16 +81,20 @@ class TestDeepSeekExtraBodyArgs:
                 },
                 {"thinking": {"type": "enabled"}, "reasoning_effort": "high"},
             ),
-            # empty config dict -> thinking disabled
+            # thinking_mode = disabled -> thinking disabled, reasoning_effort removed
             (
-                {CONF_DEEPSEEK_CONFIG: {}},
+                {
+                    CONF_DEEPSEEK_CONFIG: {
+                        CONF_DEEPSEEK_REASONING_EFFORT: "high",
+                        CONF_DEEPSEEK_THINKING_MODE: CONF_DEEPSEEK_THINKING_MODE_DISABLED,
+                    }
+                },
                 {"thinking": {"type": "disabled"}},
             ),
-            # no config at all -> thinking disabled
-            (
-                {},
-                {"thinking": {"type": "disabled"}},
-            ),
+            # empty config dict -> no thinking arguments sent
+            ({CONF_DEEPSEEK_CONFIG: {}}, {}),
+            # no config at all -> no thinking arguments sent
+            ({}, {}),
         ],
     )
     def test_deepseek_extra_body_args(
@@ -146,6 +153,28 @@ class TestDeepSeekExtraBodyArgs:
                 1,
                 {"thinking": {"type": "enabled"}, "reasoning_effort": "high"},
             ),
+            # disabled iteration 0 -> disabled
+            (
+                {
+                    CONF_DEEPSEEK_CONFIG: {
+                        CONF_DEEPSEEK_REASONING_EFFORT: "high",
+                        CONF_DEEPSEEK_THINKING_MODE: CONF_DEEPSEEK_THINKING_MODE_DISABLED,
+                    }
+                },
+                0,
+                {"thinking": {"type": "disabled"}},
+            ),
+            # disabled iteration 1 -> disabled
+            (
+                {
+                    CONF_DEEPSEEK_CONFIG: {
+                        CONF_DEEPSEEK_REASONING_EFFORT: "high",
+                        CONF_DEEPSEEK_THINKING_MODE: CONF_DEEPSEEK_THINKING_MODE_DISABLED,
+                    }
+                },
+                1,
+                {"thinking": {"type": "disabled"}},
+            ),
         ],
     )
     def test_deepseek_extra_body_args_iteration(
@@ -192,7 +221,16 @@ class TestDeepSeekReasoningEffort:
     @pytest.mark.parametrize(
         "options,iteration",
         [
-            ({}, 0),
+            (
+                {
+                    CONF_DEEPSEEK_CONFIG: {
+                        CONF_DEEPSEEK_THINKING_MODE: (
+                            CONF_DEEPSEEK_THINKING_MODE_DISABLED
+                        ),
+                    }
+                },
+                0,
+            ),
             (
                 {
                     CONF_DEEPSEEK_CONFIG: {
@@ -210,9 +248,19 @@ class TestDeepSeekReasoningEffort:
         options: dict,
         iteration: int,
     ) -> None:
-        """Test reasoning_effort is removed when thinking is disabled."""
+        """Test reasoning_effort is removed when thinking is explicitly disabled."""
         context = AgentContext(iteration=iteration)
         _StubDeepSeekEntityWithReasoning(options)._get_extra_body_args(context)
 
         assert context.extra_body["thinking"] == {"type": "disabled"}
         assert "reasoning_effort" not in context.extra_body
+
+    def test_reasoning_effort_untouched_when_thinking_unset(self) -> None:
+        """Test a request-body reasoning_effort passes through when the thinking mode is unset."""
+        context = AgentContext()
+        _StubDeepSeekEntityWithReasoning(
+            {CONF_DEEPSEEK_CONFIG: {}},
+        )._get_extra_body_args(context)
+
+        assert "thinking" not in context.extra_body
+        assert context.extra_body["reasoning_effort"] == "low"

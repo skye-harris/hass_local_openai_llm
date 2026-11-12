@@ -137,16 +137,20 @@ enabled.
 - **High** (default) — standard reasoning effort.
 - **Max** — maximum reasoning effort.
 
+The option is only shown while **Thinking Mode** enables thinking, and is not sent otherwise.
+
 When enabled, thinking content returned by the model is also fed back into the conversation as reasoning content on
 supported Home Assistant versions (2026.4+).
 
 #### Thinking Mode
 
-Controls when reasoning is enabled. Leave the option unset to disable thinking.
+Controls when reasoning is enabled. Leave the option unset to let the model apply its own default behavior —
+for some models, reasoning is on by default.
 
 - **Always on** — thinking remains enabled for every iteration.
 - **First loop iteration only** — thinking is disabled on iterations after the first (e.g., during tool-call rounds).
-  
+- **Disabled** — thinking is explicitly disabled for every iteration, overriding the model's default behavior.
+
 ---
 
 ### llama.cpp Configuration
@@ -156,12 +160,15 @@ section with the following options.
 
 #### Thinking Mode
 
-Controls when reasoning is enabled. Leave the option unset to disable thinking.
+Controls when reasoning is enabled. Leave the option unset to let the model apply its own default behavior —
+for some models, reasoning is on by default.
 
 - **Always on** — reasoning is enabled for every iteration of the agent loop.
 - **First loop iteration only** — thinking is disabled on iterations after the first (e.g., during tool-call rounds).
+- **Disabled** — reasoning is explicitly disabled for every iteration, overriding the model's default behavior.
 
-_Note: This option completely overrides any existing `enable_thinking` option in your Chat Template Arguments._
+_Note: When set, this option completely overrides any existing `enable_thinking` option in your Chat Template
+Arguments._
 
 #### Include prior thinking
 
@@ -174,6 +181,8 @@ unsure.
   the model to see its own prior reasoning.
 - **Disabled** — prior thinking context is stripped before sending. Use for models that reject prior reasoning context
   (e.g., Gemma 4).
+
+The option is only shown while **Thinking Mode** is not set to **Disabled**.
 
 #### Slot ID
 
@@ -233,17 +242,22 @@ the following options.
 Caps how many tokens the model may spend on reasoning, via the `thinking_token_budget` request parameter. Once the
 budget is reached, vLLM forces the reasoning block to be closed and the model proceeds to its answer.
 
-- **Empty** (default) — no budget is sent, and the server default applies.
+The option is only shown while **Thinking Mode** enables thinking, and is not sent otherwise.
+
+- **1024** (default) — limits reasoning to 1024 tokens.
 - **0** — the reasoning block is closed immediately, so the model answers without thinking.
-- **Any higher value** — limits reasoning to that number of tokens.
+- **Any other value** — limits reasoning to that number of tokens.
 
 #### Thinking Mode
 
-Controls when reasoning is enabled. Leave the option unset to disable thinking.
+Controls when reasoning is enabled. Leave the option unset to let the model apply its own default behavior —
+for some models, reasoning is on by default.
 
 - **Always on** — reasoning is enabled for every iteration and the token budget (if set) applies to all
   iterations.
 - **First loop iteration only** — thinking is disabled on iterations after the first (e.g., during tool-call rounds).
+- **Disabled** — reasoning is explicitly disabled for every iteration, the token budget is not sent, and the
+  model's default behavior is overridden.
 
 Requires a reasoning model and a vLLM version that supports the parameter. Refer to
 the [vLLM reasoning outputs documentation](https://docs.vllm.ai/en/latest/features/reasoning_outputs/) for further

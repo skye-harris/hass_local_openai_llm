@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import voluptuous as vol
+from homeassistant.data_entry_flow import Required
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -20,6 +21,7 @@ from custom_components.local_openai.const import (
     CONF_VLLM_CONFIG,
     CONF_VLLM_THINKING_MODE,
     CONF_VLLM_THINKING_MODE_ALWAYS,
+    CONF_VLLM_THINKING_MODE_DISABLED,
     CONF_VLLM_THINKING_MODE_FIRST_LOOP,
     CONF_VLLM_THINKING_TOKEN_BUDGET,
     CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
@@ -47,13 +49,25 @@ def _get_vllm_schema() -> dict:
                         value=CONF_VLLM_THINKING_MODE_FIRST_LOOP,
                         label="First loop iteration only",
                     ),
+                    SelectOptionDict(
+                        value=CONF_VLLM_THINKING_MODE_DISABLED,
+                        label="Disabled",
+                    ),
                 ],
                 mode=SelectSelectorMode.DROPDOWN,
             ),
         ),
-        vol.Required(
+        Required(
             CONF_VLLM_THINKING_TOKEN_BUDGET,
             default=CONF_VLLM_THINKING_TOKEN_BUDGET_DEFAULT,
+            visible={
+                "field": CONF_VLLM_THINKING_MODE,
+                "operator": "in",
+                "value": [
+                    CONF_VLLM_THINKING_MODE_ALWAYS,
+                    CONF_VLLM_THINKING_MODE_FIRST_LOOP,
+                ],
+            },
         ): NumberSelector(
             NumberSelectorConfig(
                 min=0,
@@ -86,7 +100,14 @@ class VllmMixin:
 
         opts = options.get(CONF_VLLM_CONFIG, {})
         thinking_mode = opts.get(CONF_VLLM_THINKING_MODE)
-        thinking_enabled = bool(thinking_mode) and not (
+        if thinking_mode is None:
+            # No explicit thinking configuration — let the model apply its defaults
+            return
+
+        thinking_enabled = thinking_mode in (
+            CONF_VLLM_THINKING_MODE_ALWAYS,
+            CONF_VLLM_THINKING_MODE_FIRST_LOOP,
+        ) and not (
             thinking_mode == CONF_VLLM_THINKING_MODE_FIRST_LOOP
             and context.iteration > 0
         )

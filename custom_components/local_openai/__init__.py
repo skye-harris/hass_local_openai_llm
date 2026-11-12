@@ -35,6 +35,7 @@ from .const import (
     CONF_LLAMACPP_ENABLE_THINKING,
     CONF_LLAMACPP_THINKING_MODE,
     CONF_LLAMACPP_THINKING_MODE_ALWAYS,
+    CONF_LLAMACPP_THINKING_MODE_DISABLED,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_SERVER_HEADERS,
     CONF_SERVER_TYPE,
@@ -147,6 +148,12 @@ async def _migrate_v3_to_v4(
                 if old_enable_thinking is True:
                     llamacpp_config[CONF_LLAMACPP_THINKING_MODE] = (
                         CONF_LLAMACPP_THINKING_MODE_ALWAYS
+                    )
+                else:
+                    # Preserve the explicit disable — with the option unset the
+                    # model's own default behaviour would apply instead.
+                    llamacpp_config[CONF_LLAMACPP_THINKING_MODE] = (
+                        CONF_LLAMACPP_THINKING_MODE_DISABLED
                     )
                 migrated = True
 

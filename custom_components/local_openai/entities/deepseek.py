@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import voluptuous as vol
 from homeassistant.components import conversation
+from homeassistant.data_entry_flow import Required
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
@@ -23,6 +24,7 @@ from custom_components.local_openai.const import (
     CONF_DEEPSEEK_REASONING_EFFORT_MAX,
     CONF_DEEPSEEK_THINKING_MODE,
     CONF_DEEPSEEK_THINKING_MODE_ALWAYS,
+    CONF_DEEPSEEK_THINKING_MODE_DISABLED,
     CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP,
 )
 from custom_components.local_openai.conversation import LocalAiConversationEntity
@@ -52,13 +54,25 @@ def _get_deepseek_schema() -> dict:
                         value=CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP,
                         label="First loop iteration only",
                     ),
+                    SelectOptionDict(
+                        value=CONF_DEEPSEEK_THINKING_MODE_DISABLED,
+                        label="Disabled",
+                    ),
                 ],
                 mode=SelectSelectorMode.DROPDOWN,
             ),
         ),
-        vol.Required(
+        Required(
             CONF_DEEPSEEK_REASONING_EFFORT,
             default=CONF_DEEPSEEK_REASONING_EFFORT_DEFAULT,
+            visible={
+                "field": CONF_DEEPSEEK_THINKING_MODE,
+                "operator": "in",
+                "value": [
+                    CONF_DEEPSEEK_THINKING_MODE_ALWAYS,
+                    CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP,
+                ],
+            },
         ): SelectSelector(
             SelectSelectorConfig(
                 options=[
@@ -94,7 +108,10 @@ class DeepSeekMixin:
         extra = context.extra_body
         opts = self.options.get(CONF_DEEPSEEK_CONFIG, {})
         thinking_mode = opts.get(CONF_DEEPSEEK_THINKING_MODE)
-        if not thinking_mode or (
+        if thinking_mode is None:
+            # No explicit thinking configuration — let the model apply its defaults
+            return
+        if thinking_mode == CONF_DEEPSEEK_THINKING_MODE_DISABLED or (
             thinking_mode == CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP
             and context.iteration > 0
         ):
@@ -119,6 +136,10 @@ class DeepSeekMixin:
 
         if (
             opts.get(CONF_DEEPSEEK_THINKING_MODE)
+            in (
+                CONF_DEEPSEEK_THINKING_MODE_ALWAYS,
+                CONF_DEEPSEEK_THINKING_MODE_FIRST_LOOP,
+            )
             and isinstance(content, conversation.AssistantContent)
             and hasattr(content, "thinking_content")
             and content.thinking_content
