@@ -642,10 +642,19 @@ class LocalAiEntity(Entity):
         async for event in stream:
             chunk: conversation.AssistantContentDeltaDict = {}
 
+            # The final include_usage chunk carries usage with an empty choices
+            # list, so it must be captured before choice-less chunks are skipped.
+            if (
+                meta is not None
+                and (usage := getattr(event, "usage", None)) is not None
+            ):
+                meta.usage = usage
+
+            _LOGGER.debug(event)
+
             if not event.choices:
                 continue
 
-            _LOGGER.debug(event)
             choice = event.choices[0]
             delta = choice.delta
 
@@ -739,8 +748,6 @@ class LocalAiEntity(Entity):
 
             tool_error_deltas: list[dict] = []
             if choice.finish_reason:
-                # Capture usage stats for event emission
-                meta.usage = getattr(event, "usage", None)
                 meta.timings = getattr(event, "timings", None)
                 meta.finish_reason = choice.finish_reason
 
