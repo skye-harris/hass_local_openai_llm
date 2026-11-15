@@ -32,6 +32,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.httpx_client import get_async_client
+from homeassistant.util.ssl import SSL_ALPN_HTTP11_HTTP2
 
 
 def _make_mock_client() -> MagicMock:
@@ -209,8 +210,8 @@ async def test_setup_entry_empty_headers_list(hass: HomeAssistant) -> None:
     assert call_kwargs.kwargs.get("default_headers") is None
 
 
-async def test_setup_entry_http_client_passed(hass: HomeAssistant) -> None:
-    """Test that the hass httpx client is passed to AsyncOpenAI."""
+async def test_setup_entry_http2_client_passed(hass: HomeAssistant) -> None:
+    """Test that the hass httpx client is passed with HTTP/2 ALPN enabled."""
     from openai import AsyncOpenAI
 
     entry = _make_entry(
@@ -228,7 +229,9 @@ async def test_setup_entry_http_client_passed(hass: HomeAssistant) -> None:
         await async_setup_entry(hass, entry)
 
     call_kwargs = mock_openai.call_args
-    assert call_kwargs.kwargs["http_client"] is get_async_client(hass)
+    assert call_kwargs.kwargs["http_client"] is get_async_client(
+        hass, alpn_protocols=SSL_ALPN_HTTP11_HTTP2
+    )
 
 
 async def test_setup_entry_duplicate_keys(hass: HomeAssistant) -> None:
