@@ -33,6 +33,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
     TemplateSelector,
 )
+from homeassistant.util.ssl import SSL_ALPN_HTTP11_HTTP2
 from openai import AsyncOpenAI, OpenAIError
 
 from custom_components.local_openai.entities.deepseek import (
@@ -482,7 +483,9 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 client_kwargs = {
                     "base_url": user_input.get(CONF_BASE_URL),
                     "api_key": user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
-                    "http_client": get_async_client(self.hass),
+                    "http_client": get_async_client(
+                        self.hass, alpn_protocols=SSL_ALPN_HTTP11_HTTP2
+                    ),
                 }
                 if custom_headers:
                     client_kwargs["default_headers"] = custom_headers
@@ -546,7 +549,9 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 client_kwargs = {
                     "base_url": user_input.get(CONF_BASE_URL),
                     "api_key": user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
-                    "http_client": get_async_client(self.hass),
+                    "http_client": get_async_client(
+                        self.hass, alpn_protocols=SSL_ALPN_HTTP11_HTTP2
+                    ),
                 }
                 if custom_headers:
                     client_kwargs["default_headers"] = custom_headers
