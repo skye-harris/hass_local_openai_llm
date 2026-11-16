@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity import Entity
     from homeassistant.helpers.typing import ConfigType
 
+from .benchmark import async_register_views as async_register_benchmark_views
+from .benchmark import async_remove_satellites as async_remove_benchmark_satellites
 from .const import (
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
@@ -209,6 +211,9 @@ async def _migrate_v4_to_v5(
 
 async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
     """Set up Local OpenAI LLM from a config entry."""
+    # Benchmark satellites only live until the entry is unloaded or Home Assistant stops
+    async_remove_benchmark_satellites(hass, entry.entry_id)
+
     custom_headers_section = entry.data.get(CONF_CUSTOM_HEADERS, {}) or {}
     custom_headers_list = custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
     custom_headers = {
@@ -257,11 +262,14 @@ async def _async_update_listener(
 
 async def async_unload_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
     """Unload Local OpenAI LLM."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        async_remove_benchmark_satellites(hass, entry.entry_id)
+    return unload_ok
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up is called when Home Assistant is loading our component."""
+    async_register_benchmark_views(hass)
     service.async_register_platform_entity_service(
         hass=hass,
         service_domain=DOMAIN,

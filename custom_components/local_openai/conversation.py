@@ -8,6 +8,7 @@ from homeassistant.components import conversation
 from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT, MATCH_ALL
 from homeassistant.helpers import llm
 
+from .benchmark import async_wrap_tools as async_wrap_benchmark_tools
 from .const import (
     CONF_ALWAYS_CONTINUE_CONVERSATION,
     CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
@@ -20,6 +21,7 @@ from .const import (
     SERVER_TYPE_LLAMACPP,
     SERVER_TYPE_LOCALAI,
     SERVER_TYPE_VLLM,
+    TOOL_NAME_STOP_TALKING,
 )
 from .entity import LocalAiEntity
 from .tools.api import InternalToolApi
@@ -133,14 +135,19 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
             if (
                 always_continue_conversation
                 and not isinstance(llm_apis, InternalToolApi)
+                # Matched by name, as benchmark turns wrap the tools
                 and not any(
-                    isinstance(tool, StopTalkingTool) for tool in chat_log.llm_api.tools
+                    tool.name == TOOL_NAME_STOP_TALKING
+                    for tool in chat_log.llm_api.tools
                 )
             ):
                 # Append our stop_talking tool to the existing tooling if tooling APIs were configured
                 chat_log.llm_api.tools.append(StopTalkingTool())
         except conversation.ConverseError as err:
             return err.as_conversation_result()
+
+        # Only acts on benchmark turns, ensures actions are not executed
+        async_wrap_benchmark_tools(chat_log)
 
         halt_conversation = await self._async_handle_chat_log(
             chat_log,
