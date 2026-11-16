@@ -437,6 +437,12 @@ These tools exist as a separate integration for compatibility across the wider H
 
 ---
 
+## Not sure where to begin?
+
+Check out [this excellent guide](https://community.home-assistant.io/t/my-journey-to-a-reliable-and-enjoyable-locally-hosted-voice-assistant/944860) from contributor [@NickM-27](https://github.com/NickM-27) on the Home Assistant Community forum.
+
+---
+
 ## Acknowledgements
 
 This integration was forked from
