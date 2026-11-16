@@ -552,5 +552,10 @@
         "reconfigure_successful": "Decision model has been reconfigured"
       }
     }
+  },
+  "exceptions": {
+    "unsupported_attachment_type": {
+      "message": "Only image attachments are supported"
+    }
   }
 }
