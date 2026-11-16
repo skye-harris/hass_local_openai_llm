@@ -360,7 +360,7 @@ class LocalAiEntity(Entity):
                 content=content.content,
             )
 
-        if role == "user" and content.content:
+        if role == "user" and (content.content or content.attachments):
             messages = []
 
             if content.attachments:
@@ -386,9 +386,13 @@ class LocalAiEntity(Entity):
                         ),
                     )
 
-            messages.append(
-                ChatCompletionContentPartTextParam(type="text", text=content.content),
-            )
+            if content.content:
+                messages.append(
+                    ChatCompletionContentPartTextParam(
+                        type="text",
+                        text=content.content,
+                    ),
+                )
             return ChatCompletionUserMessageParam(
                 role="user",
                 content=messages,
