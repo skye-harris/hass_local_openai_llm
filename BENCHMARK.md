@@ -41,7 +41,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 | `area`            | Optional area ID or name. When omitted the request has no satellite, like typing in the Home Assistant app. |
 | `conversation_id` | Optional ID from a previous response, to test follow up requests. Only benchmark conversations can be continued. |
 | `language`        | Optional language, defaults to your Home Assistant language.                                                 |
-| `tool_results`    | Optional results to return for tools instead of their default behaviour, keyed by tool name with or without its namespace, such as `{"HassTurnOn": {"error": "device offline"}}`. Useful to pin `GetLiveContext` to a fixed state so results can be reproduced. |
+| `tool_results`    | Optional results to return for tools instead of their default behaviour, keyed by tool name with or without its namespace. Each result can be any JSON value, such as `{"HassTurnOn": {"error": "device offline"}}` or `{"get_weather_forecast": "Sunny, high of 22"}` for tools that return plain text. Useful to pin `GetLiveContext` to a fixed state so results can be reproduced. |
 
 ### Response
 

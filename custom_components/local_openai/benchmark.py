@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from aiohttp import web
     from homeassistant.components.intent import TimerEventType, TimerInfo
     from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-    from homeassistant.util.json import JsonObjectType
+    from homeassistant.util.json import JsonObjectType, JsonValueType
 
     from .entity import GenerationMetadata
 
@@ -58,7 +58,8 @@ REQUEST_SCHEMA = vol.Schema(
         vol.Optional("area"): cv.string,
         vol.Optional("conversation_id"): cv.string,
         vol.Optional("language"): cv.string,
-        vol.Optional("tool_results", default=dict): {cv.string: dict},
+        # Any JSON value, tools may return plain text rather than an object
+        vol.Optional("tool_results", default=dict): {cv.string: object},
     },
 )
 
@@ -74,16 +75,20 @@ _current_run: ContextVar[BenchmarkRun | None] = ContextVar(
 class BenchmarkRun:
     """Results collected during a single benchmark turn."""
 
-    tool_results: dict[str, JsonObjectType] = field(default_factory=dict)
+    tool_results: dict[str, JsonValueType] = field(default_factory=dict)
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     iterations: list[dict[str, Any]] = field(default_factory=list)
 
-    def get_mock(self, tool_name: str) -> JsonObjectType | None:
-        """Return the mocked result for a tool, matched with or without its namespace."""
+    def get_mock(self, tool_name: str) -> tuple[bool, JsonValueType]:
+        """
+        Return whether a tool is mocked and its result.
+
+        Matched with or without the tool namespace. A mocked result may be null.
+        """
         for key in (tool_name, tool_name.rpartition("__")[2]):
             if key in self.tool_results:
-                return self.tool_results[key]
-        return None
+                return True, self.tool_results[key]
+        return False, None
 
 
 @dataclass
@@ -155,10 +160,13 @@ class BenchmarkTool(llm.Tool):
         if run is not None:
             run.tool_calls.append(record)
 
+        mocked, mock = run.get_mock(self.name) if run is not None else (False, None)
         try:
-            if run is not None and (mock := run.get_mock(self.name)) is not None:
+            if mocked:
                 record["mocked"] = True
-                result = llm.ToolResult(data=mock)
+                # Wrapped like a tool that returns plain JSON, so the model sees the
+                # same tool message as it would from the real tool
+                result = llm.ToolResult(data=mock)  # type: ignore[arg-type]
             elif self.annotations.read_only:
                 record["executed"] = True
                 result = await self.tool.async_call(hass, tool_input, llm_context)

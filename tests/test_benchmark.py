@@ -163,10 +163,11 @@ class TestBenchmarkTool:
         assert run.tool_calls[0]["result"]["error"] == "MultipleInvalid"
 
     @pytest.mark.parametrize("key", ["test__read", "read"])
-    async def test_mocked_result(self, key: str) -> None:
-        """Test that mocked results replace any tool, with or without its namespace."""
+    @pytest.mark.parametrize("mock", [{"mocked": True}, "Sunny, high of 22", None])
+    async def test_mocked_result(self, key: str, mock: Any) -> None:
+        """Test that mocked results of any JSON type replace a tool, with or without its namespace."""
         inner = FakeTool("test__read", read_only=True)
-        run = BenchmarkRun(tool_results={key: {"mocked": True}})
+        run = BenchmarkRun(tool_results={key: mock})
         token = _current_run.set(run)
         try:
             result = await _call(BenchmarkTool(inner), {"target": "x"})
@@ -174,8 +175,9 @@ class TestBenchmarkTool:
             _current_run.reset(token)
 
         assert inner.calls == []
-        assert result.data == {"mocked": True}
+        assert result.data == mock
         assert run.tool_calls[0]["mocked"] is True
+        assert run.tool_calls[0]["result"] == mock
 
 
 class TestWrapTools:
@@ -474,13 +476,18 @@ class TestBenchmarkView:
             in request["messages"][0]["content"]
         )
 
+    @pytest.mark.parametrize(
+        "mock",
+        [{"error": "device offline"}, "The kitchen light is offline.", None],
+    )
     async def test_mocked_tool_result(
         self,
         hass_client: ClientSessionGenerator,
         config_entry: MockConfigEntry,
         client_mock: MagicMock,
+        mock: Any,
     ) -> None:
-        """Test that the client can provide tool results."""
+        """Test that the client can provide tool results of any JSON type."""
         client_mock.chat.completions.create.side_effect = [
             _tool_call_stream((TURN_ON, {"name": "Kitchen light"})),
             _text_stream("That light is broken."),
@@ -491,19 +498,21 @@ class TestBenchmarkView:
             f"{BENCHMARK_URL}/{SUBENTRY_ID}",
             json={
                 "text": "turn on the kitchen light",
-                "tool_results": {"HassTurnOn": {"error": "device offline"}},
+                "tool_results": {"HassTurnOn": mock},
             },
         )
+        assert resp.status == HTTPStatus.OK
         result = await resp.json()
 
         (call,) = result["tool_calls"]
         assert call["mocked"] is True
-        assert call["result"] == {"error": "device offline"}
+        assert call["result"] == mock
         messages = client_mock.chat.completions.create.call_args_list[1].kwargs[
             "messages"
         ]
+        # Serialized the same way as the result of a real tool
         (tool_message,) = [m for m in messages if m["role"] == "tool"]
-        assert "device offline" in tool_message["content"]
+        assert tool_message["content"] == json.dumps(mock)
 
     async def test_continue_conversation(
         self,
