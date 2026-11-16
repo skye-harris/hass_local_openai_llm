@@ -828,6 +828,14 @@ class TestGenerationEventEmission:
                     finish_reason="stop",
                 )
             ],
+        )
+        # include_usage sends the usage in a final chunk with no choices.
+        usage_chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[],
             usage=CompletionUsage(
                 prompt_tokens=100,
                 completion_tokens=50,
@@ -839,6 +847,7 @@ class TestGenerationEventEmission:
 
         async def async_gen():
             yield chunk
+            yield usage_chunk
 
         mock_stream.__aiter__ = MagicMock(return_value=async_gen())
         entity.entry.runtime_data.chat.completions.create = AsyncMock(

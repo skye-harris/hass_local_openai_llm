@@ -11,6 +11,7 @@ from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import service
 from homeassistant.helpers.httpx_client import get_async_client
+from homeassistant.util.ssl import SSL_ALPN_HTTP11_HTTP2
 from openai import AsyncOpenAI, AuthenticationError, OpenAIError
 
 if TYPE_CHECKING:
@@ -217,7 +218,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
     client = AsyncOpenAI(
         base_url=entry.data[CONF_BASE_URL],
         api_key=entry.data.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
-        http_client=get_async_client(hass),
+        http_client=get_async_client(hass, alpn_protocols=SSL_ALPN_HTTP11_HTTP2),
         default_headers=custom_headers,
     )
 
