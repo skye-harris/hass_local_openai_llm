@@ -9,6 +9,7 @@ from homeassistant.components.conversation import DOMAIN as CONVERSATION_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import service
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.util.ssl import SSL_ALPN_HTTP11_HTTP2
@@ -52,6 +53,8 @@ from .const import (
 )
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type LocalAiConfigEntry = ConfigEntry[AsyncOpenAI]
 
