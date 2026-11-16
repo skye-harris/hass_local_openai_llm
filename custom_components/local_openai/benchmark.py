@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import time
+from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from http import HTTPStatus
@@ -37,7 +38,7 @@ from homeassistant.util.hass_dict import HassKey
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Generator
 
     from aiohttp import web
     from homeassistant.components.intent import TimerEventType, TimerInfo
@@ -99,10 +100,6 @@ class BenchmarkData:
     conversations: dict[str, tuple[str, float]] = field(default_factory=dict)
     # Config entry ID -> lock, so runs against one server don't skew each other's timings
     locks: dict[str, asyncio.Lock] = field(default_factory=dict)
-    # Config entry ID -> satellite device ID -> timer handler unsubscribe
-    timer_unsubs: dict[str, dict[str, Callable[[], None]]] = field(
-        default_factory=dict,
-    )
 
     @callback
     def async_prune_conversations(self) -> None:
@@ -259,14 +256,20 @@ def _ignore_timer_event(event_type: TimerEventType, timer: TimerInfo) -> None:
     """Ignore timer events, benchmark satellites only need to advertise timers."""
 
 
-@callback
-def _async_get_satellite(
+@contextmanager
+def _async_satellite(
     hass: HomeAssistant,
     entry: ConfigEntry,
     area: ar.AreaEntry,
-) -> str:
-    """Return a virtual voice satellite device in the area, creating it on first use."""
+) -> Generator[str]:
+    """
+    Provide a virtual voice satellite device in the area for a single request.
+
+    Home Assistant only learns the area of a request from a device in the device
+    registry, so the device exists while the request runs and is removed after.
+    """
     dev_reg = dr.async_get(hass)
+    # Recreating a removed device restores its ID, so it is stable between turns
     device = dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={_satellite_identifier(area.id)},
@@ -277,23 +280,18 @@ def _async_get_satellite(
     if device.area_id != area.id:
         dev_reg.async_update_device(device.id, area_id=area.id)
 
-    timer_unsubs = _get_data(hass).timer_unsubs.setdefault(entry.entry_id, {})
-    if device.id not in timer_unsubs:
-        # Voice satellites handle timers, which exposes the timer tools to the agent
-        timer_unsubs[device.id] = async_register_timer_handler(
-            hass,
-            device.id,
-            _ignore_timer_event,
-        )
-    return device.id
+    # Voice satellites handle timers, which exposes the timer tools to the agent
+    unsub_timers = async_register_timer_handler(hass, device.id, _ignore_timer_event)
+    try:
+        yield device.id
+    finally:
+        unsub_timers()
+        dev_reg.async_remove_device(device.id)
 
 
 @callback
 def async_remove_satellites(hass: HomeAssistant, entry_id: str) -> None:
-    """Remove the benchmark satellites of a config entry, they are recreated on use."""
-    for unsub in _get_data(hass).timer_unsubs.pop(entry_id, {}).values():
-        unsub()
-
+    """Remove benchmark satellites left behind by a request that did not finish."""
     dev_reg = dr.async_get(hass)
     prefix = f"{SATELLITE_IDENTIFIER_PREFIX}_"
     for device in dr.async_entries_for_config_entry(dev_reg, entry_id):
@@ -398,7 +396,6 @@ class BenchmarkAgentView(HomeAssistantView):
             )
 
         area: ar.AreaEntry | None = None
-        device_id: str | None = None
         if (area_ref := data.get("area")) is not None:
             area_reg = ar.async_get(hass)
             area = area_reg.async_get_area(area_ref) or area_reg.async_get_area_by_name(
@@ -409,7 +406,6 @@ class BenchmarkAgentView(HomeAssistantView):
                     f"Unknown area: {area_ref}",
                     HTTPStatus.BAD_REQUEST,
                 )
-            device_id = _async_get_satellite(hass, entry, area)
             # Voice satellites converse without a user
             context = Context()
         else:
@@ -418,22 +414,28 @@ class BenchmarkAgentView(HomeAssistantView):
         run = BenchmarkRun(tool_results=data["tool_results"])
         lock = benchmark.locks.setdefault(entry.entry_id, asyncio.Lock())
         async with lock:
-            token = _current_run.set(run)
-            start = time.perf_counter()
-            try:
-                # Agent errors are returned as an error response rather than raised
-                result = await conversation.async_converse(
-                    hass,
-                    text=data["text"],
-                    conversation_id=conversation_id,
-                    context=context,
-                    language=data.get("language") or hass.config.language,
-                    agent_id=entity_id,
-                    device_id=device_id,
-                )
-            finally:
-                _current_run.reset(token)
-            duration_ms = round((time.perf_counter() - start) * 1000, 2)
+            # Inside the lock, so a request never removes the satellite of another
+            with (
+                _async_satellite(hass, entry, area)
+                if area is not None
+                else nullcontext()
+            ) as device_id:
+                token = _current_run.set(run)
+                start = time.perf_counter()
+                try:
+                    # Agent errors are returned as an error response rather than raised
+                    result = await conversation.async_converse(
+                        hass,
+                        text=data["text"],
+                        conversation_id=conversation_id,
+                        context=context,
+                        language=data.get("language") or hass.config.language,
+                        agent_id=entity_id,
+                        device_id=device_id,
+                    )
+                finally:
+                    _current_run.reset(token)
+                duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
         if result.conversation_id:
             benchmark.conversations[result.conversation_id] = (
@@ -447,7 +449,6 @@ class BenchmarkAgentView(HomeAssistantView):
                 "conversation_id": result.conversation_id,
                 "agent_id": entity_id,
                 "area_id": area.id if area else None,
-                "device_id": device_id,
                 "speech": response.speech.get("plain", {}).get("speech", ""),
                 "response_type": response.response_type.value,
                 "error_code": response.error_code.value

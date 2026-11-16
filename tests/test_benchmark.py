@@ -8,6 +8,7 @@ from http import HTTPStatus
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import openai
 import probatio
 import pytest
 from custom_components.local_openai.benchmark import (
@@ -379,6 +380,24 @@ def _satellite(hass: HomeAssistant, entry: MockConfigEntry) -> dr.DeviceEntry | 
     )
 
 
+def _record_satellite(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    client_mock: MagicMock,
+    streams: list[AsyncGenerator[ChatCompletionChunk]],
+) -> list[dr.DeviceEntry | None]:
+    """Return the satellite seen by each LLM request, as it only exists during one."""
+    seen: list[dr.DeviceEntry | None] = []
+    remaining = iter(streams)
+
+    async def create(**kwargs: Any) -> AsyncGenerator[ChatCompletionChunk]:
+        seen.append(_satellite(hass, entry))
+        return next(remaining)
+
+    client_mock.chat.completions.create.side_effect = create
+    return seen
+
+
 class TestBenchmarkView:
     """Test the benchmark HTTP API end to end."""
 
@@ -391,13 +410,18 @@ class TestBenchmarkView:
     ) -> None:
         """Test a satellite turn runs read only tools and skips actions."""
         turn_on_calls = async_mock_service(hass, "light", "turn_on")
-        client_mock.chat.completions.create.side_effect = [
-            _tool_call_stream(
-                (LIVE_CONTEXT, {}),
-                (TURN_ON, {"area": "Kitchen", "domain": ["light"]}),
-            ),
-            _text_stream("Turned on the kitchen lights."),
-        ]
+        seen = _record_satellite(
+            hass,
+            config_entry,
+            client_mock,
+            [
+                _tool_call_stream(
+                    (LIVE_CONTEXT, {}),
+                    (TURN_ON, {"area": "Kitchen", "domain": ["light"]}),
+                ),
+                _text_stream("Turned on the kitchen lights."),
+            ],
+        )
 
         client = await hass_client()
         resp = await client.post(
@@ -411,16 +435,17 @@ class TestBenchmarkView:
         assert turn_on_calls == []
         assert hass.states.get("light.kitchen").state == "off"
 
-        satellite = _satellite(hass, config_entry)
+        # The satellite was in the area during the request, and removed after it
+        satellite, _ = seen
         assert satellite is not None
         assert satellite.area_id == "kitchen"
-        assert async_device_supports_timers(hass, satellite.id)
+        assert _satellite(hass, config_entry) is None
+        assert not async_device_supports_timers(hass, satellite.id)
 
         assert result["speech"] == "Turned on the kitchen lights."
         assert result["response_type"] == "action_done"
         assert result["agent_id"] == "conversation.benchmark_agent"
         assert result["area_id"] == "kitchen"
-        assert result["device_id"] == satellite.id
         assert result["conversation_id"]
 
         live_context, turn_on = result["tool_calls"]
@@ -467,7 +492,6 @@ class TestBenchmarkView:
         assert resp.status == HTTPStatus.OK
         result = await resp.json()
 
-        assert result["device_id"] is None
         assert result["tool_calls"] == []
         assert _satellite(hass, config_entry) is None
         request = client_mock.chat.completions.create.call_args_list[0].kwargs
@@ -596,24 +620,78 @@ class TestBenchmarkView:
             "areas": [{"area_id": "kitchen", "name": "Kitchen", "floor_id": None}],
         }
 
-    async def test_satellites_removed_on_unload(
+    async def test_satellite_removed_after_failed_request(
         self,
         hass: HomeAssistant,
         hass_client: ClientSessionGenerator,
         config_entry: MockConfigEntry,
         client_mock: MagicMock,
     ) -> None:
-        """Test that satellites and their timer handlers are removed on unload."""
-        client_mock.chat.completions.create.side_effect = [_text_stream("Hi")]
+        """Test that the satellite is removed when the LLM request fails."""
+        client_mock.chat.completions.create.side_effect = openai.APIConnectionError(
+            request=MagicMock(),
+        )
         client = await hass_client()
-        await client.post(
+        resp = await client.post(
             f"{BENCHMARK_URL}/{SUBENTRY_ID}",
             json={"text": "hi", "area": "Kitchen"},
         )
-        satellite = _satellite(hass, config_entry)
-        assert satellite is not None
+        assert resp.status == HTTPStatus.OK
+        assert (await resp.json())["response_type"] == "error"
+        assert _satellite(hass, config_entry) is None
 
-        assert await hass.config_entries.async_unload(config_entry.entry_id)
+    async def test_satellite_id_stable_between_requests(
+        self,
+        hass: HomeAssistant,
+        hass_client: ClientSessionGenerator,
+        config_entry: MockConfigEntry,
+        client_mock: MagicMock,
+    ) -> None:
+        """Test that a recreated satellite keeps its ID, so follow ups match the first turn."""
+        seen = _record_satellite(
+            hass,
+            config_entry,
+            client_mock,
+            [_text_stream("Which light?"), _text_stream("Done.")],
+        )
+        client = await hass_client()
+        url = f"{BENCHMARK_URL}/{SUBENTRY_ID}"
+        first = await (
+            await client.post(
+                url, json={"text": "turn on the light", "area": "Kitchen"}
+            )
+        ).json()
+        await client.post(
+            url,
+            json={
+                "text": "the ceiling one",
+                "area": "Kitchen",
+                "conversation_id": first["conversation_id"],
+            },
+        )
+
+        first_satellite, second_satellite = seen
+        assert first_satellite is not None
+        assert second_satellite is not None
+        assert first_satellite.id == second_satellite.id
+        assert _satellite(hass, config_entry) is None
+
+    async def test_leftover_satellites_removed_on_setup(
+        self,
+        hass: HomeAssistant,
+        config_entry: MockConfigEntry,
+        client_mock: MagicMock,
+    ) -> None:
+        """Test that a satellite left behind by a shutdown during a request is removed."""
+        dr.async_get(hass).async_get_or_create(
+            config_entry_id=config_entry.entry_id,
+            identifiers={(DOMAIN, "benchmark_satellite_kitchen")},
+        )
+
+        with patch(
+            "custom_components.local_openai.AsyncOpenAI",
+            return_value=client_mock,
+        ):
+            assert await hass.config_entries.async_reload(config_entry.entry_id)
 
         assert _satellite(hass, config_entry) is None
-        assert not async_device_supports_timers(hass, satellite.id)

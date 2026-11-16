@@ -211,7 +211,7 @@ async def _migrate_v4_to_v5(
 
 async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
     """Set up Local OpenAI LLM from a config entry."""
-    # Benchmark satellites only live until the entry is unloaded or Home Assistant stops
+    # Benchmark satellites only exist during a request, remove any left by a shutdown
     async_remove_benchmark_satellites(hass, entry.entry_id)
 
     custom_headers_section = entry.data.get(CONF_CUSTOM_HEADERS, {}) or {}
@@ -262,9 +262,7 @@ async def _async_update_listener(
 
 async def async_unload_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
     """Unload Local OpenAI LLM."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        async_remove_benchmark_satellites(hass, entry.entry_id)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

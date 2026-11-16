@@ -11,9 +11,9 @@ with the same prompt and tools, but **devices are never controlled**.
   real, so the model sees the actual state of your home.
 - Every other tool call, such as turning on a light, starting a timer or running a script, is recorded and answered
   with a success response without being executed. Calls with invalid arguments still fail as they would for real.
-- Pass an `area` to make the request come from a voice satellite in that area. A virtual satellite device is created
-  in the area the first time it is used, so the agent is told which area it is in and is offered timer tools, like a
-  Voice PE or ESPHome satellite. These devices are removed when the integration reloads or Home Assistant restarts.
+- Pass an `area` to make the request come from a voice satellite in that area. A virtual satellite device is added to
+  the area for the duration of the request, so the agent is told which area it is in and is offered timer tools, like
+  a Voice PE or ESPHome satellite. The device is removed as soon as the request finishes.
 
 ## Usage
 
@@ -53,7 +53,6 @@ timings and token usage of each LLM request:
   "conversation_id": "01KA...",
   "agent_id": "conversation.qwen3",
   "area_id": "kitchen",
-  "device_id": "4f6c...",
   "speech": "Turned on the kitchen lights.",
   "response_type": "action_done",
   "error_code": null,
