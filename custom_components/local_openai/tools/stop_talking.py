@@ -15,6 +15,13 @@ class StopTalkingTool(llm.Tool):
     name = TOOL_NAME_STOP_TALKING
     description = "Call this tool by itself if the user has requested that you stop talking or 'shut up'"
     parameters = probatio.Schema({})
+    # Only signals the harness to end the conversation, nothing is changed
+    annotations = llm.ToolAnnotations(
+        read_only=True,
+        destructive=False,
+        idempotent=True,
+        open_world=False,
+    )
 
     async def async_call(
         self,

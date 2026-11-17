@@ -10,7 +10,8 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "conversation"
+    "conversation",
+    "http"
   ],
   "documentation": "https://github.com/skye-harris/hass_local_openai_llm",
   "integration_type": "service",

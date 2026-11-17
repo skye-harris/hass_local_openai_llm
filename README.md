@@ -33,6 +33,7 @@
 - Added image generation support for AI Task entities
 - Added tools support for Generate Data actions for AI Task entities
 - Added decision model support for AI Task evaluate actions
+- Added a benchmark API for testing conversation agents against voice requests without controlling devices
 - Emits a `local_openai_llm_generation_complete` event for all LLM completion requests, with usage/timings data if available
 
 ---
@@ -347,6 +348,13 @@ data:
         other: Somewhere else, or the message does not say
 response_variable: delivery
 ```
+
+## Benchmark API
+
+Every conversation agent has an admin-only HTTP endpoint for running automated tests against voice requests, so
+you can compare how well different models and prompts perform. Requests run through the agent as a real request
+would, optionally as a voice satellite in an area, but devices are never controlled. See
+[BENCHMARK.md](BENCHMARK.md) for how to use it.
 
 ## Experimental: Retrieval Augmented Generation (RAG) with Weaviate
 
