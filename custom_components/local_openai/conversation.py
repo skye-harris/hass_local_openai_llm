@@ -8,6 +8,7 @@ from homeassistant.components import conversation
 from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT, MATCH_ALL
 from homeassistant.helpers import llm
 
+from .benchmark import async_get_prompt as async_get_benchmark_prompt
 from .benchmark import async_wrap_tools as async_wrap_benchmark_tools
 from .const import (
     CONF_ALWAYS_CONTINUE_CONVERSATION,
@@ -106,6 +107,8 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         """Process the user input and call the API."""
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
+        if (benchmark_prompt := async_get_benchmark_prompt()) is not None:
+            system_prompt = benchmark_prompt
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
         always_continue_conversation = options.get(
             CONF_ALWAYS_CONTINUE_CONVERSATION, CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT

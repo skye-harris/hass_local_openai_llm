@@ -59,6 +59,8 @@ REQUEST_SCHEMA = vol.Schema(
         vol.Optional("area"): cv.string,
         vol.Optional("conversation_id"): cv.string,
         vol.Optional("language"): cv.string,
+        # Replaces the instructions configured on the agent
+        vol.Optional("prompt"): cv.string,
         # Any JSON value, tools may return plain text rather than an object
         vol.Optional("tool_results", default=dict): {cv.string: object},
     },
@@ -76,6 +78,7 @@ _current_run: ContextVar[BenchmarkRun | None] = ContextVar(
 class BenchmarkRun:
     """Results collected during a single benchmark turn."""
 
+    prompt: str | None = None
     tool_results: dict[str, JsonValueType] = field(default_factory=dict)
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     iterations: list[dict[str, Any]] = field(default_factory=list)
@@ -93,11 +96,20 @@ class BenchmarkRun:
 
 
 @dataclass
+class BenchmarkConversation:
+    """A conversation started by the benchmark API, which may be continued."""
+
+    subentry_id: str
+    prompt: str | None
+    last_used: float
+
+
+@dataclass
 class BenchmarkData:
     """Benchmark state shared across requests."""
 
-    # Conversation ID -> (subentry ID, last used), only these may be continued
-    conversations: dict[str, tuple[str, float]] = field(default_factory=dict)
+    # Conversation ID -> conversation, only these may be continued
+    conversations: dict[str, BenchmarkConversation] = field(default_factory=dict)
     # Config entry ID -> lock, so runs against one server don't skew each other's timings
     locks: dict[str, asyncio.Lock] = field(default_factory=dict)
 
@@ -108,7 +120,7 @@ class BenchmarkData:
         self.conversations = {
             conversation_id: value
             for conversation_id, value in self.conversations.items()
-            if value[1] > expired
+            if value.last_used > expired
         }
 
 
@@ -214,6 +226,14 @@ def async_wrap_tools(chat_log: conversation.ChatLog) -> None:
             for tool in tools
         ],
     )
+
+
+@callback
+def async_get_prompt() -> str | None:
+    """Return the prompt replacing the agent instructions for a benchmark turn."""
+    if (run := _current_run.get()) is None:
+        return None
+    return run.prompt
 
 
 @callback
@@ -386,14 +406,23 @@ class BenchmarkAgentView(HomeAssistantView):
         # otherwise keep the wrapped tools for its next turns.
         benchmark.async_prune_conversations()
         conversation_id = data.get("conversation_id")
-        if (
-            conversation_id is not None
-            and benchmark.conversations.get(conversation_id, ("",))[0] != subentry_id
-        ):
-            return self.json_message(
-                "Unknown conversation_id, only conversations started by this benchmark endpoint can be continued",
-                HTTPStatus.BAD_REQUEST,
-            )
+        prompt = data.get("prompt")
+        if conversation_id is not None:
+            existing = benchmark.conversations.get(conversation_id)
+            if existing is None or existing.subentry_id != subentry_id:
+                return self.json_message(
+                    "Unknown conversation_id, only conversations started by this benchmark endpoint can be continued",
+                    HTTPStatus.BAD_REQUEST,
+                )
+            # Home Assistant keeps the system prompt of a conversation between turns
+            # when the agent has an LLM API, so the prompt is set by the first turn
+            if prompt is None:
+                prompt = existing.prompt
+            elif prompt != existing.prompt:
+                return self.json_message(
+                    "The prompt cannot change within a conversation",
+                    HTTPStatus.BAD_REQUEST,
+                )
 
         area: ar.AreaEntry | None = None
         if (area_ref := data.get("area")) is not None:
@@ -411,7 +440,7 @@ class BenchmarkAgentView(HomeAssistantView):
         else:
             context = self.context(request)
 
-        run = BenchmarkRun(tool_results=data["tool_results"])
+        run = BenchmarkRun(prompt=prompt, tool_results=data["tool_results"])
         lock = benchmark.locks.setdefault(entry.entry_id, asyncio.Lock())
         async with lock:
             # Inside the lock, so a request never removes the satellite of another
@@ -438,9 +467,10 @@ class BenchmarkAgentView(HomeAssistantView):
                 duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
         if result.conversation_id:
-            benchmark.conversations[result.conversation_id] = (
-                subentry_id,
-                time.monotonic(),
+            benchmark.conversations[result.conversation_id] = BenchmarkConversation(
+                subentry_id=subentry_id,
+                prompt=prompt,
+                last_used=time.monotonic(),
             )
 
         response = result.response

@@ -16,6 +16,7 @@ from custom_components.local_openai.benchmark import (
     BenchmarkRun,
     BenchmarkTool,
     _current_run,
+    async_get_prompt,
     async_wrap_tools,
 )
 from custom_components.local_openai.const import (
@@ -34,7 +35,7 @@ from homeassistant.components.homeassistant.exposed_entities import (
 )
 from homeassistant.components.intent import async_device_supports_timers
 from homeassistant.config_entries import ConfigSubentryData
-from homeassistant.const import CONF_LLM_HASS_API, CONF_MODEL
+from homeassistant.const import CONF_LLM_HASS_API, CONF_MODEL, CONF_PROMPT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
@@ -54,6 +55,8 @@ from pytest_homeassistant.typing import ClientSessionGenerator
 SUBENTRY_ID = "benchmark_agent"
 TURN_ON = "intent__HassTurnOn"
 LIVE_CONTEXT = "homeassistant__GetLiveContext"
+AGENT_PROMPT = "You are the configured agent."
+TEST_PROMPT = "You are a test assistant for {{ 'templating' }}."
 
 
 class FakeTool(llm.Tool):
@@ -358,7 +361,11 @@ async def config_entry(
         },
         subentries_data=[
             ConfigSubentryData(
-                data={CONF_MODEL: "test-model", CONF_LLM_HASS_API: ["assist"]},
+                data={
+                    CONF_MODEL: "test-model",
+                    CONF_LLM_HASS_API: ["assist"],
+                    CONF_PROMPT: AGENT_PROMPT,
+                },
                 subentry_id=SUBENTRY_ID,
                 subentry_type="conversation",
                 title="Benchmark Agent",
@@ -499,6 +506,7 @@ class TestBenchmarkView:
             "This device is not able to start timers."
             in request["messages"][0]["content"]
         )
+        assert AGENT_PROMPT in request["messages"][0]["content"]
 
     @pytest.mark.parametrize(
         "mock",
@@ -568,6 +576,79 @@ class TestBenchmarkView:
         second = await resp.json()
         assert second["conversation_id"] == first["conversation_id"]
         assert second["speech"] == "Done."
+
+    async def test_prompt_override(
+        self,
+        hass_client: ClientSessionGenerator,
+        config_entry: MockConfigEntry,
+        client_mock: MagicMock,
+    ) -> None:
+        """Test that the prompt replaces only the instructions configured on the agent."""
+        client_mock.chat.completions.create.side_effect = [_text_stream("Hi")]
+        client = await hass_client()
+        resp = await client.post(
+            f"{BENCHMARK_URL}/{SUBENTRY_ID}",
+            json={"text": "hi", "prompt": TEST_PROMPT},
+        )
+        assert resp.status == HTTPStatus.OK
+
+        request = client_mock.chat.completions.create.call_args_list[0].kwargs
+        system_prompt = request["messages"][0]["content"]
+        # Rendered as a template, like the instructions of the agent
+        assert "You are a test assistant for templating." in system_prompt
+        assert AGENT_PROMPT not in system_prompt
+        # The parts added by Home Assistant are kept
+        assert "When controlling Home Assistant always call the intent tools" in (
+            system_prompt
+        )
+
+    async def test_prompt_kept_for_conversation(
+        self,
+        hass_client: ClientSessionGenerator,
+        config_entry: MockConfigEntry,
+        client_mock: MagicMock,
+    ) -> None:
+        """Test that follow ups keep the prompt of the conversation, which cannot change."""
+        prompts: list[str | None] = []
+        streams = iter([_text_stream("Which light?"), _text_stream("Done.")])
+
+        async def create(**kwargs: Any) -> AsyncGenerator[ChatCompletionChunk]:
+            prompts.append(async_get_prompt())
+            return next(streams)
+
+        client_mock.chat.completions.create.side_effect = create
+        client = await hass_client()
+        url = f"{BENCHMARK_URL}/{SUBENTRY_ID}"
+
+        first = await (
+            await client.post(
+                url, json={"text": "turn on the light", "prompt": TEST_PROMPT}
+            )
+        ).json()
+        conversation_id = first["conversation_id"]
+
+        resp = await client.post(
+            url,
+            json={
+                "text": "the kitchen",
+                "conversation_id": conversation_id,
+                "prompt": "A different prompt.",
+            },
+        )
+        assert resp.status == HTTPStatus.BAD_REQUEST
+
+        resp = await client.post(
+            url,
+            json={"text": "the kitchen", "conversation_id": conversation_id},
+        )
+        assert resp.status == HTTPStatus.OK
+
+        assert prompts == [TEST_PROMPT, TEST_PROMPT]
+        request = client_mock.chat.completions.create.call_args_list[1].kwargs
+        assert (
+            "You are a test assistant for templating."
+            in (request["messages"][0]["content"])
+        )
 
     async def test_errors(
         self,
