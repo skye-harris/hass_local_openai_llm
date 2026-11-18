@@ -350,7 +350,9 @@ class LocalAiEntity(Entity):
             return ChatCompletionToolMessageParam(
                 role="tool",
                 tool_call_id=content.tool_call_id,
-                content=json.dumps(content.result.data, default=log_and_str),
+                content=json.dumps(
+                    content.result.data, default=log_and_str, ensure_ascii=False
+                ),
             )
 
         role: Literal["user", "assistant", "system"] = content.role
@@ -408,7 +410,9 @@ class LocalAiEntity(Entity):
                         type="function",
                         id=tool_call.id,
                         function=Function(
-                            arguments=json.dumps(tool_call.tool_args),
+                            arguments=json.dumps(
+                                tool_call.tool_args, ensure_ascii=False
+                            ),
                             name=tool_call.tool_name,
                         ),
                     )
