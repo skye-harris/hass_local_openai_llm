@@ -102,6 +102,8 @@ class GenerationMetadata:
     timings: dict | None = None
     usage: dict | None = None
     finish_reason: str | None = None
+    # True once the generation produced visible text or a tool call
+    emitted_output: bool = False
 
 
 @dataclass
@@ -749,6 +751,8 @@ class LocalAiEntity(Entity):
 
                 if seen_visible:
                     chunk["content"] = content
+                    if meta is not None and content:
+                        meta.emitted_output = True
 
             tool_error_deltas: list[dict] = []
             if choice.finish_reason:
@@ -799,6 +803,8 @@ class LocalAiEntity(Entity):
 
                     _LOGGER.debug("Calling tools: %s", parsed_tool_calls)
                     chunk["tool_calls"] = parsed_tool_calls
+                    if meta is not None:
+                        meta.emitted_output = True
                     pending_tool_calls.clear()
 
             if (
@@ -912,6 +918,7 @@ class LocalAiEntity(Entity):
         """Run the LLM agent loop with tool call iteration."""
         halt_requested = False
         strip_emojis = self.options.get(CONF_STRIP_EMOJIS)
+        empty_retry_used = False
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             context.iteration = iteration
@@ -1038,6 +1045,21 @@ class LocalAiEntity(Entity):
 
             if not chat_log.unresponded_tool_results:
                 break
+
+            if not meta.emitted_output:
+                # The model answered the tool results with nothing at all. Sending
+                # the same request again until MAX_TOOL_ITERATIONS only hides that, so
+                # retry once (sampling may differ) and otherwise fail the request.
+                if empty_retry_used:
+                    msg = (
+                        "The model returned an empty response to the tool results. "
+                        "Check the model and its chat template."
+                    )
+                    raise HomeAssistantError(msg)
+                _LOGGER.warning(
+                    "Model returned an empty response to tool results, retrying once"
+                )
+                empty_retry_used = True
 
         return halt_requested
 
