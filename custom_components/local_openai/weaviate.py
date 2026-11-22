@@ -123,6 +123,10 @@ class WeaviateClient:
                     query: {_graphql_string(query)},
                     properties: ["query"],
                     alpha: {alpha}
+                    bm25SearchOperator: {{
+                      operator: Or
+                      minimumOrTokensMatch: 2
+                    }}
                   }},
                   limit: {limit},
                 ) {{
@@ -130,6 +134,12 @@ class WeaviateClient:
                   content
                   _additional {{
                     score
+                    rerank(
+                      property: "query"
+                      query: {_graphql_string(query)}
+                    ) {{
+                      score
+                    }}
                   }}
                 }}
               }}
@@ -154,7 +164,10 @@ class WeaviateClient:
                 return [
                     res
                     for res in results
-                    if float(res.get("_additional", {}).get("score", 0)) >= threshold
+                    if float(
+                        res.get("_additional", {}).get("rerank")[0].get("score", 0)
+                    )
+                    > 0  # reranker doesnt use regular threshold scoring
                 ]
         except aiohttp.ClientError as err:
             LOGGER.warning("Error communicating with Weaviate API: %s", err)
@@ -168,6 +181,10 @@ class WeaviateClient:
         query_obj = {
             "class": class_name,
             "vectorizer": "text2vec-transformers",
+            "moduleConfig": {
+                "text2vec-transformers": {},
+                "reranker-transformers": {},
+            },
             "properties": [
                 {
                     "name": "query",
