@@ -8,6 +8,7 @@
 - LM Studio
 - LocalAI
 - Ollama
+- OpenLLM
 - OpenRouter
 - Requesty
 - Scaleway
