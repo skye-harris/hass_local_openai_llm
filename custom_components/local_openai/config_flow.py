@@ -15,7 +15,11 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_API_KEY, CONF_LLM_HASS_API, CONF_MODEL, CONF_PROMPT
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import SectionConfig, section
+from homeassistant.data_entry_flow import (
+    Optional,
+    SectionConfig,
+    section,
+)
 from homeassistant.helpers import llm
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.selector import (
@@ -29,6 +33,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
     TemplateSelector,
 )
+from homeassistant.util.ssl import SSL_ALPN_HTTP11_HTTP2
 from openai import AsyncOpenAI, OpenAIError
 
 from custom_components.local_openai.entities.deepseek import (
@@ -90,6 +95,9 @@ from .const import (
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHODS,
+    CONF_CONTEXT_INJECTION_OPTS,
+    CONF_CONTEXT_INJECTION_TEMPLATE,
+    CONF_CONTEXT_INJECTION_TEMPLATE_DEFAULT,
     CONF_CUSTOM_HEADERS,
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
@@ -357,7 +365,7 @@ def _is_decision_model(model: object) -> bool:
 class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Local OpenAI LLM."""
 
-    VERSION = 4
+    VERSION = 5
 
     @classmethod
     @callback
@@ -475,7 +483,9 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 client_kwargs = {
                     "base_url": user_input.get(CONF_BASE_URL),
                     "api_key": user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
-                    "http_client": get_async_client(self.hass),
+                    "http_client": get_async_client(
+                        self.hass, alpn_protocols=SSL_ALPN_HTTP11_HTTP2
+                    ),
                 }
                 if custom_headers:
                     client_kwargs["default_headers"] = custom_headers
@@ -539,7 +549,9 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                 client_kwargs = {
                     "base_url": user_input.get(CONF_BASE_URL),
                     "api_key": user_input.get(CONF_API_KEY) or PLACEHOLDER_API_KEY,
-                    "http_client": get_async_client(self.hass),
+                    "http_client": get_async_client(
+                        self.hass, alpn_protocols=SSL_ALPN_HTTP11_HTTP2
+                    ),
                 }
                 if custom_headers:
                     client_kwargs["default_headers"] = custom_headers
@@ -676,12 +688,28 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
                     mode=NumberSelectorMode.BOX,
                 ),
             ),
-            vol.Optional(
-                CONF_CONTENT_INJECTION_METHOD,
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    mode=SelectSelectorMode.DROPDOWN,
-                    options=CONF_CONTENT_INJECTION_METHODS,
+            vol.Optional(CONF_CONTEXT_INJECTION_OPTS): section(
+                options=SectionConfig(collapsed=True),
+                schema=vol.Schema(
+                    {
+                        vol.Optional(
+                            CONF_CONTENT_INJECTION_METHOD,
+                        ): SelectSelector(
+                            SelectSelectorConfig(
+                                mode=SelectSelectorMode.DROPDOWN,
+                                options=CONF_CONTENT_INJECTION_METHODS,
+                            ),
+                        ),
+                        Optional(
+                            CONF_CONTEXT_INJECTION_TEMPLATE,
+                            default=CONF_CONTEXT_INJECTION_TEMPLATE_DEFAULT,
+                            visible={
+                                "field": CONF_CONTENT_INJECTION_METHOD,
+                                "operator": "in",
+                                "value": CONF_CONTENT_INJECTION_METHODS,
+                            },
+                        ): TemplateSelector(),
+                    }
                 ),
             ),
             vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(

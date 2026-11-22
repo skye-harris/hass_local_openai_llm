@@ -13,3 +13,5 @@ openai>=2.8.0
 demoji>=1.1.0
 pre-commit
 gazetteer_matcher>=1.2.0
+# httpx2 needs h2 for the HTTP/2 ALPN client; the HA image ships it via requirements_all
+h2>=4.4.1

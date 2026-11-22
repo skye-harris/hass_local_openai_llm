@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +18,17 @@ from custom_components.local_openai.const import DOMAIN
 
 INTEGRATION_HEADER = "X-Weaviate-Client-Integration"
 INTEGRATION_NAME = "hass-local-openai-llm"
+
+
+def _graphql_string(value: str) -> str:
+    """
+    Return value as a GraphQL string literal.
+
+    GraphQL string literals use the same escaping as JSON, so serializing the
+    user's text keeps quotes, backslashes and newlines from breaking (or
+    altering) the surrounding query.
+    """
+    return json.dumps(value)
 
 
 def _integration_header_value(hass: HomeAssistant) -> str:
@@ -70,7 +82,7 @@ class WeaviateClient:
               Get {{
                 {class_name}(
                   nearText: {{
-                    concepts: ["{query}"],
+                    concepts: [{_graphql_string(query)}],
                     certainty: {threshold},
                   }},
                   limit: {limit},
@@ -108,7 +120,7 @@ class WeaviateClient:
               Get {{
                 {class_name}(
                   hybrid: {{
-                    query: "{query}",
+                    query: {_graphql_string(query)},
                     properties: ["query"],
                     alpha: {alpha}
                     bm25SearchOperator: {{
