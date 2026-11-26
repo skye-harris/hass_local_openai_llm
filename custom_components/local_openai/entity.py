@@ -212,6 +212,17 @@ def _make_uuid(identifier: str) -> str:
     return str(uuid.uuid5(namespace=uuid.NAMESPACE_OID, name=identifier))
 
 
+def _usage_details_as_dict(details: Any) -> dict | None:
+    """Serialize an OpenAI usage-details model to a plain dict for event payloads."""
+    if details is None:
+        return None
+    if hasattr(details, "model_dump"):
+        return details.model_dump(exclude_none=True)
+    if isinstance(details, dict):
+        return dict(details)
+    return None
+
+
 class LocalAiEntity(Entity):
     """Base entity for Open Router."""
 
@@ -990,10 +1001,12 @@ class LocalAiEntity(Entity):
                         "prompt_tokens": meta.usage.prompt_tokens,
                         "completion_tokens": meta.usage.completion_tokens,
                         "total_tokens": meta.usage.total_tokens,
-                        "completion_tokens_details": (
+                        "completion_tokens_details": _usage_details_as_dict(
                             meta.usage.completion_tokens_details
                         ),
-                        "prompt_tokens_details": meta.usage.prompt_tokens_details,
+                        "prompt_tokens_details": _usage_details_as_dict(
+                            meta.usage.prompt_tokens_details
+                        ),
                     }
 
                 timings_dict: dict[str, Any] = {}
