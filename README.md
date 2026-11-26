@@ -274,12 +274,15 @@ current date and time, but you can customize it to include any dynamic content.
 
 **Context injection role** — Where to insert the rendered content:
 
+#### <u>System</u>:
+
+The content is inserted as an additional `System` message to the model, before the current user message.
+
+As long as the model does not reject it, this is the recommended method to use. Not all model chat templates will render these out, but support is becoming more widespread.
+
 #### <u>Tool Result</u>:
 
 The content is inserted as a `Tool Call Result` message to the model, before the current user message.
-
-As long as the model does not reject it, this is the recommended method to use and produces the most reliable results
-during testing.
 
 #### <u>Assistant</u>:
 

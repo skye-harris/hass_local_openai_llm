@@ -14,6 +14,7 @@ from custom_components.local_openai.const import (
     CONF_CONTEXT_INJECTION_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
+    CONF_CONTENT_INJECTION_METHOD_SYSTEM,
     CONF_CONTENT_INJECTION_METHOD_TOOL,
     CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_CONTEXT_INJECTION_TEMPLATE,
@@ -120,6 +121,24 @@ class TestInjectContent:
         assert "Context line 1" in injected["content"]
         assert "Context line 2" in injected["content"]
         assert "\n\n" in injected["content"]
+        assert result[-1]["role"] == "user"
+
+    def test_inject_content_system_method(self):
+        """Test injecting content as a system message."""
+        messages = _make_messages(["user"])
+        inject_content = ["System context"]
+
+        result = LocalAiConversationEntity._inject_content(
+            CONF_CONTENT_INJECTION_METHOD_SYSTEM,
+            inject_content,
+            messages,
+        )
+
+        assert len(result) == 2
+        injected = result[-2]
+        assert injected["role"] == "system"
+        assert "System context" in injected["content"]
+        assert "Contextual information" in injected["content"]
         assert result[-1]["role"] == "user"
 
     def test_inject_content_user_method(self):
@@ -283,6 +302,25 @@ class TestMaybeInjectContext:
 
         injected = result_messages[-2]
         assert injected["role"] == "tool"
+
+    async def test_injection_system_method(self, mock_entity):
+        """Test injection with system method."""
+        mock_entity.subentry.data = injection_config(
+            CONF_CONTENT_INJECTION_METHOD_SYSTEM
+        )
+
+        messages = _make_messages(["system", "user"])
+
+        result_messages, _ = await mock_entity._maybe_inject_context(
+            messages,
+            CONF_CONTENT_INJECTION_METHOD_SYSTEM,
+            [],
+            MagicMock(spec=ha_conversation.ConversationInput),
+        )
+
+        injected = result_messages[-2]
+        assert injected["role"] == "system"
+        assert "The current date and time is:" in injected["content"]
 
     async def test_injection_assistant_method(self, mock_entity):
         """Test injection with assistant method."""
