@@ -1727,3 +1727,23 @@ class TestEmptyResponseAfterToolResults:
         )
         assert calls() == 3
         assert chat_log.content[-1].content == "All done."
+
+    async def test_retry_budget_rearms_after_recovery(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """A successful turn after an empty retry re-arms the retry budget."""
+        entity = mock_conversation_entity
+        chat_log, calls = self._wire(
+            entity, ["tool", "empty", "tool", "empty", "All done."]
+        )
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            {"model": "test", "messages": []},
+            chat_log,
+            context=AgentContext(),
+        )
+        assert calls() == 5
+        assert chat_log.content[-1].content == "All done."

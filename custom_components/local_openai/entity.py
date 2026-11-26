@@ -1069,16 +1069,21 @@ class LocalAiEntity(Entity):
             if not chat_log.unresponded_tool_results:
                 break
 
-            if not meta.emitted_output:
-                # The model answered the tool results with nothing at all. Sending
-                # the same request again until MAX_TOOL_ITERATIONS only hides that, so
-                # retry once (sampling may differ) and otherwise fail the request.
-                if empty_retry_used:
-                    msg = (
-                        "The model returned an empty response to the tool results. "
-                        "Check the model and its chat template."
-                    )
-                    raise HomeAssistantError(msg)
+            if meta.emitted_output:
+                # Re-arm the retry budget for the next empty turn.
+                empty_retry_used = False
+            elif empty_retry_used:
+                # The model answered the tool results with nothing at all on the retry
+                # as well. Sending the same request again until MAX_TOOL_ITERATIONS only
+                # hides that, so fail the request.
+                msg = (
+                    "The model returned an empty response to the tool results. "
+                    "Check the model and its chat template."
+                )
+                raise HomeAssistantError(msg)
+            else:
+                # The model answered the tool results with nothing at all. Send the
+                # same request again (sampling may differ) and fail if it does so again.
                 _LOGGER.warning(
                     "Model returned an empty response to tool results, retrying once"
                 )
