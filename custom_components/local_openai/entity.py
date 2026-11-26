@@ -40,6 +40,7 @@ try:
 except ImportError:
     from voluptuous_openapi import convert
 
+from .benchmark import async_record_iteration as async_record_benchmark_iteration
 from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -1032,6 +1033,14 @@ class LocalAiEntity(Entity):
                                 if not k.startswith("_")
                             }
                         )
+
+                async_record_benchmark_iteration(
+                    iteration + 1,
+                    model_args["model"],
+                    content_text,
+                    meta,
+                    timings_dict,
+                )
 
                 self.hass.bus.async_fire(
                     "local_openai_llm_generation_complete",

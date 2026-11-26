@@ -9,6 +9,7 @@ from homeassistant.components.conversation import DOMAIN as CONVERSATION_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import service
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.util.ssl import SSL_ALPN_HTTP11_HTTP2
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity import Entity
     from homeassistant.helpers.typing import ConfigType
 
+from .benchmark import async_register_views as async_register_benchmark_views
+from .benchmark import async_remove_satellites as async_remove_benchmark_satellites
 from .const import (
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
@@ -50,6 +53,8 @@ from .const import (
 )
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type LocalAiConfigEntry = ConfigEntry[AsyncOpenAI]
 
@@ -209,6 +214,9 @@ async def _migrate_v4_to_v5(
 
 async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
     """Set up Local OpenAI LLM from a config entry."""
+    # Benchmark satellites only exist during a request, remove any left by a shutdown
+    async_remove_benchmark_satellites(hass, entry.entry_id)
+
     custom_headers_section = entry.data.get(CONF_CUSTOM_HEADERS, {}) or {}
     custom_headers_list = custom_headers_section.get(CONF_SERVER_HEADERS, []) or []
     custom_headers = {
@@ -262,6 +270,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up is called when Home Assistant is loading our component."""
+    async_register_benchmark_views(hass)
     service.async_register_platform_entity_service(
         hass=hass,
         service_domain=DOMAIN,
