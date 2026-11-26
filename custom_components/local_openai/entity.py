@@ -45,6 +45,7 @@ from .const import (
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
+    CONF_CONTENT_INJECTION_METHOD_SYSTEM,
     CONF_CONTENT_INJECTION_METHOD_TOOL,
     CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_CONTEXT_INJECTION_OPTS,
@@ -448,7 +449,16 @@ class LocalAiEntity(Entity):
             method,
             inject_content,
         )
-        if method == CONF_CONTENT_INJECTION_METHOD_TOOL:
+        if method == CONF_CONTENT_INJECTION_METHOD_SYSTEM:
+            inject_content = "\n\n".join(inject_content)
+            messages.insert(
+                -1,
+                ChatCompletionSystemMessageParam(
+                    role="system",
+                    content=inject_content,
+                ),
+            )
+        elif method == CONF_CONTENT_INJECTION_METHOD_TOOL:
             inject_content = "\n\n".join(inject_content)
             messages.insert(
                 -1,
