@@ -144,7 +144,7 @@ class LocalAITaskEntity(
         if llm_apis:
             llm_context = llm.LLMContext(
                 platform=DOMAIN,
-                context=None,
+                context=self._context,
                 language=None,
                 assistant=None,
                 device_id=None,
