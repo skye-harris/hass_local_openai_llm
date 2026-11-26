@@ -652,8 +652,8 @@ class LocalAiEntity(Entity):
         self,
         stream: AsyncStream[ChatCompletionChunk],
         strip_emojis: bool,
+        meta: GenerationMetadata,
         conversation_id: str | None = None,
-        meta: GenerationMetadata | None = None,
     ) -> AsyncGenerator[conversation.AssistantContentDeltaDict, None]:
         """Transform a streaming OpenAI response to ChatLog format."""
         new_msg = True
@@ -671,10 +671,7 @@ class LocalAiEntity(Entity):
 
             # The final include_usage chunk carries usage with an empty choices
             # list, so it must be captured before choice-less chunks are skipped.
-            if (
-                meta is not None
-                and (usage := getattr(event, "usage", None)) is not None
-            ):
+            if (usage := getattr(event, "usage", None)) is not None:
                 meta.usage = usage
 
             _LOGGER.debug(event)
@@ -685,7 +682,7 @@ class LocalAiEntity(Entity):
             choice = event.choices[0]
             delta = choice.delta
 
-            if not first_token_recorded and meta is not None and meta.request_start:
+            if not first_token_recorded and meta.request_start:
                 has_token = (
                     (delta.content is not None)
                     or (
@@ -772,7 +769,7 @@ class LocalAiEntity(Entity):
 
                 if seen_visible:
                     chunk["content"] = content
-                    if meta is not None and content:
+                    if content:
                         meta.emitted_output = True
 
             tool_error_deltas: list[dict] = []
@@ -781,7 +778,7 @@ class LocalAiEntity(Entity):
                 meta.finish_reason = choice.finish_reason
 
                 # Capture tool names before they're processed/cleared
-                if meta is not None and pending_tool_calls:
+                if pending_tool_calls:
                     meta.tool_names = [tc["name"] for tc in pending_tool_calls.values()]
 
                 if pending_tool_calls:
@@ -824,8 +821,7 @@ class LocalAiEntity(Entity):
 
                     _LOGGER.debug("Calling tools: %s", parsed_tool_calls)
                     chunk["tool_calls"] = parsed_tool_calls
-                    if meta is not None:
-                        meta.emitted_output = True
+                    meta.emitted_output = True
                     pending_tool_calls.clear()
 
             if (

@@ -8,6 +8,7 @@ import pytest
 from custom_components.local_openai.entities.google_gemini import (
     GoogleGeminiConversationEntity,
 )
+from custom_components.local_openai.entity import GenerationMetadata
 from homeassistant.core import HomeAssistant
 from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion_chunk import (
@@ -78,7 +79,7 @@ class TestTransformStream:
 
         results = []
         async for result in google_entity._transform_stream(
-            mock_stream, False, "conv_1"
+            mock_stream, False, GenerationMetadata(), "conv_1"
         ):
             results.append(result)
 
@@ -107,7 +108,7 @@ class TestTransformStream:
 
         results = []
         async for result in google_entity._transform_stream(
-            mock_stream, False, "conv_1"
+            mock_stream, False, GenerationMetadata(), "conv_1"
         ):
             results.append(result)
 
@@ -124,7 +125,9 @@ class TestTransformStream:
         mock_stream.__aiter__ = MagicMock(return_value=async_gen())
 
         results = []
-        async for result in google_entity._transform_stream(mock_stream, False, None):
+        async for result in google_entity._transform_stream(
+            mock_stream, False, GenerationMetadata(), None
+        ):
             results.append(result)
 
         assert len(results) >= 1
@@ -146,7 +149,7 @@ class TestTransformStream:
 
         results = []
         async for result in google_entity._transform_stream(
-            mock_stream, False, "conv_1"
+            mock_stream, False, GenerationMetadata(), "conv_1"
         ):
             results.append(result)
 
@@ -164,7 +167,7 @@ class TestTransformStream:
 
         results = []
         async for result in google_entity._transform_stream(
-            mock_stream, False, "conv_1"
+            mock_stream, False, GenerationMetadata(), "conv_1"
         ):
             results.append(result)
 
@@ -181,6 +184,6 @@ class TestTransformStream:
             # Parent method expects specific args; this verifies
             # conversation_id is at least being passed
             async for _ in google_entity._transform_stream(
-                mock_stream, False, "conv_1"
+                mock_stream, False, GenerationMetadata(), "conv_1"
             ):
                 pass
