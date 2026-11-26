@@ -7,7 +7,7 @@ import re
 from collections.abc import AsyncGenerator
 from copy import deepcopy
 from types import MappingProxyType
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import asyncio
 import openai
@@ -138,6 +138,7 @@ class TestRunAgentLoopSingleIteration:
                         role="assistant",
                         tool_calls=[tool_call],
                     ),
+                    finish_reason="tool_calls",
                 )
             ],
         )
@@ -208,14 +209,18 @@ class TestRunAgentLoopExtraBody:
             ],
         )
 
-        mock_stream = MagicMock()
+        def create_side_effect(**kwargs) -> MagicMock:
+            # A fresh stream per request: every iteration generates "hi".
+            mock_stream = MagicMock()
 
-        async def async_gen():
-            yield chunk
+            async def async_gen():
+                yield chunk
 
-        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+            mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+            return mock_stream
+
         entity.entry.runtime_data.chat.completions.create = AsyncMock(
-            return_value=mock_stream
+            side_effect=create_side_effect
         )
 
         async def stream_content(
@@ -410,6 +415,9 @@ class TestRunAgentLoopErrorHandling:
         ) -> AsyncGenerator[
             conversation.AssistantContent | conversation.ToolResultContent, None
         ]:
+            # Read the model stream like the real ChatLog does
+            async for _ in stream_gen:
+                pass
             assistant = MockContent(
                 content="",
                 tool_calls=[
@@ -549,9 +557,12 @@ class TestRunAgentLoopErrorHandling:
                     f"Iteration {call_count}: last_msg content = {last_msg.get('content')!r}"
                 )
             mock_stream = MagicMock()
-            mock_stream.__aiter__ = MagicMock(
-                return_value=iter([chunk, chunk_with_finish])
-            )
+
+            async def async_gen():
+                for item in [chunk, chunk_with_finish]:
+                    yield item
+
+            mock_stream.__aiter__ = MagicMock(return_value=async_gen())
             return mock_stream
 
         entity.entry.runtime_data.chat.completions.create = AsyncMock(
@@ -563,6 +574,9 @@ class TestRunAgentLoopErrorHandling:
         ) -> AsyncGenerator[
             conversation.AssistantContent | conversation.ToolResultContent, None
         ]:
+            # Read the model stream like the real ChatLog does
+            async for _ in stream_gen:
+                pass
             assistant = MockContent(
                 content="",
                 tool_calls=[
@@ -1581,3 +1595,155 @@ class TestGenerationEventEmission:
             "text_tokens": 90,
         }
         json.dumps(data)
+
+
+class TestEmptyResponseAfterToolResults:
+    """An empty generation after tool results is retried once, then fails."""
+
+    @staticmethod
+    def _wire(entity, turns: list[str]):
+        """Wire mocks; each turn is "tool", "empty" or answer text.
+
+        The fake ChatLog reads the model stream through the integration's own
+        transform, as the real one does, so GenerationMetadata sees the output.
+        """
+        calls = 0
+
+        def chunk(delta: ChoiceDelta, finish: str | None) -> ChatCompletionChunk:
+            return ChatCompletionChunk(
+                id="test",
+                created=0,
+                model="test",
+                object="chat.completion.chunk",
+                choices=[Choice(index=0, delta=delta, finish_reason=finish)],
+            )
+
+        def create_side_effect(**kwargs) -> MagicMock:
+            nonlocal calls
+            turn = turns[calls]
+            calls += 1
+            if turn == "tool":
+                items = [
+                    chunk(
+                        ChoiceDelta(
+                            role="assistant",
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    id="call_1",
+                                    type="function",
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name="test_fn", arguments="{}"
+                                    ),
+                                )
+                            ],
+                        ),
+                        "tool_calls",
+                    )
+                ]
+            elif turn == "empty":
+                items = [chunk(ChoiceDelta(role="assistant"), "stop")]
+            else:
+                items = [chunk(ChoiceDelta(role="assistant", content=turn), "stop")]
+
+            async def async_gen():
+                for item in items:
+                    yield item
+
+            stream = MagicMock()
+            stream.__aiter__ = MagicMock(return_value=async_gen())
+            return stream
+
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            side_effect=create_side_effect
+        )
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.content = []
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[
+            conversation.AssistantContent | conversation.ToolResultContent, None
+        ]:
+            async for delta in stream_gen:
+                if delta.get("tool_calls"):
+                    assistant = MockContent(content="", tool_calls=delta["tool_calls"])
+                    yield assistant
+                    chat_log.content.append(assistant)
+                    result = conversation.ToolResultContent(
+                        agent_id="test_agent",
+                        tool_call_id="call_1",
+                        tool_name="test_fn",
+                        result=llm.ToolResult(data={"ok": True}),
+                    )
+                    yield result
+                    chat_log.content.append(result)
+                elif delta.get("content"):
+                    assistant = MockContent(content=delta["content"])
+                    yield assistant
+                    chat_log.content.append(assistant)
+
+        chat_log.async_add_delta_content_stream = stream_content
+        type(chat_log).unresponded_tool_results = PropertyMock(
+            side_effect=lambda: (
+                bool(chat_log.content) and chat_log.content[-1].role == "tool_result"
+            )
+        )
+        return chat_log, lambda: calls
+
+    async def test_empty_twice_fails(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Two empty generations in a row fail instead of looping to the cap."""
+        entity = mock_conversation_entity
+        chat_log, calls = self._wire(entity, ["tool", "empty", "empty", "never"])
+
+        with pytest.raises(HomeAssistantError, match="empty response"):
+            await entity._run_agent_loop(
+                entity.entry.runtime_data,
+                {"model": "test", "messages": []},
+                chat_log,
+                context=AgentContext(),
+            )
+        assert calls() == 3
+
+    async def test_empty_then_answer_on_retry(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """A single empty generation is retried once."""
+        entity = mock_conversation_entity
+        chat_log, calls = self._wire(entity, ["tool", "empty", "All done."])
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            {"model": "test", "messages": []},
+            chat_log,
+            context=AgentContext(),
+        )
+        assert calls() == 3
+        assert chat_log.content[-1].content == "All done."
+
+    async def test_retry_budget_rearms_after_recovery(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """A successful turn after an empty retry re-arms the retry budget."""
+        entity = mock_conversation_entity
+        chat_log, calls = self._wire(
+            entity, ["tool", "empty", "tool", "empty", "All done."]
+        )
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            {"model": "test", "messages": []},
+            chat_log,
+            context=AgentContext(),
+        )
+        assert calls() == 5
+        assert chat_log.content[-1].content == "All done."
